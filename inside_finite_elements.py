@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from scipy.sparse import *
 
 
 def numberOfVertices(G):
@@ -8,6 +9,47 @@ def numberOfVertices(G):
 
 def numberOfTriangles(G):
     return G['pt'].shape[0]
+
+# G['pe'] translates from points to edges, every row contains two points which form an edge
+# G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
+def computeEdges(G):
+    E = csr_matrix((len(G['xp']),len(G['xp'])))  # first triangle is stored in triu, second triangle in tril
+    for triangleIndex, triangle in enumerate(G['pt']):
+        for numEdge in range(3):
+            lowIndex = triangle[numEdge]
+            numEdge = numEdge + 1 if numEdge < 2 else 0
+            highIndex = triangle[numEdge]
+            if lowIndex > highIndex:
+                lowIndex, highIndex = highIndex, lowIndex
+            # indices in E are shifted up by 1 because 0 means 'no triangle' (for border edges)
+            if E[lowIndex, highIndex] == 0:
+                E[lowIndex, highIndex] = triangleIndex+1 
+            else:
+                E[highIndex, lowIndex] = triangleIndex+1
+    [p1, p2, t1] = find(triu(E))
+    t1 = t1
+    G['pe'] = np.vstack([p1, p2]).T
+    numEdges = G['pe'].shape[0]
+    G['te'] = np.zeros([numEdges,2])
+    G['te'][:,0] = t1
+    for edgeIndex in range(numEdges):
+        ps = G['pe'][edgeIndex]
+        G['te'][edgeIndex,1] = E[ps[1],ps[0]]
+    return G
+
+def computeBoundary(G):
+    G['eb'] = []
+    for edgeIndex, edge in enumerate(G['te']):
+        if edge[1] == 0:
+            G['eb'].append(edgeIndex)
+    G['eb'] = np.array(G['eb'])
+    return G
+
+def numberOfEdges(G):
+    return G['pe'].shape[0]
+
+def numberOfBoundaryEdges(G):
+    return G['eb'].shape[0]
 
 def transformationJacobian(G, t):
     ps = G['pt'][t,:]
@@ -75,6 +117,19 @@ def plotShapeFunctions():
             margin=dict(r=10, l=10, b=10, t=10))        
         fig.show()
 
+def plotMesh(G):
+    plt.scatter(G['xp'][:,0],G['xp'][:,1])
+    for edge in G['pt']:
+        plt.plot([G['xp'][edge[0],0], G['xp'][edge[1],0], G['xp'][edge[2],0], G['xp'][edge[0],0]],[G['xp'][edge[0],1], G['xp'][edge[1],1], G['xp'][edge[2],1], G['xp'][edge[0],1]])
+    x = []
+    y = []
+    for boundaryEdge in G['eb']:
+        [p0, p1] = G['pe'][boundaryEdge]
+        x = [G['xp'][p0][0], G['xp'][p1][0]]
+        y = [G['xp'][p0][1], G['xp'][p1][1]]
+        plt.plot(x,y,'k-')
+    plt.show()
+
 def rectangularCriss(w, h):
     G = dict()
     G['xp'] = np.zeros([w*h,2])
@@ -109,10 +164,21 @@ def main():
     
     #plotShapeFunctions()
     G = rectangularCriss(10,5)
-    plt.scatter(G['xp'][:,0],G['xp'][:,1])
-    for edge in G['pt']:
-        plt.plot([G['xp'][edge[0],0], G['xp'][edge[1],0], G['xp'][edge[2],0], G['xp'][edge[0],0]],[G['xp'][edge[0],1], G['xp'][edge[1],1], G['xp'][edge[2],1], G['xp'][edge[0],1]])
-    plt.show()
+    G = computeEdges(G)
+    G = computeBoundary(G)
+    print(f'mesh contains {numberOfEdges(G):d} edges')
+    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')
+
+    triangleIndex = 1
+    G['pt'][triangleIndex]
+    for edgeIndex in range(numberOfEdges(G)):
+        if G['te'][edgeIndex][0] == triangleIndex:
+            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
+        if G['te'][edgeIndex][1] == triangleIndex:
+            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
+
+    plotMesh(G)
+
 
 if __name__ == "__main__":
     main()
