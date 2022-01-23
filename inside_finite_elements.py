@@ -8,13 +8,15 @@ def numberOfVertices(G):
     return G['xp'].shape[0]
 
 def numberOfTriangles(G):
-    return G['pt'].shape[0]
+    return len(G['pt'])
 
+# triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
 def computeEdges(G):
-    E = csr_matrix((len(G['xp']),len(G['xp'])))  # first triangle is stored in triu, second triangle in tril
-    for triangleIndex, triangle in enumerate(G['pt']):
+    # first triangle is stored in triu, second triangle in tril
+    E = csr_matrix((len(G['xp']),len(G['xp']))) 
+    for triangleIndex, triangle in enumerate(G['pt'], start=1):
         for numEdge in range(3):
             lowIndex = triangle[numEdge]
             numEdge = numEdge + 1 if numEdge < 2 else 0
@@ -23,9 +25,9 @@ def computeEdges(G):
                 lowIndex, highIndex = highIndex, lowIndex
             # indices in E are shifted up by 1 because 0 means 'no triangle' (for border edges)
             if E[lowIndex, highIndex] == 0:
-                E[lowIndex, highIndex] = triangleIndex+1 
+                E[lowIndex, highIndex] = triangleIndex
             else:
-                E[highIndex, lowIndex] = triangleIndex+1
+                E[highIndex, lowIndex] = triangleIndex
     [p1, p2, t1] = find(triu(E))
     t1 = t1
     G['pe'] = np.vstack([p1, p2]).T
@@ -140,7 +142,41 @@ def rectangularCriss(w, h):
             if x < (w-1) and y < (h-1):
                 G['pt'].append([x+w*y, (x+1)+w*y, x+w*(y+1)])
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
+    G['pt'] = np.array(G['pt'])
     return G
+
+def printEdgesofTriangle(G, triangleIndex):
+    G['pt'][triangleIndex]
+    for edgeIndex in range(numberOfEdges(G)):
+        if G['te'][edgeIndex][0] == triangleIndex:
+            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
+        if G['te'][edgeIndex][1] == triangleIndex:
+            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
+
+def stiffnessMatrix(G, sigmas):
+    Grads = shapeFunctionGradients()
+    # area of ref triangle is 0.5, integrands are constant within integral
+    B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
+    B_12 = 0.5 * Grads @ np.array([[0,1],[0,0]]) @ Grads.T
+    B_21 = 0.5 * Grads @ np.array([[0,0],[1,0]]) @ Grads.T
+    B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
+
+    n = numberOfVertices(G)
+    K = np.zeros([n,n])
+    for triangleIndex, triangle in enumerate(G['pt']):
+        B,_ = transformationJacobian(G,triangleIndex)
+        detB = np.linalg.det(B)
+        gamma1 = sigmas[triangleIndex]*1/detB*np.dot(B[:,1],B[:,1])
+        gamma2 = sigmas[triangleIndex]*1/detB*np.dot(B[:,0],B[:,1])
+        gamma3 = sigmas[triangleIndex]*1/detB*np.dot(B[:,1],B[:,0])
+        gamma4 = sigmas[triangleIndex]*1/detB*np.dot(B[:,0],B[:,0])
+        K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+        P_T = np.zeros([n,3])
+        P_T[triangle[0],0] = 1
+        P_T[triangle[1],1] = 1
+        P_T[triangle[2],2] = 1
+        K = K + P_T @ K_T @ P_T.T
+    return K
 
 def main():
     G = {}
@@ -169,13 +205,12 @@ def main():
     print(f'mesh contains {numberOfEdges(G):d} edges')
     print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')
 
-    triangleIndex = 1
-    G['pt'][triangleIndex]
-    for edgeIndex in range(numberOfEdges(G)):
-        if G['te'][edgeIndex][0] == triangleIndex:
-            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
-        if G['te'][edgeIndex][1] == triangleIndex:
-            print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
+    printEdgesofTriangle(G,1)
+
+    n = numberOfTriangles(G)
+    sigmas = np.ones(n)
+
+    K = stiffnessMatrix(G,sigmas)
 
     plotMesh(G)
 
