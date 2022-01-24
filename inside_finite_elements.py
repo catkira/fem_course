@@ -1,8 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import pyvista as pv
+import vtk
 from scipy.sparse import *
 
+# unofficial python 3.10 pip wheels for vtk 
+# pip install https://github.com/pyvista/pyvista-wheels/raw/main/vtk-9.1.0.dev0-cp310-cp310-win_amd64.whl
+# pip install https://github.com/pyvista/pyvista-wheels/raw/main/vtk-9.1.0.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
 def numberOfVertices(G):
     return G['xp'].shape[0]
@@ -234,6 +239,63 @@ def bookExample1(G):
     ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
     plt.show()
 
+def bookExample2(G):
+    # example from book page 34
+    # scale mesh to size [0,5] x [0,4]
+    G['xp'][:,0] = G['xp'][:,0]*5
+    G['xp'][:,1] = G['xp'][:,1]*4
+    n = numberOfVertices(G)
+    m = numberOfTriangles(G)
+    r = numberOfBoundaryEdges(G)
+    rhos = np.ones(m)
+    sigmas = np.zeros(m)
+    for t in range(m):
+        cog = np.sum(G['xp'][G['pt'][t,:],:],1)/3
+        if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
+            sigmas[t] = 1e-3
+        elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
+            sigmas[t] = 1e-3
+        else:
+            sigmas[t] = 1
+    alphas = np.zeros(r) 
+    for e in range(r):
+        cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],1)/2
+        if abs(cog[0]-5) < 1e-6: 
+            alphas[e] = 1e9 # dirichlet BC
+        elif abs(cog[0]) < 1e-9:
+            alphas[e] = 1e-9 # neumann BC
+        else:
+            alphas[e] = 0 # natural neumann BC
+    pd = np.zeros(n)
+    for i in range(n):
+        x = G['xp'][i,:]
+        if (abs(x[0]-5) < 1e-6):
+            pd[i] = 4-x[1] # dirichlet BC
+        elif abs(x[0] < 1e-6):
+            pd[i] = -1e9
+
+    K = stiffnessMatrix(G,sigmas)
+    M = massMatrix(G, rhos)
+    B = boundaryMassMatrix(G, alphas)
+    b = B @ pd
+    A = K+B
+    u = np.linalg.inv(A) @ b
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1, projection='3d')
+    # ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
+    # plt.show()
+    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+    celltypes = np.empty(m, np.uint8)
+    celltypes[:] = vtk.VTK_TRIANGLE    
+    offset = np.arange(start = 0, stop = 4*m, step = 4)
+    grid = pv.UnstructuredGrid(offset, cells, celltypes, points)
+    grid.point_data["u"] = u
+    # grid.plot()
+    # mesh_grad = grid.compute_derivative(scalars="u")
+    # mesh_grad.save("example2_grad.vtk")
+
 def main():
     G = {}
     # store point coordinates 'xp'
@@ -264,7 +326,7 @@ def main():
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
 
-    bookExample1(G)
+    bookExample2(G)
 
 
 if __name__ == "__main__":
