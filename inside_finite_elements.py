@@ -8,7 +8,7 @@ def numberOfVertices(G):
     return G['xp'].shape[0]
 
 def numberOfTriangles(G):
-    return len(G['pt'])
+    return G['pt'].shape[0]
 
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
@@ -29,10 +29,9 @@ def computeEdges(G):
             else:
                 E[highIndex, lowIndex] = triangleIndex
     [p1, p2, t1] = find(triu(E))
-    t1 = t1
     G['pe'] = np.vstack([p1, p2]).T
     numEdges = G['pe'].shape[0]
-    G['te'] = np.zeros([numEdges,2])
+    G['te'] = np.zeros([numEdges,2], dtype=np.int64)
     G['te'][:,0] = t1
     for edgeIndex in range(numEdges):
         ps = G['pe'][edgeIndex]
@@ -164,19 +163,53 @@ def stiffnessMatrix(G, sigmas):
     n = numberOfVertices(G)
     K = np.zeros([n,n])
     for triangleIndex, triangle in enumerate(G['pt']):
-        B,_ = transformationJacobian(G,triangleIndex)
-        detB = np.linalg.det(B)
-        gamma1 = sigmas[triangleIndex]*1/detB*np.dot(B[:,1],B[:,1])
-        gamma2 = sigmas[triangleIndex]*1/detB*np.dot(B[:,0],B[:,1])
-        gamma3 = sigmas[triangleIndex]*1/detB*np.dot(B[:,1],B[:,0])
-        gamma4 = sigmas[triangleIndex]*1/detB*np.dot(B[:,0],B[:,0])
+        jac,_ = transformationJacobian(G,triangleIndex)
+        detJac = np.linalg.det(jac)
+        gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
+        gamma2 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
+        gamma3 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
+        gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
         P_T = np.zeros([n,3])
         P_T[triangle[0],0] = 1
         P_T[triangle[1],1] = 1
         P_T[triangle[2],2] = 1
-        K = K + P_T @ K_T @ P_T.T
+        K = K + P_T @ K_T @ P_T.T # optimize later
     return K
+
+def massMatrix(G, rhos):
+    Grads = shapeFunctionGradients()
+    Mm = 1/24 * np.array([[2,1,1],
+                        [1,2,1],
+                        [1,1,2]])
+    n = numberOfVertices(G)
+    M = np.zeros([n,n])
+    for triangleIndex, triangle in enumerate(G['pt']):
+        detJac = np.linalg.det(transformationJacobian(G,triangleIndex)[0])
+        M_T = rhos[triangleIndex]*detJac*Mm
+        P_T = np.zeros([n,3])
+        P_T[triangle[0],0] = 1
+        P_T[triangle[1],1] = 1
+        P_T[triangle[2],2] = 1
+        M = M + P_T @ M_T @ P_T.T  # optimize later
+    return M
+
+def boundaryMassMatrix(G, alphas):
+    Grads = shapeFunctionGradients()
+    Bb = 1/6 * np.array([[2,1],
+                        [1,2]])
+    r = numberOfBoundaryEdges(G)
+    n = numberOfVertices(G)
+    B = np.zeros([n,n]) 
+    for edgeCount, edgeIndex in enumerate(G['eb']):
+        ps = G['pe'][edgeIndex]
+        detJac = np.linalg.norm(G['xp'][ps[0]] - G['xp'][ps[1]])
+        B_T = alphas[edgeCount]*detJac*Bb
+        P_T = np.zeros([n,2])
+        P_T[ps[0],0] = 1
+        P_T[ps[1],1] = 1
+        B = B + P_T @ B_T @ P_T.T  # optimize later
+    return B
 
 def main():
     G = {}
@@ -199,20 +232,35 @@ def main():
     print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = rectangularCriss(10,5)
+    G = rectangularCriss(20,20)
     G = computeEdges(G)
     G = computeBoundary(G)
     print(f'mesh contains {numberOfEdges(G):d} edges')
     print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')
 
     printEdgesofTriangle(G,1)
+    #plotMesh(G)
 
-    n = numberOfTriangles(G)
-    sigmas = np.ones(n)
+    # example from book page 33
+    n = numberOfVertices(G)
+    m = numberOfTriangles(G)
+    r = numberOfBoundaryEdges(G)
+    sigmas = np.ones(m)
+    rhos = np.ones(m)
+    alphas = 1e9*np.ones(r)  # dirichlet BC
+    f = np.ones(n)
 
     K = stiffnessMatrix(G,sigmas)
+    M = massMatrix(G, rhos)
+    B = boundaryMassMatrix(G, alphas)
+    b = M @ f
+    A = K+B
+    u = np.linalg.inv(A) @ b
 
-    plotMesh(G)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
+    plt.show()
 
 
 if __name__ == "__main__":
