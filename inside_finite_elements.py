@@ -142,7 +142,7 @@ def rectangularCriss(w, h):
                 G['pt'].append([x+w*y, (x+1)+w*y, x+w*(y+1)])
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
-    G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]])
+    G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
     return G
 
 def printEdgesofTriangle(G, triangleIndex):
@@ -212,6 +212,28 @@ def boundaryMassMatrix(G, alphas):
         B = B + P_T @ B_T @ P_T.T  # optimize later
     return B
 
+def bookExample1(G):
+    # example from book page 33
+    n = numberOfVertices(G)
+    m = numberOfTriangles(G)
+    r = numberOfBoundaryEdges(G)
+    sigmas = np.ones(m)
+    rhos = np.ones(m)
+    alphas = 1e9*np.ones(r)  # dirichlet BC
+    f = np.ones(n)
+
+    K = stiffnessMatrix(G,sigmas)
+    M = massMatrix(G, rhos)
+    B = boundaryMassMatrix(G, alphas)
+    b = M @ f
+    A = K+B
+    u = np.linalg.inv(A) @ b
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
+    plt.show()
+
 def main():
     G = {}
     # store point coordinates 'xp'
@@ -242,26 +264,7 @@ def main():
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
 
-    # example from book page 33
-    n = numberOfVertices(G)
-    m = numberOfTriangles(G)
-    r = numberOfBoundaryEdges(G)
-    sigmas = np.ones(m)
-    rhos = np.ones(m)
-    alphas = 1e9*np.ones(r)  # dirichlet BC
-    f = np.ones(n)
-
-    K = stiffnessMatrix(G,sigmas)
-    M = massMatrix(G, rhos)
-    B = boundaryMassMatrix(G, alphas)
-    b = M @ f
-    A = K+B
-    u = np.linalg.inv(A) @ b
-
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1, projection='3d')
-    ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
-    plt.show()
+    bookExample1(G)
 
 
 if __name__ == "__main__":
