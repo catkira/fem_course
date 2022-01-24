@@ -142,6 +142,7 @@ def rectangularCriss(w, h):
                 G['pt'].append([x+w*y, (x+1)+w*y, x+w*(y+1)])
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
+    G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]])
     return G
 
 def printEdgesofTriangle(G, triangleIndex):
@@ -238,7 +239,7 @@ def main():
     print(f'mesh contains {numberOfEdges(G):d} edges')
     print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')
 
-    printEdgesofTriangle(G,1)
+    #printEdgesofTriangle(G,1)
     #plotMesh(G)
 
     # example from book page 33
