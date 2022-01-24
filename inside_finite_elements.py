@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import pyvista as pv
 import vtk
+import time
 from scipy.sparse import *
 
 # unofficial python 3.10 pip wheels for vtk 
@@ -168,6 +169,8 @@ def stiffnessMatrix(G, sigmas):
 
     n = numberOfVertices(G)
     K = np.zeros([n,n])
+    #K = csr_matrix((n,n))
+    P_T = np.zeros([n,3])
     for triangleIndex, triangle in enumerate(G['pt']):
         jac,_ = transformationJacobian(G,triangleIndex)
         detJac = np.linalg.det(jac)
@@ -176,12 +179,9 @@ def stiffnessMatrix(G, sigmas):
         gamma3 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
         gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
-        P_T = np.zeros([n,3])
-        P_T[triangle[0],0] = 1
-        P_T[triangle[1],1] = 1
-        P_T[triangle[2],2] = 1
-        K = K + P_T @ K_T @ P_T.T # optimize later
+        K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
     return K
+
 
 def massMatrix(G, rhos):
     Grads = shapeFunctionGradients()
@@ -193,11 +193,7 @@ def massMatrix(G, rhos):
     for triangleIndex, triangle in enumerate(G['pt']):
         detJac = np.linalg.det(transformationJacobian(G,triangleIndex)[0])
         M_T = rhos[triangleIndex]*detJac*Mm
-        P_T = np.zeros([n,3])
-        P_T[triangle[0],0] = 1
-        P_T[triangle[1],1] = 1
-        P_T[triangle[2],2] = 1
-        M = M + P_T @ M_T @ P_T.T  # optimize later
+        M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
     return M
 
 def boundaryMassMatrix(G, alphas):
@@ -211,10 +207,7 @@ def boundaryMassMatrix(G, alphas):
         ps = G['pe'][edgeIndex]
         detJac = np.linalg.norm(G['xp'][ps[0]] - G['xp'][ps[1]])
         B_T = alphas[edgeCount]*detJac*Bb
-        P_T = np.zeros([n,2])
-        P_T[ps[0],0] = 1
-        P_T[ps[1],1] = 1
-        B = B + P_T @ B_T @ P_T.T  # optimize later
+        B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
     return B
 
 def bookExample1(G):
@@ -274,17 +267,17 @@ def bookExample2(G):
         elif abs(x[0] < 1e-6):
             pd[i] = -1e9
 
+    start = time.time()
+    print("starting assembly")
     K = stiffnessMatrix(G,sigmas)
     M = massMatrix(G, rhos)
     B = boundaryMassMatrix(G, alphas)
     b = B @ pd
     A = K+B
     u = np.linalg.inv(A) @ b
+    stop = time.time()
+    print(f'assembly done in {stop - start:.2f} s')
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1, projection='3d')
-    # ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
-    # plt.show()
     points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
     cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
     celltypes = np.empty(m, np.uint8)
@@ -317,7 +310,7 @@ def main():
     print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = rectangularCriss(20,20)
+    G = rectangularCriss(50,50)
     G = computeEdges(G)
     G = computeBoundary(G)
     print(f'mesh contains {numberOfEdges(G):d} edges')
@@ -326,6 +319,7 @@ def main():
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
 
+    #bookExample1(G)
     bookExample2(G)
 
 
