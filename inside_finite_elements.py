@@ -220,6 +220,18 @@ def boundaryMassMatrix(G, alphas):
         B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
     return B
 
+def storePotentialInVTK(G,u,filename):
+    r = numberOfBoundaryEdges(G)
+    n = numberOfVertices(G)    
+    m = numberOfTriangles(G)    
+    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+    celltypes = np.empty(m, np.uint8)
+    celltypes[:] = vtk.VTK_TRIANGLE    
+    grid = pv.UnstructuredGrid(cells, celltypes, points)
+    grid.point_data["u"] = u
+    grid.save(filename) 
+
 def bookExample1(G):
     # example from book page 33
     n = numberOfVertices(G)
@@ -236,19 +248,15 @@ def bookExample1(G):
     b = M @ f
     A = K+B
     u = np.linalg.inv(A) @ b
+    print(f'u_max = {max(u):.4f}')
+    assert(abs(max(u) - 0.0732) < 1e-3)
 
     #fig = plt.figure()
     #ax = fig.add_subplot(1, 1, 1, projection='3d')
     #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
     #plt.show()
 
-    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
-    celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
-    grid = pv.UnstructuredGrid(cells, celltypes, points)
-    grid.point_data["u"] = u
-    grid.save("example1.vtk")    
+    storePotentialInVTK(G,u,"example1.vtk")
 
 def bookExample2(G):
     # example from book page 34
@@ -301,17 +309,9 @@ def bookExample2(G):
         u = np.linalg.inv(A) @ b
     stop = time.time()
     print(f'solved in {stop - start:.2f} s')
-
-    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
-    celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
-    grid = pv.UnstructuredGrid(cells, celltypes, points)
-    grid.point_data["u"] = u
-    grid.save("example2.vtk")
-    # grid.plot()
-    # mesh_grad = grid.compute_derivative(scalars="u")
-    # mesh_grad.save("example2_grad.vtk")
+    print(f'u_max = {max(u):.4f}')    
+    assert(abs(max(u) - 4) < 1e-3)
+    storePotentialInVTK(G,u,"example2.vtk")
 
 def main():
     if False:
@@ -341,7 +341,7 @@ def main():
     #plotMesh(G)
 
     bookExample1(G)
-    #bookExample2(G)
+    bookExample2(G)
 
 
 if __name__ == "__main__":
