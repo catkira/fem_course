@@ -185,8 +185,8 @@ def stiffnessMatrix(G, sigmas):
         jac,_ = transformationJacobian(G,triangleIndex)
         detJac = np.linalg.det(jac)
         gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
-        gamma2 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
-        gamma3 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
+        gamma2 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
+        gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
         gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
         K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
@@ -237,10 +237,18 @@ def bookExample1(G):
     A = K+B
     u = np.linalg.inv(A) @ b
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1, projection='3d')
-    ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
-    plt.show()
+    #fig = plt.figure()
+    #ax = fig.add_subplot(1, 1, 1, projection='3d')
+    #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
+    #plt.show()
+
+    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+    celltypes = np.empty(m, np.uint8)
+    celltypes[:] = vtk.VTK_TRIANGLE    
+    grid = pv.UnstructuredGrid(cells, celltypes, points)
+    grid.point_data["u"] = u
+    grid.save("example1.vtk")    
 
 def bookExample2(G):
     # example from book page 34
@@ -250,7 +258,6 @@ def bookExample2(G):
     n = numberOfVertices(G)
     m = numberOfTriangles(G)
     r = numberOfBoundaryEdges(G)
-    rhos = np.ones(m)
     sigmas = np.zeros(m)
     for t in range(m):
         cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
@@ -265,7 +272,7 @@ def bookExample2(G):
         cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
         if abs(cog[0]-5) < 1e-6: 
             alphas[e] = 1e9 # Dirichlet BC
-        elif abs(cog[0]) < 1e-9:
+        elif abs(cog[0]) < 1e-6:
             alphas[e] = 1e-9 # Neumann BC
         else:
             alphas[e] = 0 # natural Neumann BC
@@ -279,8 +286,7 @@ def bookExample2(G):
 
     start = time.time()
     print("starting assembly")
-    K = stiffnessMatrix(G,sigmas)
-    M = massMatrix(G, rhos)
+    K = stiffnessMatrix(G, sigmas)
     B = boundaryMassMatrix(G, alphas)
     b = B @ pd
     A = K+B
@@ -329,13 +335,13 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = rectangularCriss(50,50)
+    G = rectangularCriss(20,20)
 
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
 
-    #bookExample1(G)
-    bookExample2(G)
+    bookExample1(G)
+    #bookExample2(G)
 
 
 if __name__ == "__main__":
