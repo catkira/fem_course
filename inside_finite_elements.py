@@ -243,7 +243,7 @@ def bookExample2(G):
     rhos = np.ones(m)
     sigmas = np.zeros(m)
     for t in range(m):
-        cog = np.sum(G['xp'][G['pt'][t,:],:],1)/3
+        cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
             sigmas[t] = 1e-3
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
@@ -252,20 +252,20 @@ def bookExample2(G):
             sigmas[t] = 1
     alphas = np.zeros(r) 
     for e in range(r):
-        cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],1)/2
+        cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
         if abs(cog[0]-5) < 1e-6: 
-            alphas[e] = 1e9 # dirichlet BC
+            alphas[e] = 1e9 # Dirichlet BC
         elif abs(cog[0]) < 1e-9:
-            alphas[e] = 1e-9 # neumann BC
+            alphas[e] = 1e-9 # Neumann BC
         else:
-            alphas[e] = 0 # natural neumann BC
+            alphas[e] = 0 # natural Neumann BC
     pd = np.zeros(n)
     for i in range(n):
         x = G['xp'][i,:]
         if (abs(x[0]-5) < 1e-6):
-            pd[i] = 4-x[1] # dirichlet BC
+            pd[i] = 4-x[1] # Dirichlet BC
         elif abs(x[0] < 1e-6):
-            pd[i] = -1e9
+            pd[i] = -1e9 # Neumann BC
 
     start = time.time()
     print("starting assembly")
