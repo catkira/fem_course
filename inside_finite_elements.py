@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import pyvista as pv
 import vtk
 import time
+import scipy as sp
 from scipy.sparse import *
 
 # unofficial python 3.10 pip wheels for vtk 
@@ -21,7 +22,7 @@ def numberOfTriangles(G):
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
 def computeEdges(G):
     # first triangle is stored in triu, second triangle in tril
-    E = csr_matrix((len(G['xp']),len(G['xp']))) 
+    E = lil_matrix((len(G['xp']),len(G['xp']))) 
     for triangleIndex, triangle in enumerate(G['pt'], start=1):
         for numEdge in range(3):
             lowIndex = triangle[numEdge]
@@ -138,6 +139,7 @@ def plotMesh(G):
     plt.show()
 
 def rectangularCriss(w, h):
+    start = time.time()
     G = dict()
     G['xp'] = np.zeros([w*h,2])
     G['pt'] = []
@@ -149,6 +151,14 @@ def rectangularCriss(w, h):
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
+    G = computeEdges(G)
+    G = computeBoundary(G)
+    stop = time.time()
+    print(f'loaded mesh in {stop - start:.2f} s')    
+    print(f'mesh contains {numberOfTriangles(G):d} triangles')
+    print(f'mesh contains {numberOfVertices(G):d} vertices')
+    print(f'mesh contains {numberOfEdges(G):d} edges')
+    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')    
     return G
 
 def printEdgesofTriangle(G, triangleIndex):
@@ -274,9 +284,17 @@ def bookExample2(G):
     B = boundaryMassMatrix(G, alphas)
     b = B @ pd
     A = K+B
-    u = np.linalg.inv(A) @ b
     stop = time.time()
     print(f'assembly done in {stop - start:.2f} s')
+    start = time.time()
+    if True:
+        from scipy.sparse.linalg import inv    
+        A = csc_matrix(A)
+        u = inv(A) @ b
+    else:
+        u = np.linalg.inv(A) @ b
+    stop = time.time()
+    print(f'solved in {stop - start:.2f} s')
 
     points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
     cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
@@ -311,10 +329,6 @@ def main():
     
     #plotShapeFunctions()
     G = rectangularCriss(50,50)
-    G = computeEdges(G)
-    G = computeBoundary(G)
-    print(f'mesh contains {numberOfEdges(G):d} edges')
-    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')
 
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
