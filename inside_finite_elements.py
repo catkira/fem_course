@@ -300,32 +300,33 @@ def bookExample2(G):
     cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
     celltypes = np.empty(m, np.uint8)
     celltypes[:] = vtk.VTK_TRIANGLE    
-    offset = np.arange(start = 0, stop = 4*m, step = 4)
-    grid = pv.UnstructuredGrid(offset, cells, celltypes, points)
+    grid = pv.UnstructuredGrid(cells, celltypes, points)
     grid.point_data["u"] = u
+    grid.save("example2.vtk")
     # grid.plot()
     # mesh_grad = grid.compute_derivative(scalars="u")
     # mesh_grad.save("example2_grad.vtk")
 
 def main():
-    G = {}
-    # store point coordinates 'xp'
-    G['xp'] = np.array([
-        [0, 0],
-        [1, 0],
-        [1, 1],
-        [0, 1]])
-    # store the points which make up an element in 'pt'
-    G['pt'] = np.array([
-        [0, 1, 2],
-        [0, 2, 3]])        
-    print("number of Vertices(G) = " + str(numberOfVertices(G)))
-    print("number of Triangles(G) = " + str(numberOfTriangles(G)))
-    xi = np.array([0, 1])
-    p = globalCoordinate(G, 0, xi)
-    print(f'point ({xi[0]:d}, {xi[1]:d}) of ref triangle transformed to global triangle = ({p[0]:d}, {p[1]:d})')
-    xi = localCoordinate(G, 0, p)
-    print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
+    if False:
+        G = {}
+        # store point coordinates 'xp'
+        G['xp'] = np.array([
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 1]])
+        # store the points which make up an element in 'pt'
+        G['pt'] = np.array([
+            [0, 1, 2],
+            [0, 2, 3]])        
+        print("number of Vertices(G) = " + str(numberOfVertices(G)))
+        print("number of Triangles(G) = " + str(numberOfTriangles(G)))
+        xi = np.array([0, 1])
+        p = globalCoordinate(G, 0, xi)
+        print(f'point ({xi[0]:d}, {xi[1]:d}) of ref triangle transformed to global triangle = ({p[0]:d}, {p[1]:d})')
+        xi = localCoordinate(G, 0, p)
+        print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
     G = rectangularCriss(50,50)
