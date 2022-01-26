@@ -5,6 +5,7 @@ import pyvista as pv
 import vtk
 import time
 import scipy as sp
+import meshio
 from scipy.sparse import *
 
 # unofficial python 3.10 pip wheels for vtk 
@@ -179,15 +180,32 @@ def stiffnessMatrix(G, sigmas):
 
     n = numberOfVertices(G)
     K = np.zeros([n,n])
-    #K = csr_matrix((n,n))
+    #K = csr_Tensor((n,n))
     P_T = np.zeros([n,3])
     for triangleIndex, triangle in enumerate(G['pt']):
         jac,_ = transformationJacobian(G,triangleIndex)
         detJac = np.linalg.det(jac)
-        gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
-        gamma2 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
-        gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
-        gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
+        if len(sigmas.shape) == 1:
+            gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
+            gamma2 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
+            gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
+            gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
+        else: # not yet working
+            gamma1x = sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,1],jac[:,1])
+            gamma2x = -sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,0],jac[:,1])
+            gamma3x = -sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,1],jac[:,0])
+            gamma4x = sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,0],jac[:,0])
+            invJac = np.linalg.inv(jac)
+            sigma_dash = invJac @ sigmas[triangleIndex] @ invJac.T
+            gamma1 = sigma_dash[0,0] * detJac
+            gamma2 = sigma_dash[1,0] * detJac
+            gamma3 = sigma_dash[0,1] * detJac
+            gamma4 = sigma_dash[1,1] * detJac
+            if False == (np.round(gamma1,5) == np.round(gamma1x,5) 
+                and np.round(gamma2,5) == np.round(gamma2x,5) 
+                and np.round(gamma3,5) == np.round(gamma3x,5) 
+                and np.round(gamma4,5) == np.round(gamma4x,5)):
+                print("error")
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
         K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
     return K
@@ -258,7 +276,7 @@ def bookExample1(G):
 
     storePotentialInVTK(G,u,"example1.vtk")
 
-def bookExample2(G):
+def bookExample2(G, scalarSigma):
     # example from book page 34
     # scale mesh to size [0,5] x [0,4]
     G['xp'][:,0] = G['xp'][:,0]*5
@@ -266,15 +284,20 @@ def bookExample2(G):
     n = numberOfVertices(G)
     m = numberOfTriangles(G)
     r = numberOfBoundaryEdges(G)
-    sigmas = np.zeros(m)
+    if scalarSigma:
+        sigmas = np.zeros(m)
+        sigmaTensor = 1
+    else:
+        sigmas = np.zeros((m,2,2))
+        sigmaTensor = np.eye(2)
     for t in range(m):
         cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
-            sigmas[t] = 1e-3
+            sigmas[t] = 1e-3*sigmaTensor
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
-            sigmas[t] = 1e-3
+            sigmas[t] = 1e-3*sigmaTensor
         else:
-            sigmas[t] = 1
+            sigmas[t] = 1*sigmaTensor
     alphas = np.zeros(r) 
     for e in range(r):
         cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
@@ -341,7 +364,8 @@ def main():
     #plotMesh(G)
 
     bookExample1(G)
-    bookExample2(G)
+    bookExample2(G, True)
+    bookExample2(G, False)
 
 
 if __name__ == "__main__":
