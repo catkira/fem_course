@@ -184,19 +184,19 @@ def stiffnessMatrix(G, sigmas):
     P_T = np.zeros([n,3])
     for triangleIndex, triangle in enumerate(G['pt']):
         jac,_ = transformationJacobian(G,triangleIndex)
-        detJac = np.linalg.det(jac)
+        detJac = np.abs(np.linalg.det(jac))
         if len(sigmas.shape) == 1:
             gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
             gamma2 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
             gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
             gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
-        else: # not yet working
+        else:
             invJac = np.linalg.inv(jac)
-            sigma_dash = invJac @ sigmas[triangleIndex] @ invJac.T
-            gamma1 = sigma_dash[0,0] * detJac
-            gamma2 = sigma_dash[1,0] * detJac
-            gamma3 = sigma_dash[0,1] * detJac
-            gamma4 = sigma_dash[1,1] * detJac
+            sigma_dash = invJac @ sigmas[triangleIndex] @ invJac.T * detJac
+            gamma1 = sigma_dash[0,0] 
+            gamma2 = sigma_dash[1,0]
+            gamma3 = sigma_dash[0,1]
+            gamma4 = sigma_dash[1,1]
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
         K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
     return K
@@ -210,7 +210,7 @@ def massMatrix(G, rhos):
     n = numberOfVertices(G)
     M = np.zeros([n,n])
     for triangleIndex, triangle in enumerate(G['pt']):
-        detJac = np.linalg.det(transformationJacobian(G,triangleIndex)[0])
+        detJac = np.abs(np.linalg.det(transformationJacobian(G,triangleIndex)[0]))
         M_T = rhos[triangleIndex]*detJac*Mm
         M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
     return M
@@ -224,13 +224,12 @@ def boundaryMassMatrix(G, alphas):
     B = np.zeros([n,n]) 
     for edgeCount, edgeIndex in enumerate(G['eb']):
         ps = G['pe'][edgeIndex]
-        detJac = np.linalg.norm(G['xp'][ps[0]] - G['xp'][ps[1]])
+        detJac = np.abs(np.linalg.norm(G['xp'][ps[0]] - G['xp'][ps[1]]))
         B_T = alphas[edgeCount]*detJac*Bb
         B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
     return B
 
 def storePotentialInVTK(G,u,filename):
-    r = numberOfBoundaryEdges(G)
     n = numberOfVertices(G)    
     m = numberOfTriangles(G)    
     points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
@@ -239,6 +238,31 @@ def storePotentialInVTK(G,u,filename):
     celltypes[:] = vtk.VTK_TRIANGLE    
     grid = pv.UnstructuredGrid(cells, celltypes, points)
     grid.point_data["u"] = u
+    grid.save(filename) 
+
+def storeFluxInVTK(G,u,sigmas,filename):
+    n = numberOfVertices(G)    
+    m = numberOfTriangles(G)    
+    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+    celltypes = np.empty(m, np.uint8)
+    celltypes[:] = vtk.VTK_TRIANGLE    
+    grid = pv.UnstructuredGrid(cells, celltypes, points)
+    grid.point_data["u"] = u
+    grid = grid.compute_derivative(scalars='u', gradient='velocity')
+    v = grid.get_array('velocity')    
+    # Problem: compute_derivative returns gradients for every point, 
+    # but we need gradients for every triangle, because sigmas are indexed by triangles
+    flux = np.zeros((len(v),3))
+    for i in range(len(v)):
+        # rough fix: find a triangle thas includes point i
+        # this is super slow though
+        for triangleIndex, triangle in enumerate(G['pt']):
+            if triangle[0] == i or triangle[1] == i or triangle[2] == i:
+                sigmaIndex = triangleIndex
+                break
+        flux[i][0:2] = sigmas[sigmaIndex] @ v[i][0:2]
+    grid.point_data["flux"] = flux
     grid.save(filename) 
 
 def bookExample1(G):
@@ -267,32 +291,32 @@ def bookExample1(G):
 
     storePotentialInVTK(G,u,"example1.vtk")
 
-def bookExample2(G, scalarSigma, directionalInclusions=False):
+def bookExample2(G, scalarSigma, anisotropicInclusion=False):
     # example from book page 34
     n = numberOfVertices(G)
     m = numberOfTriangles(G)
     r = numberOfBoundaryEdges(G)
     if scalarSigma:
         sigmas = np.zeros(m)
-        sigmaTensor1 = 1
+        sigmaTensor1 = 1e-3
         sigmaTensor2 = 1
     else:
         sigmas = np.zeros((m,2,2))
         sigmaTensor2 = np.eye(2)        
-        if directionalInclusions:
+        if anisotropicInclusion:
             sigmaTensor1 = np.array([[1.0001, 0.9999],
                                     [0.9999, 1.0001]])
         else:
-            sigmaTensor1 = np.eye(2)
+            sigmaTensor1 = 1e-3*np.eye(2)
             
     for t in range(m):
         cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
-            sigmas[t] = 1e-3*sigmaTensor1
+            sigmas[t] = sigmaTensor1
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
-            sigmas[t] = 1e-3*sigmaTensor1
+            sigmas[t] = sigmaTensor1
         else:
-            sigmas[t] = 1*sigmaTensor2
+            sigmas[t] = sigmaTensor2
     alphas = np.zeros(r) 
     for e in range(r):
         cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
@@ -329,10 +353,13 @@ def bookExample2(G, scalarSigma, directionalInclusions=False):
     print(f'solved in {stop - start:.2f} s')
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
-    if directionalInclusions:
-        storePotentialInVTK(G,u,"example2_directionalInclusions.vtk")
+    if anisotropicInclusion:
+        storeFluxInVTK(G,u,sigmas,"example2_anisotropicInclusions.vtk")
     else:
-        storePotentialInVTK(G,u,"example2.vtk")
+        if scalarSigma:
+            storePotentialInVTK(G,u,"example2_scalar_isotropicInclusions.vtk")
+        else:
+            storePotentialInVTK(G,u,"example2_tensor_isotropicInclusions.vtk")
 
 def main():
     if False:
@@ -356,7 +383,7 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = rectangularCriss(20,20)
+    G = rectangularCriss(50,50)
 
     #printEdgesofTriangle(G,1)
     #plotMesh(G)
@@ -366,6 +393,7 @@ def main():
     G['xp'][:,0] = G['xp'][:,0]*5
     G['xp'][:,1] = G['xp'][:,1]*4
     bookExample2(G, True)
+    bookExample2(G, False)
     bookExample2(G, False, True)
 
 if __name__ == "__main__":
