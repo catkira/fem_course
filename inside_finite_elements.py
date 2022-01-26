@@ -191,21 +191,12 @@ def stiffnessMatrix(G, sigmas):
             gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
             gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
         else: # not yet working
-            gamma1x = sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,1],jac[:,1])
-            gamma2x = -sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,0],jac[:,1])
-            gamma3x = -sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,1],jac[:,0])
-            gamma4x = sigmas[triangleIndex][0,0]*1/detJac*np.dot(jac[:,0],jac[:,0])
             invJac = np.linalg.inv(jac)
             sigma_dash = invJac @ sigmas[triangleIndex] @ invJac.T
             gamma1 = sigma_dash[0,0] * detJac
             gamma2 = sigma_dash[1,0] * detJac
             gamma3 = sigma_dash[0,1] * detJac
             gamma4 = sigma_dash[1,1] * detJac
-            if False == (np.round(gamma1,5) == np.round(gamma1x,5) 
-                and np.round(gamma2,5) == np.round(gamma2x,5) 
-                and np.round(gamma3,5) == np.round(gamma3x,5) 
-                and np.round(gamma4,5) == np.round(gamma4x,5)):
-                print("error")
         K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
         K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
     return K
@@ -276,25 +267,32 @@ def bookExample1(G):
 
     storePotentialInVTK(G,u,"example1.vtk")
 
-def bookExample2(G, scalarSigma):
+def bookExample2(G, scalarSigma, directionalInclusions=False):
     # example from book page 34
     n = numberOfVertices(G)
     m = numberOfTriangles(G)
     r = numberOfBoundaryEdges(G)
     if scalarSigma:
         sigmas = np.zeros(m)
-        sigmaTensor = 1
+        sigmaTensor1 = 1
+        sigmaTensor2 = 1
     else:
         sigmas = np.zeros((m,2,2))
-        sigmaTensor = np.eye(2)
+        sigmaTensor2 = np.eye(2)        
+        if directionalInclusions:
+            sigmaTensor1 = np.array([[1.0001, 0.9999],
+                                    [0.9999, 1.0001]])
+        else:
+            sigmaTensor1 = np.eye(2)
+            
     for t in range(m):
         cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
-            sigmas[t] = 1e-3*sigmaTensor
+            sigmas[t] = 1e-3*sigmaTensor1
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
-            sigmas[t] = 1e-3*sigmaTensor
+            sigmas[t] = 1e-3*sigmaTensor1
         else:
-            sigmas[t] = 1*sigmaTensor
+            sigmas[t] = 1*sigmaTensor2
     alphas = np.zeros(r) 
     for e in range(r):
         cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
@@ -331,7 +329,10 @@ def bookExample2(G, scalarSigma):
     print(f'solved in {stop - start:.2f} s')
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
-    storePotentialInVTK(G,u,"example2.vtk")
+    if directionalInclusions:
+        storePotentialInVTK(G,u,"example2_directionalInclusions.vtk")
+    else:
+        storePotentialInVTK(G,u,"example2.vtk")
 
 def main():
     if False:
@@ -365,7 +366,7 @@ def main():
     G['xp'][:,0] = G['xp'][:,0]*5
     G['xp'][:,1] = G['xp'][:,1]*4
     bookExample2(G, True)
-    bookExample2(G, False)
+    bookExample2(G, False, True)
 
 if __name__ == "__main__":
     main()
