@@ -23,7 +23,7 @@ def numberOfTriangles(G):
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
 def computeEdges(G):
     # first triangle is stored in triu, second triangle in tril
-    E = lil_matrix((len(G['xp']),len(G['xp']))) 
+    E = lil_matrix((len(G['xp']),len(G['xp'])))
     for triangleIndex, triangle in enumerate(G['pt'], start=1):
         for numEdge in range(3):
             lowIndex = triangle[numEdge]
@@ -347,6 +347,17 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
         from scipy.sparse.linalg import inv    
         A = csc_matrix(A)
         u = inv(A) @ b
+    elif False:
+        from petsc4py import PETSc
+        A = PETSc.Mat().create()        
+        A.setSizes([n**3, n**3])
+        A.setType('python')
+
+        # TODO complete code
+        ksp = PETSc.KSP().create()
+        pc = ksp.getPC()
+        ksp.setType('cg')
+        pc.setType('none')        
     else:
         u = np.linalg.inv(A) @ b
     stop = time.time()
