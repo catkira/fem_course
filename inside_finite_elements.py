@@ -278,9 +278,6 @@ def bookExample1(G):
 
 def bookExample2(G, scalarSigma):
     # example from book page 34
-    # scale mesh to size [0,5] x [0,4]
-    G['xp'][:,0] = G['xp'][:,0]*5
-    G['xp'][:,1] = G['xp'][:,1]*4
     n = numberOfVertices(G)
     m = numberOfTriangles(G)
     r = numberOfBoundaryEdges(G)
@@ -364,9 +361,11 @@ def main():
     #plotMesh(G)
 
     bookExample1(G)
+    # scale mesh to size [0,5] x [0,4]
+    G['xp'][:,0] = G['xp'][:,0]*5
+    G['xp'][:,1] = G['xp'][:,1]*4
     bookExample2(G, True)
     bookExample2(G, False)
-
 
 if __name__ == "__main__":
     main()
