@@ -265,6 +265,29 @@ def storeFluxInVTK(G,u,sigmas,filename):
     grid.point_data["flux"] = flux
     grid.save(filename) 
 
+def solve(A,b):
+    start = time.time()
+    if True:
+        from scipy.sparse.linalg import inv    
+        A = csc_matrix(A)
+        u = inv(A) @ b
+    elif False:
+        from petsc4py import PETSc
+        A = PETSc.Mat().create()        
+        A.setSizes([n**3, n**3])
+        A.setType('python')
+
+        # TODO complete code
+        ksp = PETSc.KSP().create()
+        pc = ksp.getPC()
+        ksp.setType('cg')
+        pc.setType('none')        
+    else:
+        u = np.linalg.inv(A) @ b
+    stop = time.time()
+    print(f'solved in {stop - start:.2f} s')    
+    return u
+
 def bookExample1(G):
     # example from book page 33
     n = numberOfVertices(G)
@@ -280,7 +303,7 @@ def bookExample1(G):
     B = boundaryMassMatrix(G, alphas)
     b = M @ f
     A = K+B
-    u = np.linalg.inv(A) @ b
+    u = solve(A,b)
     print(f'u_max = {max(u):.4f}')
     assert(abs(max(u) - 0.0732) < 1e-3)
 
@@ -340,28 +363,7 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
     B = boundaryMassMatrix(G, alphas)
     b = B @ pd
     A = K+B
-    stop = time.time()
-    print(f'assembly done in {stop - start:.2f} s')
-    start = time.time()
-    if True:
-        from scipy.sparse.linalg import inv    
-        A = csc_matrix(A)
-        u = inv(A) @ b
-    elif False:
-        from petsc4py import PETSc
-        A = PETSc.Mat().create()        
-        A.setSizes([n**3, n**3])
-        A.setType('python')
-
-        # TODO complete code
-        ksp = PETSc.KSP().create()
-        pc = ksp.getPC()
-        ksp.setType('cg')
-        pc.setType('none')        
-    else:
-        u = np.linalg.inv(A) @ b
-    stop = time.time()
-    print(f'solved in {stop - start:.2f} s')
+    u = solve(A,b)
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
@@ -371,6 +373,24 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
             storePotentialInVTK(G,u,"example2_scalar_isotropicInclusions.vtk")
         else:
             storePotentialInVTK(G,u,"example2_tensor_isotropicInclusions.vtk")
+
+def loadMesh(filename):
+    start = time.time()
+    mesh = meshio.read(filename)
+    G = dict()
+    problemDimension = 2
+    if problemDimension == 2:
+        G['xp'] = mesh.points[:,0:2] # tale only x,y coordinates
+        G['pt'] = mesh.cells_dict['triangle']
+    G = computeEdges(G)
+    G = computeBoundary(G)
+    stop = time.time()
+    print(f'loaded mesh in {stop - start:.2f} s')    
+    print(f'mesh contains {numberOfTriangles(G):d} triangles')
+    print(f'mesh contains {numberOfVertices(G):d} vertices')
+    print(f'mesh contains {numberOfEdges(G):d} edges')
+    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')        
+    return G
 
 def main():
     if False:
@@ -394,10 +414,10 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = rectangularCriss(50,50)
-
-    #printEdgesofTriangle(G,1)
-    #plotMesh(G)
+    G = loadMesh("air_box_2d.msh")
+    # G = rectangularCriss(50,50)
+    # printEdgesofTriangle(G,1)
+    # plotMesh(G)
 
     bookExample1(G)
     # scale mesh to size [0,5] x [0,4]
