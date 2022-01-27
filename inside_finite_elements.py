@@ -13,7 +13,7 @@ if 'petsc4py' in pkg_resources.working_set.by_key:
     import petsc4py
     petsc4py.init(sys.argv)        
     from petsc4py import PETSc
-
+    print("Warning: no petsc4py found, solving will be very slow!")
 
 from mesh import *
 
@@ -191,7 +191,6 @@ def storeFluxInVTK(u,sigmas,filename):
         pointSigmas[triangle[0]] = sigmas[i]
         pointSigmas[triangle[1]] = sigmas[i]
         pointSigmas[triangle[2]] = sigmas[i]
-
     flux = np.zeros((len(v),3))
     for i in range(len(v)):
         flux[i][0:2] = pointSigmas[i] @ v[i][0:2]
@@ -224,7 +223,6 @@ def solve(A, b, method='np'):
         ksp.solve(bp, up)
         print(f'Converged in {ksp.getIterationNumber():d} iterations.')
         u = np.array(up)
-
     elif method == 'np':
         u = np.linalg.inv(A.toarray()) @ b
     else:
