@@ -129,8 +129,9 @@ def loadMesh(filename):
     if problemDimension == 2:
         G['xp'] = meshioMesh.points[:,0:2] # tale only x,y coordinates
         G['pt'] = meshioMesh.cells_dict['triangle']
+    G['physical'] = meshioMesh.cell_data['gmsh:physical']
     mesh = G
-    mesh['meshio'] = meshioMesh
+    mesh['meshio'] = meshioMesh # will be removed later
     computeEdges()
     computeBoundary()
     stop = time.time()
