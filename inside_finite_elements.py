@@ -4,12 +4,9 @@ import plotly.graph_objects as go
 import pyvista as pv
 import vtk
 import time
-import scipy as sp
-import meshio
 import sys
 import pkg_resources
 from scipy.sparse import *
-
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -356,11 +353,11 @@ def main():
     bookExample1()
     
     # scale mesh to size [0,5] x [0,4]
-    rectangularCriss(300,300)
-    mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-    mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
+    #rectangularCriss(50,50)
+    #mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
+    #mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
-    #loadMesh("example2.msh")
+    loadMesh("example2.msh")
     bookExample2(True, 'petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
