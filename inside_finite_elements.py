@@ -6,6 +6,7 @@ import vtk
 import time
 import scipy as sp
 import meshio
+import sys
 from scipy.sparse import *
 
 from mesh import *
@@ -155,15 +156,16 @@ def storeFluxInVTK(u,sigmas,filename):
     v = grid.get_array('velocity')    
     # Problem: compute_derivative returns gradients for every point, 
     # but we need gradients for every triangle, because sigmas are indexed by triangles
+    # rough fix: create average sigma for each point, some pointSigmas might be assigned multiple times
+    pointSigmas = np.zeros((n,2,2))
+    for i, triangle in enumerate(mesh()['pt']):
+        pointSigmas[triangle[0]] = sigmas[i]
+        pointSigmas[triangle[1]] = sigmas[i]
+        pointSigmas[triangle[2]] = sigmas[i]
+
     flux = np.zeros((len(v),3))
     for i in range(len(v)):
-        # rough fix: find a triangle thas includes point i
-        # this is super slow though
-        for triangleIndex, triangle in enumerate(mesh()['pt']):
-            if triangle[0] == i or triangle[1] == i or triangle[2] == i:
-                sigmaIndex = triangleIndex
-                break
-        flux[i][0:2] = sigmas[sigmaIndex] @ v[i][0:2]
+        flux[i][0:2] = pointSigmas[i] @ v[i][0:2]
     grid.point_data["flux"] = flux
     grid.save(filename) 
 
@@ -174,22 +176,32 @@ def solve(A, b, method='np'):
         A = csc_matrix(A)
         u = inv(A) @ b
     elif method == 'petsc':
+        import petsc4py
+        petsc4py.init(sys.argv)        
         from petsc4py import PETSc
-        A = PETSc.Mat().create()  
-        n = numberOfVertices()              
-        A.setSizes([n**3, n**3])
-        A.setType('python')
-
-        # TODO complete code
+        n = numberOfVertices()    
+        csr_mat=csr_matrix(A)
+        Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
+        Ap.setUp()
+        Ap.assemblyBegin()
+        Ap.assemblyEnd()
+        bp = PETSc.Vec().createSeq(n) 
+        for i in range(len(b)):
+            bp.setValue(i, b[i])    
+        up = PETSc.Vec().createSeq(n)        
         ksp = PETSc.KSP().create()
-        pc = ksp.getPC()
-        ksp.setType('cg')
-        pc.setType('none')        
+        ksp.setOperators(Ap)        
+        ksp.setFromOptions()
+        print(f'Solving with: {ksp.getType():s}')
+        ksp.solve(bp, up)
+        print(f'Converged in {ksp.getIterationNumber():d} iterations.')
+        u = np.array(up)
+
     elif method == 'np':
         u = np.linalg.inv(A) @ b
     else:
         print("unknown method")
-        abort()
+        sys.exit()
     stop = time.time()
     print(f'solved in {stop - start:.2f} s')    
     return u
@@ -269,7 +281,7 @@ def bookExample2(scalarSigma, anisotropicInclusion=False):
     A = K+B
     stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A,b)
+    u = solve(A, b, method='petsc')
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
@@ -318,6 +330,7 @@ def main():
     bookExample2(True)
     bookExample2(False)
     bookExample2(False, True)
+    print('finished')
 
 if __name__ == "__main__":
     main()
