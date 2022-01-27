@@ -7,11 +7,12 @@ import time
 import scipy as sp
 import meshio
 import sys
+import pkg_resources
 from scipy.sparse import *
 
-hasPetsc = True
 
-if hasPetsc:
+if 'petsc4py' in pkg_resources.working_set.by_key:
+    hasPetsc = True
     import petsc4py
     petsc4py.init(sys.argv)        
     from petsc4py import PETSc
