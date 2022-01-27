@@ -129,6 +129,7 @@ def loadMesh(filename):
         G['xp'] = meshioMesh.points[:,0:2] # tale only x,y coordinates
         G['pt'] = meshioMesh.cells_dict['triangle']
     mesh = G
+    mesh['meshio'] = meshioMesh
     computeEdges()
     computeBoundary()
     stop = time.time()

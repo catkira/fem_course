@@ -7,6 +7,7 @@ import time
 import sys
 import pkg_resources
 from scipy.sparse import *
+from parameter import parameter, computeParameters
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -321,6 +322,60 @@ def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
             storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
   
 
+def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
+    # example from book page 34
+    n = numberOfVertices()
+    m = numberOfTriangles()
+    r = numberOfBoundaryEdges()
+    # regions
+    incl1 = 0
+    incl2 = 1
+    air = 2
+    infBottom = 3
+    infTop = 6
+    infLeft = 4
+    infRight = 5
+
+    start = time.time()    
+    sigma = parameter()
+    sigma.set(incl1, 1e-3)
+    sigma.set(incl2, 1e-3)
+    sigma.set(air, 1)
+
+    alpha = parameter()
+    alpha.set(infBottom, 0)
+    alpha.set(infTop, 0)
+    alpha.set(infLeft, 1e-9) # Neumann BC
+    alpha.set(infRight, 1e9) # Dirichlet BC
+
+    pd = np.zeros(n)
+    for i in range(n):
+        x = mesh()['xp'][i,:]
+        if (abs(x[0]-5) < 1e-6):
+            pd[i] = 4-x[1] # Dirichlet BC
+        elif abs(x[0] < 1e-6):
+            pd[i] = -1e9 # Neumann BC
+    stop = time.time()    
+    print(f'parameters prepared in {stop - start:.2f} s')        
+    start = time.time()
+    computeParameters()
+    K = stiffnessMatrix(sigma.triangleValues)
+    B = boundaryMassMatrix(alpha.lineValues)
+    b = B @ pd
+    A = K+B
+    stop = time.time()    
+    print(f'assembled in {stop - start:.2f} s')        
+    u = solve(A, b, method)
+    print(f'u_max = {max(u):.4f}')    
+    assert(abs(max(u) - 4) < 1e-3)
+    if anisotropicInclusion:
+        storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions.vtk")
+    else:
+        if scalarSigma:
+            storePotentialInVTK(u,"example2_scalar_isotropicInclusions.vtk")
+        else:
+            storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
+
 def main():
     if False:
         G = {}
@@ -356,7 +411,7 @@ def main():
     #mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
     loadMesh("example2.msh")
-    bookExample2(True, 'petsc')
+    bookExample2Parameter(True, 'petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
     print('finished')
