@@ -109,15 +109,15 @@ def rectangularCriss(w, h):
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
-    G = computeEdges()
-    G = computeBoundary()
+    mesh = G
+    computeEdges()
+    computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     print(f'mesh contains {numberOfTriangles():d} triangles')
     print(f'mesh contains {numberOfVertices():d} vertices')
     print(f'mesh contains {numberOfEdges():d} edges')
     print(f'mesh contains {numberOfBoundaryEdges():d} boundaryEdges')    
-    mesh = G
 
 def loadMesh(filename):
     global mesh

@@ -9,6 +9,14 @@ import meshio
 import sys
 from scipy.sparse import *
 
+hasPetsc = True
+
+if hasPetsc:
+    import petsc4py
+    petsc4py.init(sys.argv)        
+    from petsc4py import PETSc
+
+
 from mesh import *
 
 # unofficial python 3.10 pip wheels for vtk 
@@ -82,9 +90,11 @@ def stiffnessMatrix(sigmas):
     B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
 
     n = numberOfVertices()
-    K = np.zeros([n,n])
-    #K = csr_Tensor((n,n))
-    P_T = np.zeros([n,3])
+    m = numberOfTriangles()
+    #K_Ts = np.zeros([m,3,3])
+    rows = np.zeros(m*9)
+    cols = np.zeros(m*9)
+    data = np.zeros(m*9)
     for triangleIndex, triangle in enumerate(mesh()['pt']):
         jac,_ = transformationJacobian(triangleIndex)
         detJac = np.abs(np.linalg.det(jac))
@@ -100,8 +110,13 @@ def stiffnessMatrix(sigmas):
             gamma2 = sigma_dash[1,0]
             gamma3 = sigma_dash[0,1]
             gamma4 = sigma_dash[1,1]
-        K_T = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
-        K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T
+        range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)            
+        rows[range] = np.tile(triangle[:],3).astype(np.int64)
+        cols[range] = np.repeat(triangle[:],3).astype(np.int64)
+        data[range] = (gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22).ravel()
+        #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+        #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T        
+    K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
 
@@ -111,11 +126,19 @@ def massMatrix(rhos):
                         [1,2,1],
                         [1,1,2]])
     n = numberOfVertices()
-    M = np.zeros([n,n])
+    m = numberOfTriangles()
+    rows = np.zeros(m*9)
+    cols = np.zeros(m*9)
+    data = np.zeros(m*9)    
     for triangleIndex, triangle in enumerate(mesh()['pt']):
         detJac = np.abs(np.linalg.det(transformationJacobian(triangleIndex)[0]))
-        M_T = rhos[triangleIndex]*detJac*Mm
-        M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+        range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)
+        rows[range] = np.tile(triangle,3).astype(np.int64)
+        cols[range] = np.repeat(triangle,3).astype(np.int64)
+        data[range] = (rhos[triangleIndex]*detJac*Mm).ravel()
+        #M_T = rhos[triangleIndex]*detJac*Mm
+        #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+    M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M
 
 def boundaryMassMatrix(alphas):
@@ -124,12 +147,20 @@ def boundaryMassMatrix(alphas):
                         [1,2]])
     r = numberOfBoundaryEdges()
     n = numberOfVertices()
-    B = np.zeros([n,n]) 
+    #B_Ts = np.zeros([r,2,2])
+    rows = np.zeros(r*4)
+    cols = np.zeros(r*4)
+    data = np.zeros(r*4)
     for edgeCount, edgeIndex in enumerate(mesh()['eb']):
         ps = mesh()['pe'][edgeIndex]
         detJac = np.abs(np.linalg.norm(mesh()['xp'][ps[0]] - mesh()['xp'][ps[1]]))
-        B_T = alphas[edgeCount]*detJac*Bb
-        B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
+        range = np.arange(start=edgeCount*4, stop=edgeCount*4+4)        
+        rows[range] = np.tile(ps[:],2).astype(np.int64)
+        cols[range] = np.repeat(ps[:],2).astype(np.int64)
+        data[range] = (alphas[edgeCount]*detJac*Bb).ravel()
+        #B_Ts[edgeCount] = alphas[edgeCount]*detJac*Bb
+        #B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
+    B = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return B
 
 def storePotentialInVTK(u,filename):
@@ -176,9 +207,9 @@ def solve(A, b, method='np'):
         A = csc_matrix(A)
         u = inv(A) @ b
     elif method == 'petsc':
-        import petsc4py
-        petsc4py.init(sys.argv)        
-        from petsc4py import PETSc
+        if not hasPetsc:
+            print("petsc is not available on this system")
+            sys.exit()            
         n = numberOfVertices()    
         csr_mat=csr_matrix(A)
         Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
@@ -197,7 +228,7 @@ def solve(A, b, method='np'):
         u = np.array(up)
 
     elif method == 'np':
-        u = np.linalg.inv(A) @ b
+        u = np.linalg.inv(A.toarray()) @ b
     else:
         print("unknown method")
         sys.exit()
@@ -231,11 +262,12 @@ def bookExample1():
 
     storePotentialInVTK(u,"example1.vtk")
 
-def bookExample2(scalarSigma, anisotropicInclusion=False):
+def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
     # example from book page 34
     n = numberOfVertices()
     m = numberOfTriangles()
     r = numberOfBoundaryEdges()
+    start = time.time()    
     if scalarSigma:
         sigmas = np.zeros(m)
         sigmaTensor1 = 1e-3
@@ -272,7 +304,8 @@ def bookExample2(scalarSigma, anisotropicInclusion=False):
             pd[i] = 4-x[1] # Dirichlet BC
         elif abs(x[0] < 1e-6):
             pd[i] = -1e9 # Neumann BC
-
+    stop = time.time()    
+    print(f'parameters prepared in {stop - start:.2f} s')        
     start = time.time()
     K = stiffnessMatrix(sigmas)
     B = boundaryMassMatrix(alphas)
@@ -280,7 +313,7 @@ def bookExample2(scalarSigma, anisotropicInclusion=False):
     A = K+B
     stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A, b, method='petsc')
+    u = solve(A, b, method)
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
@@ -315,20 +348,21 @@ def main():
     
     #plotShapeFunctions()
     loadMesh("air_box_2d.msh")
-    # G = rectangularCriss(50,50)
+    # rectangularCriss(50,50)
     # printEdgesofTriangle(G,1)
     # plotMesh(G)
 
     bookExample1()
     
     # scale mesh to size [0,5] x [0,4]
-    # mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-    # mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
+    rectangularCriss(300,300)
+    mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
+    mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
-    loadMesh("example2.msh")
-    bookExample2(True)
-    bookExample2(False)
-    bookExample2(False, True)
+    #loadMesh("example2.msh")
+    bookExample2(True, 'petsc')
+    bookExample2(False, 'petsc')
+    bookExample2(False, True, 'petsc')
     print('finished')
 
 if __name__ == "__main__":
