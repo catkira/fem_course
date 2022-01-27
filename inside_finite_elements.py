@@ -14,6 +14,7 @@ if 'petsc4py' in pkg_resources.working_set.by_key:
     import petsc4py
     petsc4py.init(sys.argv)        
     from petsc4py import PETSc
+else:
     print("Warning: no petsc4py found, solving will be very slow!")
 
 from mesh import *

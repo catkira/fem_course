@@ -95,6 +95,10 @@ def printEdgesofTriangle(G, triangleIndex):
         if G['te'][edgeIndex][1] == triangleIndex:
             print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')    
 
+def printMeshInfo():
+    print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
+
+
 def rectangularCriss(w, h):
     global mesh
     start = time.time()
@@ -114,10 +118,7 @@ def rectangularCriss(w, h):
     computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
-    print(f'mesh contains {numberOfTriangles():d} triangles')
-    print(f'mesh contains {numberOfVertices():d} vertices')
-    print(f'mesh contains {numberOfEdges():d} edges')
-    print(f'mesh contains {numberOfBoundaryEdges():d} boundaryEdges')    
+    printMeshInfo()
 
 def loadMesh(filename):
     global mesh
@@ -134,7 +135,4 @@ def loadMesh(filename):
     computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
-    print(f'mesh contains {numberOfTriangles():d} triangles')
-    print(f'mesh contains {numberOfVertices():d} vertices')
-    print(f'mesh contains {numberOfEdges():d} edges')
-    print(f'mesh contains {numberOfBoundaryEdges():d} boundaryEdges')          
+    printMeshInfo()
