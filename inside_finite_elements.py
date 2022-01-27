@@ -8,23 +8,33 @@ import scipy as sp
 import meshio
 from scipy.sparse import *
 
+
+# global variables start
+
+mesh = dict()
+
+# global variabled end
+
 # unofficial python 3.10 pip wheels for vtk 
 # pip install https://github.com/pyvista/pyvista-wheels/raw/main/vtk-9.1.0.dev0-cp310-cp310-win_amd64.whl
 # pip install https://github.com/pyvista/pyvista-wheels/raw/main/vtk-9.1.0.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
-def numberOfVertices(G):
-    return G['xp'].shape[0]
+def numberOfVertices():
+    global mesh
+    return mesh['xp'].shape[0]
 
-def numberOfTriangles(G):
-    return G['pt'].shape[0]
+def numberOfTriangles():
+    global mesh
+    return mesh['pt'].shape[0]
 
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
-def computeEdges(G):
+def computeEdges():
+    global mesh
     # first triangle is stored in triu, second triangle in tril
-    E = lil_matrix((len(G['xp']),len(G['xp'])))
-    for triangleIndex, triangle in enumerate(G['pt'], start=1):
+    E = lil_matrix((len(mesh['xp']),len(mesh['xp'])))
+    for triangleIndex, triangle in enumerate(mesh['pt'], start=1):
         for numEdge in range(3):
             lowIndex = triangle[numEdge]
             numEdge = numEdge + 1 if numEdge < 2 else 0
@@ -37,28 +47,29 @@ def computeEdges(G):
             else:
                 E[highIndex, lowIndex] = triangleIndex
     [p1, p2, t1] = find(triu(E))
-    G['pe'] = np.vstack([p1, p2]).T
-    numEdges = G['pe'].shape[0]
-    G['te'] = np.zeros([numEdges,2], dtype=np.int64)
-    G['te'][:,0] = t1
+    mesh['pe'] = np.vstack([p1, p2]).T
+    numEdges = mesh['pe'].shape[0]
+    mesh['te'] = np.zeros([numEdges,2], dtype=np.int64)
+    mesh['te'][:,0] = t1
     for edgeIndex in range(numEdges):
-        ps = G['pe'][edgeIndex]
-        G['te'][edgeIndex,1] = E[ps[1],ps[0]]
-    return G
+        ps = mesh['pe'][edgeIndex]
+        mesh['te'][edgeIndex,1] = E[ps[1],ps[0]]
 
-def computeBoundary(G):
-    G['eb'] = []
-    for edgeIndex, edge in enumerate(G['te']):
+def computeBoundary():
+    global mesh
+    mesh['eb'] = []
+    for edgeIndex, edge in enumerate(mesh['te']):
         if edge[1] == 0:
-            G['eb'].append(edgeIndex)
-    G['eb'] = np.array(G['eb'])
-    return G
+            mesh['eb'].append(edgeIndex)
+    mesh['eb'] = np.array(mesh['eb'])
 
-def numberOfEdges(G):
-    return G['pe'].shape[0]
+def numberOfEdges():
+    global mesh
+    return mesh['pe'].shape[0]
 
-def numberOfBoundaryEdges(G):
-    return G['eb'].shape[0]
+def numberOfBoundaryEdges():
+    global mesh
+    return mesh['eb'].shape[0]
 
 def transformationJacobian(G, t):
     ps = G['pt'][t,:]
@@ -126,7 +137,9 @@ def plotShapeFunctions():
             margin=dict(r=10, l=10, b=10, t=10))        
         fig.show()
 
-def plotMesh(G):
+def plotMesh():
+    global mesh
+    G = mesh
     plt.scatter(G['xp'][:,0],G['xp'][:,1])
     for edge in G['pt']:
         plt.plot([G['xp'][edge[0],0], G['xp'][edge[1],0], G['xp'][edge[2],0], G['xp'][edge[0],0]],[G['xp'][edge[0],1], G['xp'][edge[1],1], G['xp'][edge[2],1], G['xp'][edge[0],1]])
@@ -140,6 +153,7 @@ def plotMesh(G):
     plt.show()
 
 def rectangularCriss(w, h):
+    global mesh
     start = time.time()
     G = dict()
     G['xp'] = np.zeros([w*h,2])
@@ -152,25 +166,25 @@ def rectangularCriss(w, h):
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
-    G = computeEdges(G)
-    G = computeBoundary(G)
+    G = computeEdges()
+    G = computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
-    print(f'mesh contains {numberOfTriangles(G):d} triangles')
-    print(f'mesh contains {numberOfVertices(G):d} vertices')
-    print(f'mesh contains {numberOfEdges(G):d} edges')
-    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')    
-    return G
+    print(f'mesh contains {numberOfTriangles():d} triangles')
+    print(f'mesh contains {numberOfVertices():d} vertices')
+    print(f'mesh contains {numberOfEdges():d} edges')
+    print(f'mesh contains {numberOfBoundaryEdges():d} boundaryEdges')    
+    mesh = G
 
 def printEdgesofTriangle(G, triangleIndex):
     G['pt'][triangleIndex]
-    for edgeIndex in range(numberOfEdges(G)):
+    for edgeIndex in range(numberOfEdges()):
         if G['te'][edgeIndex][0] == triangleIndex:
             print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
         if G['te'][edgeIndex][1] == triangleIndex:
             print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')
 
-def stiffnessMatrix(G, sigmas):
+def stiffnessMatrix(sigmas):
     Grads = shapeFunctionGradients()
     # area of ref triangle is 0.5, integrands are constant within integral
     B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
@@ -178,12 +192,12 @@ def stiffnessMatrix(G, sigmas):
     B_21 = 0.5 * Grads @ np.array([[0,0],[1,0]]) @ Grads.T
     B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
 
-    n = numberOfVertices(G)
+    n = numberOfVertices()
     K = np.zeros([n,n])
     #K = csr_Tensor((n,n))
     P_T = np.zeros([n,3])
-    for triangleIndex, triangle in enumerate(G['pt']):
-        jac,_ = transformationJacobian(G,triangleIndex)
+    for triangleIndex, triangle in enumerate(mesh['pt']):
+        jac,_ = transformationJacobian(mesh,triangleIndex)
         detJac = np.abs(np.linalg.det(jac))
         if len(sigmas.shape) == 1:
             gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
@@ -202,49 +216,53 @@ def stiffnessMatrix(G, sigmas):
     return K
 
 
-def massMatrix(G, rhos):
+def massMatrix(rhos):
+    global mesh
     Grads = shapeFunctionGradients()
     Mm = 1/24 * np.array([[2,1,1],
                         [1,2,1],
                         [1,1,2]])
-    n = numberOfVertices(G)
+    n = numberOfVertices()
     M = np.zeros([n,n])
-    for triangleIndex, triangle in enumerate(G['pt']):
-        detJac = np.abs(np.linalg.det(transformationJacobian(G,triangleIndex)[0]))
+    for triangleIndex, triangle in enumerate(mesh['pt']):
+        detJac = np.abs(np.linalg.det(transformationJacobian(mesh,triangleIndex)[0]))
         M_T = rhos[triangleIndex]*detJac*Mm
         M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
     return M
 
-def boundaryMassMatrix(G, alphas):
+def boundaryMassMatrix(alphas):
+    global mesh
     Grads = shapeFunctionGradients()
     Bb = 1/6 * np.array([[2,1],
                         [1,2]])
-    r = numberOfBoundaryEdges(G)
-    n = numberOfVertices(G)
+    r = numberOfBoundaryEdges()
+    n = numberOfVertices()
     B = np.zeros([n,n]) 
-    for edgeCount, edgeIndex in enumerate(G['eb']):
-        ps = G['pe'][edgeIndex]
-        detJac = np.abs(np.linalg.norm(G['xp'][ps[0]] - G['xp'][ps[1]]))
+    for edgeCount, edgeIndex in enumerate(mesh['eb']):
+        ps = mesh['pe'][edgeIndex]
+        detJac = np.abs(np.linalg.norm(mesh['xp'][ps[0]] - mesh['xp'][ps[1]]))
         B_T = alphas[edgeCount]*detJac*Bb
         B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
     return B
 
-def storePotentialInVTK(G,u,filename):
-    n = numberOfVertices(G)    
-    m = numberOfTriangles(G)    
-    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+def storePotentialInVTK(u,filename):
+    global mesh
+    n = numberOfVertices()    
+    m = numberOfTriangles()    
+    points = np.hstack([mesh['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), mesh['pt']])).ravel().astype(np.int64)
     celltypes = np.empty(m, np.uint8)
     celltypes[:] = vtk.VTK_TRIANGLE    
     grid = pv.UnstructuredGrid(cells, celltypes, points)
     grid.point_data["u"] = u
     grid.save(filename) 
 
-def storeFluxInVTK(G,u,sigmas,filename):
-    n = numberOfVertices(G)    
-    m = numberOfTriangles(G)    
-    points = np.hstack([G['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), G['pt']])).ravel().astype(np.int64)
+def storeFluxInVTK(u,sigmas,filename):
+    global mesh
+    n = numberOfVertices()    
+    m = numberOfTriangles()    
+    points = np.hstack([mesh['xp'], np.zeros((n,1))]) # add z coordinate
+    cells = (np.hstack([(3*np.ones((m,1))), mesh['pt']])).ravel().astype(np.int64)
     celltypes = np.empty(m, np.uint8)
     celltypes[:] = vtk.VTK_TRIANGLE    
     grid = pv.UnstructuredGrid(cells, celltypes, points)
@@ -257,7 +275,7 @@ def storeFluxInVTK(G,u,sigmas,filename):
     for i in range(len(v)):
         # rough fix: find a triangle thas includes point i
         # this is super slow though
-        for triangleIndex, triangle in enumerate(G['pt']):
+        for triangleIndex, triangle in enumerate(mesh['pt']):
             if triangle[0] == i or triangle[1] == i or triangle[2] == i:
                 sigmaIndex = triangleIndex
                 break
@@ -288,19 +306,19 @@ def solve(A,b):
     print(f'solved in {stop - start:.2f} s')    
     return u
 
-def bookExample1(G):
+def bookExample1():
     # example from book page 33
-    n = numberOfVertices(G)
-    m = numberOfTriangles(G)
-    r = numberOfBoundaryEdges(G)
+    n = numberOfVertices()
+    m = numberOfTriangles()
+    r = numberOfBoundaryEdges()
     sigmas = np.ones(m)
     rhos = np.ones(m)
     alphas = 1e9*np.ones(r)  # dirichlet BC
     f = np.ones(n)
 
-    K = stiffnessMatrix(G,sigmas)
-    M = massMatrix(G, rhos)
-    B = boundaryMassMatrix(G, alphas)
+    K = stiffnessMatrix(sigmas)
+    M = massMatrix(rhos)
+    B = boundaryMassMatrix(alphas)
     b = M @ f
     A = K+B
     u = solve(A,b)
@@ -312,13 +330,13 @@ def bookExample1(G):
     #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
     #plt.show()
 
-    storePotentialInVTK(G,u,"example1.vtk")
+    storePotentialInVTK(u,"example1.vtk")
 
-def bookExample2(G, scalarSigma, anisotropicInclusion=False):
+def bookExample2(scalarSigma, anisotropicInclusion=False):
     # example from book page 34
-    n = numberOfVertices(G)
-    m = numberOfTriangles(G)
-    r = numberOfBoundaryEdges(G)
+    n = numberOfVertices()
+    m = numberOfTriangles()
+    r = numberOfBoundaryEdges()
     if scalarSigma:
         sigmas = np.zeros(m)
         sigmaTensor1 = 1e-3
@@ -331,9 +349,9 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
                                     [0.9999, 1.0001]])
         else:
             sigmaTensor1 = 1e-3*np.eye(2)
-            
+    global mesh
     for t in range(m):
-        cog = np.sum(G['xp'][G['pt'][t,:],:],0)/3
+        cog = np.sum(mesh['xp'][mesh['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
             sigmas[t] = sigmaTensor1
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
@@ -342,7 +360,7 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
             sigmas[t] = sigmaTensor2
     alphas = np.zeros(r) 
     for e in range(r):
-        cog = np.sum(G['xp'][G['pe'][G['eb'][e],:],:],0)/2
+        cog = np.sum(mesh['xp'][mesh['pe'][mesh['eb'][e],:],:],0)/2
         if abs(cog[0]-5) < 1e-6: 
             alphas[e] = 1e9 # Dirichlet BC
         elif abs(cog[0]) < 1e-6:
@@ -351,46 +369,48 @@ def bookExample2(G, scalarSigma, anisotropicInclusion=False):
             alphas[e] = 0 # natural Neumann BC
     pd = np.zeros(n)
     for i in range(n):
-        x = G['xp'][i,:]
+        x = mesh['xp'][i,:]
         if (abs(x[0]-5) < 1e-6):
             pd[i] = 4-x[1] # Dirichlet BC
         elif abs(x[0] < 1e-6):
             pd[i] = -1e9 # Neumann BC
 
     start = time.time()
-    print("starting assembly")
-    K = stiffnessMatrix(G, sigmas)
-    B = boundaryMassMatrix(G, alphas)
+    K = stiffnessMatrix(sigmas)
+    B = boundaryMassMatrix(alphas)
     b = B @ pd
     A = K+B
+    stop = time.time()    
+    print(f'assembled in {stop - start:.2f} s')        
     u = solve(A,b)
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
-        storeFluxInVTK(G,u,sigmas,"example2_anisotropicInclusions.vtk")
+        storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")
     else:
         if scalarSigma:
-            storePotentialInVTK(G,u,"example2_scalar_isotropicInclusions.vtk")
+            storePotentialInVTK(u,"example2_scalar_isotropicInclusions.vtk")
         else:
-            storePotentialInVTK(G,u,"example2_tensor_isotropicInclusions.vtk")
+            storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
 
 def loadMesh(filename):
+    global mesh
     start = time.time()
-    mesh = meshio.read(filename)
+    meshioMesh = meshio.read(filename)
     G = dict()
     problemDimension = 2
     if problemDimension == 2:
-        G['xp'] = mesh.points[:,0:2] # tale only x,y coordinates
-        G['pt'] = mesh.cells_dict['triangle']
-    G = computeEdges(G)
-    G = computeBoundary(G)
+        G['xp'] = meshioMesh.points[:,0:2] # tale only x,y coordinates
+        G['pt'] = meshioMesh.cells_dict['triangle']
+    mesh = G
+    computeEdges()
+    computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
-    print(f'mesh contains {numberOfTriangles(G):d} triangles')
-    print(f'mesh contains {numberOfVertices(G):d} vertices')
-    print(f'mesh contains {numberOfEdges(G):d} edges')
-    print(f'mesh contains {numberOfBoundaryEdges(G):d} boundaryEdges')        
-    return G
+    print(f'mesh contains {numberOfTriangles():d} triangles')
+    print(f'mesh contains {numberOfVertices():d} vertices')
+    print(f'mesh contains {numberOfEdges():d} edges')
+    print(f'mesh contains {numberOfBoundaryEdges():d} boundaryEdges')        
 
 def main():
     if False:
@@ -414,18 +434,21 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    G = loadMesh("air_box_2d.msh")
+    loadMesh("air_box_2d.msh")
     # G = rectangularCriss(50,50)
     # printEdgesofTriangle(G,1)
     # plotMesh(G)
 
-    bookExample1(G)
+    bookExample1()
     # scale mesh to size [0,5] x [0,4]
-    G['xp'][:,0] = G['xp'][:,0]*5
-    G['xp'][:,1] = G['xp'][:,1]*4
-    bookExample2(G, True)
-    bookExample2(G, False)
-    bookExample2(G, False, True)
+    mesh['xp'][:,0] = mesh['xp'][:,0]*5
+    mesh['xp'][:,1] = mesh['xp'][:,1]*4
+
+    loadMesh("example2.msh")
+
+    bookExample2(True)
+    bookExample2(False)
+    bookExample2(False, True)
 
 if __name__ == "__main__":
     main()
