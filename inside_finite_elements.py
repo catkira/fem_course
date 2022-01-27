@@ -186,8 +186,7 @@ def solve(A, b, method='np'):
         Ap.assemblyBegin()
         Ap.assemblyEnd()
         bp = PETSc.Vec().createSeq(n) 
-        for i in range(len(b)):
-            bp.setValue(i, b[i])    
+        bp.setValues(range(n),b)        
         up = PETSc.Vec().createSeq(n)        
         ksp = PETSc.KSP().create()
         ksp.setOperators(Ap)        
@@ -321,12 +320,12 @@ def main():
     # plotMesh(G)
 
     bookExample1()
+    
     # scale mesh to size [0,5] x [0,4]
-    mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-    mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
+    # mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
+    # mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
     loadMesh("example2.msh")
-
     bookExample2(True)
     bookExample2(False)
     bookExample2(False, True)
