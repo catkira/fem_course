@@ -8,6 +8,7 @@ import sys
 import pkg_resources
 from scipy.sparse import *
 from parameter import parameter, computeParameters
+from region import region
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -81,7 +82,7 @@ def plotShapeFunctions():
             margin=dict(r=10, l=10, b=10, t=10))        
         fig.show()
 
-def stiffnessMatrix(sigmas):
+def stiffnessMatrix(sigmas, region=[]):
     Grads = shapeFunctionGradients()
     # area of ref triangle is 0.5, integrands are constant within integral
     B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
@@ -95,7 +96,11 @@ def stiffnessMatrix(sigmas):
     rows = np.zeros(m*9)
     cols = np.zeros(m*9)
     data = np.zeros(m*9)
-    for triangleIndex, triangle in enumerate(mesh()['pt']):
+    if region == []:
+        elements = mesh()['pt']
+    else:
+        elements = region.elements
+    for triangleIndex, triangle in enumerate(elements):
         jac,_ = transformationJacobian(triangleIndex)
         detJac = np.abs(np.linalg.det(jac))
         if len(sigmas.shape) == 1:
@@ -120,7 +125,7 @@ def stiffnessMatrix(sigmas):
     return K
 
 
-def massMatrix(rhos):
+def massMatrix(rhos, region=[]):
     Grads = shapeFunctionGradients()
     Mm = 1/24 * np.array([[2,1,1],
                         [1,2,1],
@@ -130,7 +135,11 @@ def massMatrix(rhos):
     rows = np.zeros(m*9)
     cols = np.zeros(m*9)
     data = np.zeros(m*9)    
-    for triangleIndex, triangle in enumerate(mesh()['pt']):
+    if region == []:
+        elements = mesh()['pt']
+    else:
+        elements = region.elements
+    for triangleIndex, triangle in enumerate(elements):
         detJac = np.abs(np.linalg.det(transformationJacobian(triangleIndex)[0]))
         range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)
         rows[range] = np.tile(triangle,3).astype(np.int64)
@@ -141,7 +150,7 @@ def massMatrix(rhos):
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M
 
-def boundaryMassMatrix(alphas):
+def boundaryMassMatrix(alphas, region=[]):
     Grads = shapeFunctionGradients()
     Bb = 1/6 * np.array([[2,1],
                         [1,2]])
@@ -151,8 +160,13 @@ def boundaryMassMatrix(alphas):
     rows = np.zeros(r*4)
     cols = np.zeros(r*4)
     data = np.zeros(r*4)
-    for edgeCount, edgeIndex in enumerate(mesh()['eb']):
-        ps = mesh()['pe'][edgeIndex]
+    if region == []:
+        elements = mesh()['pe'][mesh()['eb']]
+    else:
+        elements = region.elements    
+    for edgeCount, ps in enumerate(elements):
+#    for edgeCount, edgeIndex in enumerate(mesh()['eb']):
+#        ps = mesh()['pe'][edgeIndex]
         detJac = np.abs(np.linalg.norm(mesh()['xp'][ps[0]] - mesh()['xp'][ps[1]]))
         range = np.arange(start=edgeCount*4, stop=edgeCount*4+4)        
         rows[range] = np.tile(ps[:],2).astype(np.int64)
@@ -333,9 +347,9 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     incl2 = 1
     air = 2
     infBottom = 3
-    infTop = 6
     infLeft = 4
     infRight = 5
+    infTop = 6
 
     start = time.time()    
     sigma = parameter()
@@ -345,9 +359,19 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
 
     alpha = parameter()
     alpha.set(infBottom, 0)
-    alpha.set(infTop, 0)
     alpha.set(infLeft, 1e-9) # Neumann BC
     alpha.set(infRight, 1e9) # Dirichlet BC
+    alpha.set(infTop, 0)
+
+    alphas2 = np.zeros(r) 
+    for e in range(r):
+        cog = np.sum(mesh()['xp'][mesh()['pe'][mesh()['eb'][e],:],:],0)/2
+        if abs(cog[0]-5) < 1e-6: 
+            alphas2[e] = 1e9 # Dirichlet BC
+        elif abs(cog[0]) < 1e-6:
+            alphas2[e] = 1e-9 # Neumann BC
+        else:
+            alphas2[e] = 0 # natural Neumann BC    
 
     pd = np.zeros(n)
     for i in range(n):
@@ -360,7 +384,26 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     print(f'parameters prepared in {stop - start:.2f} s')        
     start = time.time()
     computeParameters()
-    K = stiffnessMatrix(sigma.triangleValues)
+
+    surfaceRegion = region()
+    surfaceRegion.appendId(incl1)
+    surfaceRegion.appendId(incl2)
+    surfaceRegion.appendId(air)
+    surfaceRegion.calculateElements()
+
+    boundaryRegion = region()
+    boundaryRegion.appendId(infBottom)
+    boundaryRegion.appendId(infTop)
+    boundaryRegion.appendId(infLeft)
+    boundaryRegion.appendId(infRight)
+    boundaryRegion.calculateElements()
+
+    K = stiffnessMatrix(sigma.triangleValues, surfaceRegion)
+    
+    # TODO: this is not yet working, because boundaryRegion.elements are numbered 
+    # like in mesh['pl'], but alpha is numbered like mesh['be']
+    
+    #B = boundaryMassMatrix(alpha.lineValues, boundaryRegion)
     B = boundaryMassMatrix(alpha.lineValues)
     b = B @ pd
     A = K+B
@@ -376,6 +419,9 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
             storePotentialInVTK(u,"example2_scalar_isotropicInclusions.vtk")
         else:
             storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
+
+def exampleHMagnet():
+    loadMesh("h_magnet.msh")
 
 def main():
     if False:
@@ -415,6 +461,7 @@ def main():
     bookExample2Parameter(True, 'petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
+    exampleHMagnet()
     print('finished')
 
 if __name__ == "__main__":

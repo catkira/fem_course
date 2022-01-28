@@ -21,6 +21,10 @@ def numberOfTriangles():
     global mesh
     return mesh['pt'].shape[0]
 
+def numberOfTetraeders():
+    global mesh
+    return mesh['ptt'].shape[0]
+
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
@@ -51,11 +55,12 @@ def computeEdges():
 
 def computeBoundary():
     global mesh
-    mesh['eb'] = []
-    for edgeIndex, edge in enumerate(mesh['te']):
-        if edge[1] == 0:
-            mesh['eb'].append(edgeIndex)
-    mesh['eb'] = np.array(mesh['eb'])
+    if mesh['problemDimension'] == 2:
+        mesh['eb'] = []
+        for edgeIndex, edge in enumerate(mesh['te']):
+            if edge[1] == 0:
+                mesh['eb'].append(edgeIndex)
+        mesh['eb'] = np.array(mesh['eb'])
 
 def numberOfEdges():
     global mesh
@@ -96,7 +101,11 @@ def printEdgesofTriangle(G, triangleIndex):
             print(f'edge {edgeIndex} belongs to triangle {triangleIndex}')    
 
 def printMeshInfo():
-    print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
+    global mesh
+    if mesh['problemDimension'] == 2:
+        print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
+    elif mesh['problemDimension'] == 3:
+        print(f'mesh contains {numberOfTetraeders():d} triangles, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
 
 
 def rectangularCriss(w, h):
@@ -113,6 +122,7 @@ def rectangularCriss(w, h):
                 G['pt'].append([(x+1)+w*y, (x+1)+w*(y+1), x+w*(y+1)])
     G['pt'] = np.array(G['pt'])
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
+    G['problemDimension'] = 2    
     mesh = G
     computeEdges()
     computeBoundary()
@@ -125,13 +135,22 @@ def loadMesh(filename):
     start = time.time()
     meshioMesh = meshio.read(filename)
     G = dict()
-    problemDimension = 2
-    if problemDimension == 2:
+    if 'tetra' in meshioMesh.cells_dict:
+        problemDimension = 3
+    else:
+        problemDimension = 2
+    if problemDimension == 2 or problemDimension == 3:
         G['xp'] = meshioMesh.points[:,0:2] # tale only x,y coordinates
+        if 'line' in meshioMesh.cells_dict:
+            G['pl'] = meshioMesh.cells_dict['line']
         G['pt'] = meshioMesh.cells_dict['triangle']
+    if problemDimension == 3:
+        G['ptt'] = meshioMesh.cells_dict['tetra']
     G['physical'] = meshioMesh.cell_data['gmsh:physical']
+    G['problemDimension'] = problemDimension
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later
+    mesh['eb'] = []
     computeEdges()
     computeBoundary()
     stop = time.time()
