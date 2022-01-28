@@ -407,7 +407,7 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
             storePotentialInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
 
 def exampleHMagnet():
-    loadMesh("h_magnet.msh")
+    loadMesh("examples/h_magnet.msh")
 
 def main():
     if False:
@@ -431,7 +431,7 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    loadMesh("air_box_2d.msh")
+    loadMesh("examples/air_box_2d.msh")
     # rectangularCriss(50,50)
     # printEdgesofTriangle(G,1)
     # plotMesh(G)
@@ -443,7 +443,7 @@ def main():
     #mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
     #mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
-    loadMesh("example2.msh")
+    loadMesh("examples/example2.msh")
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
