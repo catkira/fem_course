@@ -7,7 +7,7 @@ import time
 import sys
 import pkg_resources
 from scipy.sparse import *
-from parameter import parameter, computeParameters
+from parameter import parameter
 from region import region
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
@@ -99,7 +99,8 @@ def stiffnessMatrix(sigmas, region=[]):
     if region == []:
         elements = mesh()['pt']
     else:
-        elements = region.elements
+        elements = region.getElements()
+        sigmas = sigmas.getValues(region)
     for triangleIndex, triangle in enumerate(elements):
         jac,_ = transformationJacobian(triangleIndex)
         detJac = np.abs(np.linalg.det(jac))
@@ -138,7 +139,7 @@ def massMatrix(rhos, region=[]):
     if region == []:
         elements = mesh()['pt']
     else:
-        elements = region.elements
+        elements = region.getElements()
     for triangleIndex, triangle in enumerate(elements):
         detJac = np.abs(np.linalg.det(transformationJacobian(triangleIndex)[0]))
         range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)
@@ -163,7 +164,8 @@ def boundaryMassMatrix(alphas, region=[]):
     if region == []:
         elements = mesh()['pe'][mesh()['eb']]
     else:
-        elements = region.elements    
+        elements = region.getElements()
+        alphas = alphas.getValues(region)
     for edgeCount, ps in enumerate(elements):
 #    for edgeCount, edgeIndex in enumerate(mesh()['eb']):
 #        ps = mesh()['pe'][edgeIndex]
@@ -383,7 +385,6 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     stop = time.time()    
     print(f'parameters prepared in {stop - start:.2f} s')        
     start = time.time()
-    computeParameters()
 
     surfaceRegion = region()
     surfaceRegion.appendId(incl1)
@@ -398,13 +399,8 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     boundaryRegion.appendId(infRight)
     boundaryRegion.calculateElements()
 
-    K = stiffnessMatrix(sigma.triangleValues, surfaceRegion)
-    
-    # TODO: this is not yet working, because boundaryRegion.elements are numbered 
-    # like in mesh['pl'], but alpha is numbered like mesh['be']
-    
-    #B = boundaryMassMatrix(alpha.lineValues, boundaryRegion)
-    B = boundaryMassMatrix(alpha.lineValues)
+    K = stiffnessMatrix(sigma, surfaceRegion)    
+    B = boundaryMassMatrix(alpha, boundaryRegion)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -413,12 +409,12 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
-        storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions.vtk")
+        storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
     else:
         if scalarSigma:
-            storePotentialInVTK(u,"example2_scalar_isotropicInclusions.vtk")
+            storePotentialInVTK(u,"example2_scalar_isotropicInclusions_p.vtk")
         else:
-            storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
+            storePotentialInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
 
 def exampleHMagnet():
     loadMesh("h_magnet.msh")
@@ -458,7 +454,7 @@ def main():
     #mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
 
     loadMesh("example2.msh")
-    bookExample2Parameter(True, 'petsc')
+    bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
     exampleHMagnet()

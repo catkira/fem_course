@@ -70,6 +70,15 @@ def numberOfBoundaryEdges():
     global mesh
     return mesh['eb'].shape[0]
 
+def dimensionOfRegion(id):
+    global mesh
+    if id in mesh['physical'][0]:
+        return 1
+    elif id in mesh['physical'][1]:
+        return 2
+    else:
+        return -1
+
 def transformationJacobian(t):
     global mesh
     ps = mesh['pt'][t,:]
@@ -105,7 +114,7 @@ def printMeshInfo():
     if mesh['problemDimension'] == 2:
         print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
     elif mesh['problemDimension'] == 3:
-        print(f'mesh contains {numberOfTetraeders():d} triangles, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
+        print(f'mesh contains {numberOfTetraeders():d} tetraeder, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges')
 
 
 def rectangularCriss(w, h):
