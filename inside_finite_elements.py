@@ -377,16 +377,16 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     start = time.time()
 
     surfaceRegion = region()
-    surfaceRegion.appendId(incl1)
-    surfaceRegion.appendId(incl2)
-    surfaceRegion.appendId(air)
+    surfaceRegion.append(incl1)
+    surfaceRegion.append(incl2)
+    surfaceRegion.append(air)
     surfaceRegion.calculateElements()
 
     boundaryRegion = region()
-    boundaryRegion.appendId(infBottom)
-    boundaryRegion.appendId(infTop)
-    boundaryRegion.appendId(infLeft)
-    boundaryRegion.appendId(infRight)
+    boundaryRegion.append(infBottom)
+    boundaryRegion.append(infTop)
+    boundaryRegion.append(infLeft)
+    boundaryRegion.append(infRight)
     boundaryRegion.calculateElements()
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
