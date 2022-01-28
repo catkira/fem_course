@@ -6,14 +6,19 @@ import region
 parameterList = []
 
 class parameter:
-    def __init__(self):
+    def __init__(self, rows=1):
         self.settings = []
         self.preparedValues = dict()
         self.lineValues = []
         self.triangleValues = []
+        self.rows = rows
         parameterList.append(self)
 
     def set(self, region, value):
+        if ((not isinstance(value, list) and self.rows != 1) or 
+            (isinstance(value, list) and self.rows != len(value))):
+            print(f'Error: values for this parameter need to have {self.rows:d} rows!')
+            sys.exit()
         self.settings.append([region, value])
 
     def prepareValues(self, ids):
@@ -40,10 +45,6 @@ class parameter:
             if not id in ids:
                 print(f'Error: Region id {id:d} not present in parameter!')
                 sys.exit()
-        
-        if region.ids != ids:
-            print("Error: Regions dont match!")
-            sys.exit()
             
         # use calculated values if possible
         if not str(region.ids) in self.preparedValues:

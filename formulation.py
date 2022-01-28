@@ -140,6 +140,7 @@ def massMatrix(rhos, region=[]):
         elements = mesh()['pt']
     else:
         elements = region.getElements()
+        rhos = rhos.getValues(region)        
     for triangleIndex, triangle in enumerate(elements):
         detJac = np.abs(np.linalg.det(transformationJacobian(triangleIndex)[0]))
         range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)
@@ -406,6 +407,58 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
         else:
             storePotentialInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
 
+def exampleMagnetInRoom():
+    loadMesh("examples/magnet_in_room.msh")
+    mu0 = 4*np.pi*1e-7
+    mur_wall = 1000
+    b_r_magnet = 1.5    
+    # regions
+    magnet = 1
+    insideAir = 2
+    wall = 3
+    outsideAir = 4
+    inf = 5
+
+    start = time.time()
+    mu = parameter()
+    mu.set(wall, mu0*mur_wall)
+    mu.set(magnet, mu0)
+    mu.set(insideAir, mu0)
+    mu.set(outsideAir, mu0)
+    mu.set(inf, mu0)
+
+    br = parameter(2)
+    br.set(magnet, [-b_r_magnet, 0])
+    br.set(wall, [0, 0])
+    br.set(insideAir, [0, 0])
+    br.set(outsideAir, [0, 0])
+    br.set(inf, [0, 0])
+
+    alpha = parameter()
+    alpha.set(inf, 1e9) # Dirichlet BC
+
+    surfaceRegion = region()
+    surfaceRegion.append(wall)
+    surfaceRegion.append(magnet)
+    surfaceRegion.append(insideAir)
+    surfaceRegion.append(outsideAir)
+    surfaceRegion.calculateElements()    
+
+    boundaryRegion = region()
+    boundaryRegion.append(inf)
+    boundaryRegion.calculateElements()
+
+    K = stiffnessMatrix(mu, surfaceRegion)
+    B = boundaryMassMatrix(alpha, boundaryRegion)
+    M = massMatrix(br, surfaceRegion)    
+    stop = time.time()    
+    b = np.zeros(numberOfVertices())
+    A = K+B+M
+    print(f'assembled in {stop - start:.2f} s')        
+    u = solve(A, b, 'petsc')
+    print(f'u_max = {max(u):.4f}')
+    storePotentialInVTK(u,"magnet_in_room.vtk")                      
+
 def exampleHMagnet():
     loadMesh("examples/h_magnet.msh")
 
@@ -447,7 +500,8 @@ def main():
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
     bookExample2(False, 'petsc')
     bookExample2(False, True, 'petsc')
-    exampleHMagnet()
+    # exampleHMagnet()
+    exampleMagnetInRoom()
     print('finished')
 
 if __name__ == "__main__":
