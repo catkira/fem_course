@@ -365,16 +365,6 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     alpha.set(infRight, 1e9) # Dirichlet BC
     alpha.set(infTop, 0)
 
-    alphas2 = np.zeros(r) 
-    for e in range(r):
-        cog = np.sum(mesh()['xp'][mesh()['pe'][mesh()['eb'][e],:],:],0)/2
-        if abs(cog[0]-5) < 1e-6: 
-            alphas2[e] = 1e9 # Dirichlet BC
-        elif abs(cog[0]) < 1e-6:
-            alphas2[e] = 1e-9 # Neumann BC
-        else:
-            alphas2[e] = 0 # natural Neumann BC    
-
     pd = np.zeros(n)
     for i in range(n):
         x = mesh()['xp'][i,:]
