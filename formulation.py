@@ -82,6 +82,7 @@ def plotShapeFunctions():
             margin=dict(r=10, l=10, b=10, t=10))        
         fig.show()
 
+# integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(sigmas, region=[]):
     Grads = shapeFunctionGradients()
     # area of ref triangle is 0.5, integrands are constant within integral
@@ -125,7 +126,11 @@ def stiffnessMatrix(sigmas, region=[]):
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
+# integral f * grad(tf(u))
+def xMatrix(f, region=[]):
+    pass
 
+# integral rho * u * tf(u)
 def massMatrix(rhos, region=[]):
     Grads = shapeFunctionGradients()
     Mm = 1/24 * np.array([[2,1,1],
@@ -392,6 +397,7 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
     B = boundaryMassMatrix(alpha, boundaryRegion)
+    M = massMatrix(ones, boundaryRegion)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -450,10 +456,9 @@ def exampleMagnetInRoom():
 
     K = stiffnessMatrix(mu, surfaceRegion)
     B = boundaryMassMatrix(alpha, boundaryRegion)
-    M = massMatrix(br, surfaceRegion)    
     stop = time.time()    
     b = np.zeros(numberOfVertices())
-    A = K+B+M
+    A = K+B
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
     print(f'u_max = {max(u):.4f}')
