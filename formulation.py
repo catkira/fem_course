@@ -126,9 +126,25 @@ def stiffnessMatrix(sigmas, region=[]):
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
-# integral f * grad(tf(u))
-def xMatrix(f, region=[]):
-    pass
+# integral br * grad(tf(u))
+def fluxRhs(br, region=[]):
+    Grads = shapeFunctionGradients()    
+    if region == []:
+        elements = mesh()['pt']
+    else:
+        elements = region.getElements()
+        br = br.getValues(region)
+    n = numberOfVertices()
+    rhs = np.zeros(n)
+    for triangleIndex, triangle in enumerate(elements):
+        jac,_ = transformationJacobian(triangleIndex)
+        invJac = np.linalg.inv(jac)
+        detJac = np.abs(np.linalg.det(jac))        
+        temp = 0.5 * invJac.T @ Grads.T * detJac
+        rhs[triangle[0]] = rhs[triangle[0]] + np.dot(br[triangleIndex], temp.T[0])
+        rhs[triangle[1]] = rhs[triangle[1]] + np.dot(br[triangleIndex], temp.T[1])
+        rhs[triangle[2]] = rhs[triangle[2]] + np.dot(br[triangleIndex], temp.T[2])
+    return rhs
 
 # integral rho * u * tf(u)
 def massMatrix(rhos, region=[]):
@@ -155,7 +171,7 @@ def massMatrix(rhos, region=[]):
         #M_T = rhos[triangleIndex]*detJac*Mm
         #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    return M
+    return M    
 
 def boundaryMassMatrix(alphas, region=[]):
     Grads = shapeFunctionGradients()
@@ -397,7 +413,6 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
     B = boundaryMassMatrix(alpha, boundaryRegion)
-    M = massMatrix(ones, boundaryRegion)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -456,8 +471,9 @@ def exampleMagnetInRoom():
 
     K = stiffnessMatrix(mu, surfaceRegion)
     B = boundaryMassMatrix(alpha, boundaryRegion)
+    rhs = fluxRhs(br, surfaceRegion)
     stop = time.time()    
-    b = np.zeros(numberOfVertices())
+    b = rhs
     A = K+B
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
@@ -503,8 +519,8 @@ def main():
 
     loadMesh("examples/example2.msh")
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
-    bookExample2(False, 'petsc')
-    bookExample2(False, True, 'petsc')
+    #bookExample2(False, 'petsc')
+    #bookExample2(False, True, 'petsc')
     # exampleHMagnet()
     exampleMagnetInRoom()
     print('finished')
