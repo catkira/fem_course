@@ -6,6 +6,7 @@ import vtk
 import time
 import scipy as sp
 import meshio
+import sys
 from scipy.sparse import *
 
 mesh = dict()
@@ -116,6 +117,15 @@ def printMeshInfo():
     elif mesh['problemDimension'] == 3:
         print(f'mesh contains {numberOfTetraeders():d} tetraeder, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges')
 
+def regionDimension(id):
+    global mesh
+    if id in mesh['physical'][0]: # check lines
+        return 1
+    elif id in mesh['physical'][1]: # check triangles
+        return 2
+    else:
+        print(f'Error: Region with id {id:d} not found!')
+        sys.exit()
 
 def rectangularCriss(w, h):
     global mesh

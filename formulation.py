@@ -7,7 +7,7 @@ import time
 import sys
 import pkg_resources
 from scipy.sparse import *
-from parameter import parameter
+from parameter import *
 from region import region
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
@@ -137,6 +137,8 @@ def fluxRhs(br, region=[]):
     n = numberOfVertices()
     rhs = np.zeros(n)
     for triangleIndex, triangle in enumerate(elements):
+        if br[triangleIndex][0] == 0 and br[triangleIndex][1] == 0:
+            continue
         jac,_ = transformationJacobian(triangleIndex)
         invJac = np.linalg.inv(jac)
         detJac = np.abs(np.linalg.det(jac))        
@@ -201,42 +203,6 @@ def boundaryMassMatrix(alphas, region=[]):
     B = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return B
 
-def storePotentialInVTK(u,filename):
-    n = numberOfVertices()    
-    m = numberOfTriangles()    
-    points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
-    celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
-    grid = pv.UnstructuredGrid(cells, celltypes, points)
-    grid.point_data["u"] = u
-    grid.save(filename) 
-
-def storeFluxInVTK(u,sigmas,filename):
-    n = numberOfVertices()    
-    m = numberOfTriangles()    
-    points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
-    celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
-    grid = pv.UnstructuredGrid(cells, celltypes, points)
-    grid.point_data["u"] = u
-    grid = grid.compute_derivative(scalars='u', gradient='velocity')
-    v = grid.get_array('velocity')    
-    # Problem: compute_derivative returns gradients for every point, 
-    # but we need gradients for every triangle, because sigmas are indexed by triangles
-    # rough fix: create average sigma for each point, some pointSigmas might be assigned multiple times
-    pointSigmas = np.zeros((n,2,2))
-    for i, triangle in enumerate(mesh()['pt']):
-        pointSigmas[triangle[0]] = sigmas[i]
-        pointSigmas[triangle[1]] = sigmas[i]
-        pointSigmas[triangle[2]] = sigmas[i]
-    flux = np.zeros((len(v),3))
-    for i in range(len(v)):
-        flux[i][0:2] = pointSigmas[i] @ v[i][0:2]
-    grid.point_data["flux"] = flux
-    grid.save(filename) 
-
 def solve(A, b, method='np'):
     start = time.time()
     if method == 'sparse':
@@ -296,7 +262,7 @@ def bookExample1():
     #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
     #plt.show()
 
-    storePotentialInVTK(u,"example1.vtk")
+    storeInVTK(u,"example1.vtk")
 
 def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
     # example from book page 34
@@ -356,9 +322,9 @@ def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
         storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")
     else:
         if scalarSigma:
-            storePotentialInVTK(u,"example2_scalar_isotropicInclusions.vtk")
+            storeInVTK(u,"example2_scalar_isotropicInclusions.vtk")
         else:
-            storePotentialInVTK(u,"example2_tensor_isotropicInclusions.vtk")
+            storeInVTK(u,"example2_tensor_isotropicInclusions.vtk")
   
 
 def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
@@ -377,15 +343,13 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
 
     start = time.time()    
     sigma = parameter()
-    sigma.set(incl1, 1e-3)
-    sigma.set(incl2, 1e-3)
+    sigma.set([incl1, incl2], 1e-3)
     sigma.set(air, 1)
 
     alpha = parameter()
-    alpha.set(infBottom, 0)
+    alpha.set([infBottom, infTop], 0)
     alpha.set(infLeft, 1e-9) # Neumann BC
     alpha.set(infRight, 1e9) # Dirichlet BC
-    alpha.set(infTop, 0)
 
     pd = np.zeros(n)
     for i in range(n):
@@ -424,9 +388,9 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
         storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
     else:
         if scalarSigma:
-            storePotentialInVTK(u,"example2_scalar_isotropicInclusions_p.vtk")
+            storeInVTK(u,"example2_scalar_isotropicInclusions_p.vtk")
         else:
-            storePotentialInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
+            storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
 
 def exampleMagnetInRoom():
     loadMesh("examples/magnet_in_room.msh")
@@ -443,17 +407,13 @@ def exampleMagnetInRoom():
     start = time.time()
     mu = parameter()
     mu.set(wall, mu0*mur_wall)
-    mu.set(magnet, mu0)
-    mu.set(insideAir, mu0)
-    mu.set(outsideAir, mu0)
-    mu.set(inf, mu0)
-
+    mu.set([magnet, insideAir, outsideAir], mu0)
+    storeInVTK(mu, "mu.vtk")
+    
     br = parameter(2)
-    br.set(magnet, [-b_r_magnet, 0])
-    br.set(wall, [0, 0])
-    br.set(insideAir, [0, 0])
-    br.set(outsideAir, [0, 0])
-    br.set(inf, [0, 0])
+    br.set(magnet, [b_r_magnet, 0])
+    br.set([wall, insideAir, outsideAir], [0, 0])
+    storeInVTK(br, "br.vtk")
 
     alpha = parameter()
     alpha.set(inf, 1e9) # Dirichlet BC
@@ -478,7 +438,14 @@ def exampleMagnetInRoom():
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
     print(f'u_max = {max(u):.4f}')
-    storePotentialInVTK(u,"magnet_in_room.vtk")                      
+    storeInVTK(u,"magnet_in_room.vtk")
+    n = numberOfVertices()   
+    h = grad(u)
+    storeInVTK(h,"magnet_in_room_h.vtk")
+    mus = mu.getVertexValues()  
+    brs = np.column_stack([br.getVertexValues(), np.zeros(n)])
+    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnet():
     loadMesh("examples/h_magnet.msh")
@@ -520,7 +487,7 @@ def main():
     loadMesh("examples/example2.msh")
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
     #bookExample2(False, 'petsc')
-    #bookExample2(False, True, 'petsc')
+    bookExample2(False, anisotropicInclusion=True, method='petsc')
     # exampleHMagnet()
     exampleMagnetInRoom()
     print('finished')
