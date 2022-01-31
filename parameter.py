@@ -103,39 +103,44 @@ def f2s(inputValue):
     return ('%.15f' % inputValue).rstrip('0').rstrip('.')
 
 def storeInVTK(u, filename, writePointData = False):
+    start = time.time()    
     if isinstance(u, parameter):
         u = u.getVertexValues()  # this function is problematic -> see definition
     m = numberOfTriangles()    
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
     with open(filename, 'w') as file:
-        file.write("# vtk DataFile Version 4.2\nu\nASCII\nDATASET UNSTRUCTURED_GRID\n\n")
-        file.write(f'POINTS {m*3:d} double\n')
+        vtktxt = str()
+        vtktxt += "# vtk DataFile Version 4.2\nu\nASCII\nDATASET UNSTRUCTURED_GRID\n\n"
+        vtktxt += f'POINTS {m*3:d} double\n'
         for triangle in mesh()['pt']:
             for point in triangle:
                 coords = mesh()['xp'][point]
-                file.write(f2s(coords[0]) + " " + f2s(coords[1]))
+                vtktxt += f2s(coords[0]) + " " + f2s(coords[1])
                 if mesh()['problemDimension'] == 2:
-                    file.write(" 0" )
-            file.write('\n')
-        file.write(f'\nCELLS {m:d} {m*4:d}\n')
+                    vtktxt += " 0"
+            vtktxt += '\n'
+        vtktxt += f'\nCELLS {m:d} {m*4:d}\n'
         for triangleIndex, triangle in enumerate(mesh()['pt']):
-            file.write(f'3 {triangleIndex*3:d} {triangleIndex*3+1:d} {triangleIndex*3+2:d}\n')
-        file.write(f'\nCELL_TYPES {m:d}\n')
+            vtktxt += f'3 {triangleIndex*3:d} {triangleIndex*3+1:d} {triangleIndex*3+2:d}\n'
+        vtktxt += f'\nCELL_TYPES {m:d}\n'
         for triangle in mesh()['pt']:
-            file.write(f"{vtk.VTK_LAGRANGE_TRIANGLE:d}\n")
+            vtktxt += f"{vtk.VTK_LAGRANGE_TRIANGLE:d}\n"
         if scalarValue:
-            file.write(f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n')
+            vtktxt += f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
         else:
-            file.write(f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n')
+            vtktxt += f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n'
         for triangle in mesh()['pt']:
             for point in triangle:
                 if scalarValue:
-                    file.write(f2s(u[point]) + "\n")
+                    vtktxt += f2s(u[point]) + "\n"
                 else:
-                    file.write(f2s(u[point][0]) + " " + f2s(u[point][1]))
+                    vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1])
                     if mesh()['problemDimension'] == 2:
-                        file.write(" 0" )
-                    file.write("\n" )
+                        vtktxt += " 0"
+                    vtktxt += "\n"
+        file.write(vtktxt)
+    stop = time.time()                    
+    print(f'written {filename:s} in {stop-start:.2f}s')
                 
 # using pyvista save writes vtk files in version 5, which generates wrong gradients
 # when using the gradient filter in paraview
