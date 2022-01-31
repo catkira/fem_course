@@ -87,7 +87,6 @@ class parameter:
 
 # TODO: implement this routine without using pyvista/vtk
 def grad(u):
-    n = numberOfVertices()    
     m = numberOfTriangles()    
     return np.zeros((m,3))
     # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
@@ -103,6 +102,7 @@ def grad(u):
 def f2s(inputValue):
     return ('%.15f' % inputValue).rstrip('0').rstrip('.')
 
+# u can be of type parameter or a list
 def storeInVTK(u, filename, writePointData = False):
     start = time.time()    
     if isinstance(u, parameter):
