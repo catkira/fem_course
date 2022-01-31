@@ -86,6 +86,7 @@ class parameter:
             vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
         return vertexValues
 
+# calculates gradient for each triangle
 def grad(u):
     m = numberOfTriangles()
     grads = np.zeros((m,3))

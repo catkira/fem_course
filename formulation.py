@@ -398,7 +398,7 @@ def exampleMagnetInRoom():
     storeInVTK(h,"magnet_in_room_h.vtk")
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
-    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    b = -np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnet():
