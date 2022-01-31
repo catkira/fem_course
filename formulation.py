@@ -262,7 +262,7 @@ def bookExample1():
     #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
     #plt.show()
 
-    storeInVTK(u,"example1.vtk")
+    storeInVTK(u,"example1.vtk", writePointData=True)
 
 def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
     # example from book page 34
@@ -319,12 +319,13 @@ def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
-        storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")
+        #storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")
+        pass
     else:
         if scalarSigma:
-            storeInVTK(u,"example2_scalar_isotropicInclusions.vtk")
+            storeInVTK(u,"example2_scalar_isotropicInclusions.vtk", writePointData=True)
         else:
-            storeInVTK(u,"example2_tensor_isotropicInclusions.vtk")
+            storeInVTK(u,"example2_tensor_isotropicInclusions.vtk", writePointData=True)
   
 
 def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
@@ -385,12 +386,13 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
-        storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
+        #storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
+        pass
     else:
         if scalarSigma:
-            storeInVTK(u,"example2_scalar_isotropicInclusions_p.vtk")
+            storeInVTK(u,"example2_scalar_isotropicInclusions_p.vtk", writePointData=True)
         else:
-            storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk")
+            storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk", writePointData=True)
 
 def exampleMagnetInRoom():
     loadMesh("examples/magnet_in_room.msh")
@@ -408,12 +410,12 @@ def exampleMagnetInRoom():
     mu = parameter()
     mu.set(wall, mu0*mur_wall)
     mu.set([magnet, insideAir, outsideAir], mu0)
-    storeInVTK(mu, "mu.vtk")
+    #storeInVTK(mu, "mu.vtk")
     
     br = parameter(2)
     br.set(magnet, [b_r_magnet, 0])
     br.set([wall, insideAir, outsideAir], [0, 0])
-    storeInVTK(br, "br.vtk")
+    #storeInVTK(br, "br.vtk")
 
     alpha = parameter()
     alpha.set(inf, 1e9) # Dirichlet BC
@@ -438,12 +440,12 @@ def exampleMagnetInRoom():
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
     print(f'u_max = {max(u):.4f}')
-    storeInVTK(u,"magnet_in_room_phi.vtk")
-    n = numberOfVertices()   
+    storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
+    m = numberOfTriangles()   
     h = grad(u)
     storeInVTK(h,"magnet_in_room_h.vtk")
-    mus = mu.getVertexValues()  
-    brs = np.column_stack([br.getVertexValues(), np.zeros(n)])
+    mus = mu.getValues()  
+    brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
 

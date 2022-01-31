@@ -89,14 +89,15 @@ class parameter:
 def grad(u):
     n = numberOfVertices()    
     m = numberOfTriangles()    
-    points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
-    cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
-    celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
-    grid = pv.UnstructuredGrid(cells, celltypes, points)
-    grid.point_data["u"] = u
-    grid = grid.compute_derivative(scalars='u', gradient='velocity')
-    return grid.get_array('velocity')       
+    return np.zeros((m,3))
+    # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
+    # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
+    # celltypes = np.empty(m, np.uint8)
+    # celltypes[:] = vtk.VTK_TRIANGLE    
+    # grid = pv.UnstructuredGrid(cells, celltypes, points)
+    # grid.point_data["u"] = u
+    # grid = grid.compute_derivative(scalars='u', gradient='velocity')
+    # return grid.get_array('velocity')       
 
 # double values have around 16 decimals
 def f2s(inputValue):
@@ -105,7 +106,10 @@ def f2s(inputValue):
 def storeInVTK(u, filename, writePointData = False):
     start = time.time()    
     if isinstance(u, parameter):
-        u = u.getVertexValues()  # this function is problematic -> see definition
+        if writePointData:
+            u = u.getVertexValues()  # this function is problematic -> see definition
+        else:
+            u = u.getValues() 
     m = numberOfTriangles()    
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
     with open(filename, 'w') as file:
@@ -117,7 +121,7 @@ def storeInVTK(u, filename, writePointData = False):
                 coords = mesh()['xp'][point]
                 vtktxt += f2s(coords[0]) + " " + f2s(coords[1])
                 if mesh()['problemDimension'] == 2:
-                    vtktxt += " 0"
+                    vtktxt += " 0 "
             vtktxt += '\n'
         vtktxt += f'\nCELLS {m:d} {m*4:d}\n'
         for triangleIndex, triangle in enumerate(mesh()['pt']):
@@ -125,16 +129,30 @@ def storeInVTK(u, filename, writePointData = False):
         vtktxt += f'\nCELL_TYPES {m:d}\n'
         for triangle in mesh()['pt']:
             vtktxt += f"{vtk.VTK_LAGRANGE_TRIANGLE:d}\n"
-        if scalarValue:
-            vtktxt += f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
+        if writePointData:
+            if scalarValue:
+                vtktxt += f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
+            else:
+                vtktxt += f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n'
+            for triangle in mesh()['pt']:
+                for point in triangle:
+                    if scalarValue:
+                        vtktxt += f2s(u[point]) + "\n"
+                    else:
+                        vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1])
+                        if mesh()['problemDimension'] == 2:
+                            vtktxt += " 0"
+                        vtktxt += "\n"
         else:
-            vtktxt += f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n'
-        for triangle in mesh()['pt']:
-            for point in triangle:
+            if scalarValue:
+                vtktxt += f'\nCELL_DATA {m:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
+            else:
+                vtktxt += f'\nCELL_DATA {m:d}\nVECTORS u double\n'
+            for triangleIndex,triangle in enumerate(mesh()['pt']):
                 if scalarValue:
-                    vtktxt += f2s(u[point]) + "\n"
+                    vtktxt += f2s(u[triangleIndex]) + "\n"
                 else:
-                    vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1])
+                    vtktxt += f2s(u[triangleIndex][0]) + " " + f2s(u[triangleIndex][1])
                     if mesh()['problemDimension'] == 2:
                         vtktxt += " 0"
                     vtktxt += "\n"
