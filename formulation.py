@@ -438,7 +438,7 @@ def exampleMagnetInRoom():
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
     print(f'u_max = {max(u):.4f}')
-    storeInVTK(u,"magnet_in_room.vtk")
+    storeInVTK(u,"magnet_in_room_phi.vtk")
     n = numberOfVertices()   
     h = grad(u)
     storeInVTK(h,"magnet_in_room_h.vtk")

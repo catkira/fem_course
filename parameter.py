@@ -68,6 +68,8 @@ class parameter:
         return np.array(self.preparedValues[str(regionIds)])
     
     # this function is quite inefficient, but its only for debug purpose anyway
+    # Problem: vertexValues at the border of a region get overwritten by neighbouring region
+    # but its only a problem for visualization, since this function is not used in calculation
     def getVertexValues(self):
         triangleValues = self.getValues()
         if len(triangleValues) != numberOfTriangles():
@@ -83,6 +85,7 @@ class parameter:
             vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
         return vertexValues
 
+# TODO: implement this routine without using pyvista/vtk
 def grad(u):
     n = numberOfVertices()    
     m = numberOfTriangles()    
@@ -95,13 +98,50 @@ def grad(u):
     grid = grid.compute_derivative(scalars='u', gradient='velocity')
     return grid.get_array('velocity')       
 
+# double values have around 16 decimals
+def f2s(inputValue):
+    return ('%.15f' % inputValue).rstrip('0').rstrip('.')
+
 def storeInVTK(u, filename, writePointData = False):
+    if isinstance(u, parameter):
+        u = u.getVertexValues()  # this function is problematic -> see definition
+    m = numberOfTriangles()    
+    scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
+    with open(filename, 'w') as file:
+        file.write("# vtk DataFile Version 4.2\nu\nASCII\nDATASET UNSTRUCTURED_GRID\n\n")
+        file.write(f'POINTS {m*3:d} double\n')
+        for triangle in mesh()['pt']:
+            for point in triangle:
+                coords = mesh()['xp'][point]
+                file.write(f2s(coords[0]) + " " + f2s(coords[1]) + " 0" )
+            file.write('\n')
+        file.write(f'\nCELLS {m:d} {m*4:d}\n')
+        for triangleIndex, triangle in enumerate(mesh()['pt']):
+            file.write(f'3 {triangleIndex*3:d} {triangleIndex*3+1:d} {triangleIndex*3+2:d}\n')
+        file.write(f'\nCELL_TYPES {m:d}\n')
+        for triangle in mesh()['pt']:
+            file.write(f"{vtk.VTK_LAGRANGE_TRIANGLE:d}\n")
+        if scalarValue:
+            file.write(f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n')
+        else:
+            file.write(f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n')
+        for triangle in mesh()['pt']:
+            for point in triangle:
+                if scalarValue:
+                    file.write(f2s(u[point]) + "\n")
+                else:
+                    file.write(f2s(u[point][0]) + " " + f2s(u[point][1]) + " 0\n")
+                
+# using pyvista save writes vtk files in version 5, which generates wrong gradients
+# when using the gradient filter in paraview
+def storeInVTKpv(u, filename, writePointData = False):
     n = numberOfVertices()    
     m = numberOfTriangles()    
     points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
     cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
     celltypes = np.empty(m, np.uint8)
-    celltypes[:] = vtk.VTK_TRIANGLE    
+    #celltypes[:] = vtk.VTK_TRIANGLE    
+    celltypes[:] = vtk.VTK_LAGRANGE_TRIANGLE    
     grid = pv.UnstructuredGrid(cells, celltypes, points)
     if not isinstance(u, parameter):
         grid.point_data["u"] = u
@@ -109,7 +149,7 @@ def storeInVTK(u, filename, writePointData = False):
         if writePointData:
             grid.point_data["u"] = u.getVertexValues()
         grid.cell_data["u"] = u.getValues()
-    grid.save(filename) 
+    grid.save(filename, binary=False) 
 
 # functions expects sigmas to be triangleData if its not a parameter object
 # until now this function can only write point_data, because compute_derivative()
