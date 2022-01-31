@@ -113,7 +113,9 @@ def storeInVTK(u, filename, writePointData = False):
         for triangle in mesh()['pt']:
             for point in triangle:
                 coords = mesh()['xp'][point]
-                file.write(f2s(coords[0]) + " " + f2s(coords[1]) + " 0" )
+                file.write(f2s(coords[0]) + " " + f2s(coords[1]))
+                if mesh()['problemDimension'] == 2:
+                    file.write(" 0" )
             file.write('\n')
         file.write(f'\nCELLS {m:d} {m*4:d}\n')
         for triangleIndex, triangle in enumerate(mesh()['pt']):
@@ -130,7 +132,10 @@ def storeInVTK(u, filename, writePointData = False):
                 if scalarValue:
                     file.write(f2s(u[point]) + "\n")
                 else:
-                    file.write(f2s(u[point][0]) + " " + f2s(u[point][1]) + " 0\n")
+                    file.write(f2s(u[point][0]) + " " + f2s(u[point][1]))
+                    if mesh()['problemDimension'] == 2:
+                        file.write(" 0" )
+                    file.write("\n" )
                 
 # using pyvista save writes vtk files in version 5, which generates wrong gradients
 # when using the gradient filter in paraview
