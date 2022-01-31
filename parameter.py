@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 from mesh import *
+from field import *
 import region
 
 parameterList = []
@@ -85,24 +86,15 @@ class parameter:
             vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
         return vertexValues
 
-# TODO: implement this routine without using pyvista/vtk
 def grad(u):
     m = numberOfTriangles()
     grads = np.zeros((m,3))
+    sfGrads = shapeFunctionGradients()
     for triangleIndex, triangle in enumerate(mesh()['pt']):    
-        p1 = np.append(mesh()['xp'][triangle[0]], u[triangle[0]])
-        p2 = np.append(mesh()['xp'][triangle[1]], u[triangle[1]])
-        p3 = np.append(mesh()['xp'][triangle[2]], u[triangle[2]])
-        mat = np.column_stack([p1.T, p2.T, p3.T])
-        matA = np.copy(mat)
-        matA[:,0] = np.ones((1,3))
-        matB = np.copy(mat)
-        matB[:,1] = np.ones((1,3))
-        matC = np.copy(mat)
-        matC[:,2] = np.ones((1,3))
-        det = np.linalg.det(mat)
-        grads[triangleIndex] = [np.linalg.det(matA)/det, np.linalg.det(matB)/det, np.linalg.det(matC)/det]
-    return 
+        jac,_ = transformationJacobian(triangleIndex)        
+        invJac = np.linalg.inv(jac)
+        grads[triangleIndex] = np.append(invJac.T @ sfGrads.T @ u[triangle], 0)
+    return grads
     # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
     # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
     # celltypes = np.empty(m, np.uint8)
