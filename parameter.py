@@ -167,7 +167,7 @@ def storeInVTK(u, filename, writePointData = False):
                 vtktxt += f'\nPOINT_DATA {m*ppe:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
             else:
                 vtktxt += f'\nPOINT_DATA {m*ppe:d}\nVECTORS u double\n'
-            for element in mesh()['pt']:
+            for element in elementContainer:
                 for point in element:
                     if scalarValue:
                         vtktxt += f2s(u[point]) + "\n"

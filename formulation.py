@@ -456,7 +456,7 @@ def exampleHMagnet():
     #storeInVTK(mu, "mu.vtk")
     
     br = parameter(3)
-    br.set(magnet, [b_r_magnet, 0, 0])
+    br.set(magnet, [0, 0, b_r_magnet])
     br.set([frame, air], [0, 0, 0])
     #storeInVTK(br, "br.vtk")    
 
@@ -477,9 +477,16 @@ def exampleHMagnet():
     stop = time.time()
     print(f'assembled in {stop - start:.2f} s')       
     u = solve(A, b, 'petsc')    
-    storeInVTK(u,"h_magnet_u.vtk", writePointData=True)    
+    storeInVTK(u, "h_magnet_u.vtk", writePointData=True)    
     h = grad(u, dim=3)
-    storeInVTK(h,"h_magnet_h.vtk")
+    storeInVTK(h, "h_magnet_h.vtk")
+    mus = mu.getValues()  
+    m = numberOfTetraeders()       
+    brs = np.column_stack([br.getValues(), np.zeros(m)])
+    b = -np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    #assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3) # this value should theoretically be lower than 1.5T
+    storeInVTK(b,"h_magnet_b.vtk")    
 
 def main():
     if False:
