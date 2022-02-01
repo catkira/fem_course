@@ -364,15 +364,10 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     start = time.time()
 
     surfaceRegion = region()
-    surfaceRegion.append(incl1)
-    surfaceRegion.append(incl2)
-    surfaceRegion.append(air)
+    surfaceRegion.append([incl1, incl2, air])
 
     boundaryRegion = region()
-    boundaryRegion.append(infBottom)
-    boundaryRegion.append(infTop)
-    boundaryRegion.append(infLeft)
-    boundaryRegion.append(infRight)
+    boundaryRegion.append([infBottom, infTop, infLeft, infRight])
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
     B = boundaryMassMatrix(alpha, boundaryRegion)
