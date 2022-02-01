@@ -82,8 +82,9 @@ def dimensionOfRegion(id):
     else:
         return -1
 
-def transformationJacobian(t, dim=2):
+def transformationJacobian(t):
     global mesh
+    dim = len(mesh['xp'][0])
     if dim == 2:
         ps = mesh['pt'][t,:]
         x1 = mesh['xp'][ps[0],:]

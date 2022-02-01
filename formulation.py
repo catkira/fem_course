@@ -61,7 +61,7 @@ def stiffnessMatrix(sigmas, region=[]):
         B_32 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,1,0]]) @ Grads.T        
         B_33 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,0,1]]) @ Grads.T     
         for elementIndex, element in enumerate(elements):
-            jac,_ = transformationJacobian(elementIndex, dim=3)
+            jac,_ = transformationJacobian(elementIndex)
             detJac = np.abs(np.linalg.det(jac))
             invJac = np.linalg.inv(jac)
             sigma_dash = sigmas[elementIndex] * invJac @ invJac.T * detJac
@@ -124,8 +124,12 @@ def fluxRhs(br, region=[]):
         br = br.getValues(region)
     n = numberOfVertices()
     rhs = np.zeros(n)
+    if mesh()['problemDimension'] == 2:
+        zero = [0, 0]
+    else:
+        zero = [0, 0, 0]
     for triangleIndex, triangle in enumerate(elements):
-        if br[triangleIndex][0] == 0 and br[triangleIndex][1] == 0:
+        if np.array_equal(br[triangleIndex], zero): # just for speedup
             continue
         jac,_ = transformationJacobian(triangleIndex)
         invJac = np.linalg.inv(jac)
@@ -137,7 +141,7 @@ def fluxRhs(br, region=[]):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrix(rhos, region=[]):
+def massMatrix(rhos, region=[], dim=2):
     Grads = shapeFunctionGradients()
     Mm = 1/24 * np.array([[2,1,1],
                         [1,2,1],
@@ -145,7 +149,6 @@ def massMatrix(rhos, region=[]):
     n = numberOfVertices()
     if region == []:
         elements = mesh()['pt']
-        dim = 2
     else:
         elements = region.getElements()
         rhos = rhos.getValues(region)
@@ -160,7 +163,7 @@ def massMatrix(rhos, region=[]):
     cols = np.zeros(m*k)
     data = np.zeros(m*k)    
     for elementIndex, element in enumerate(elements):
-        if dim == 1:
+        if dim == 1: # TODO: why can det(..) not be used here?
             detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
         else:
             detJac = np.abs(np.linalg.det(transformationJacobian(elementIndex)[0]))
@@ -173,6 +176,7 @@ def massMatrix(rhos, region=[]):
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
+# TODO: this function will be removed
 def boundaryMassMatrix(alphas, region=[]):
     Grads = shapeFunctionGradients()
     Bb = 1/6 * np.array([[2,1],
@@ -471,14 +475,16 @@ def exampleHMagnet():
     boundaryRegion.append(inf)
 
     K = stiffnessMatrix(mu, volumeRegion)   # WIP
-    #B = boundaryMassMatrix(alpha, volumeRegion)
-    #rhs = fluxRhs(br, volumeRegion)    
-    #b = rhs
-    #A = K+B    
+    B = massMatrix(alpha, boundaryRegion)
+    rhs = fluxRhs(br, volumeRegion)    
+    b = rhs
+    A = K+B    
     stop = time.time()
     print(f'assembled in {stop - start:.2f} s')       
-    #u = solve(A, b, 'petsc')    
-
+    u = solve(A, b, 'petsc')    
+    storeInVTK(u,"h_magnet_u.vtk", writePointData=True)    
+    h = grad(u, dim=3)
+    storeInVTK(h,"h_magnet_h.vtk")
 
 def main():
     if False:

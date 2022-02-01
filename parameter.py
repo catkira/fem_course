@@ -89,15 +89,24 @@ class parameter:
             vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
         return vertexValues
 
-# calculates gradient for each triangle
-def grad(u):
-    m = numberOfTriangles()
-    grads = np.zeros((m,3))
-    sfGrads = shapeFunctionGradients()
-    for triangleIndex, triangle in enumerate(mesh()['pt']):    
-        jac,_ = transformationJacobian(triangleIndex)        
-        invJac = np.linalg.inv(jac)
-        grads[triangleIndex] = np.append(invJac.T @ sfGrads.T @ u[triangle], 0)
+# calculates gradient for each element
+def grad(u, dim=2):
+    if dim == 2:
+        m = numberOfTriangles()
+        grads = np.zeros((m,3))
+        sfGrads = shapeFunctionGradients()
+        for elementIndex, element in enumerate(mesh()['pt']):    
+            jac,_ = transformationJacobian(elementIndex)        
+            invJac = np.linalg.inv(jac)
+            grads[elementIndex] = np.append(invJac.T @ sfGrads.T @ u[element], 0)
+    else:
+        m = numberOfTetraeders()
+        grads = np.zeros((m,3))
+        sfGrads = shapeFunctionGradients()
+        for elementIndex, element in enumerate(mesh()['ptt']):    
+            jac,_ = transformationJacobian(elementIndex)        
+            invJac = np.linalg.inv(jac)
+            grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
     return grads
     # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
     # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
@@ -120,51 +129,67 @@ def storeInVTK(u, filename, writePointData = False):
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:
             u = u.getValues() 
-    m = numberOfTriangles()    
+    if mesh()['problemDimension'] == 2:
+        m = numberOfTriangles()    
+        elementContainer = mesh()['pt']
+        ppe = 3 # points per element
+        cellType = vtk.VTK_LAGRANGE_TRIANGLE
+    else:
+        m = numberOfTetraeders()    
+        elementContainer = mesh()['ptt']
+        ppe = 4 # points per element
+        cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
     with open(filename, 'w') as file:
         vtktxt = str()
         vtktxt += "# vtk DataFile Version 4.2\nu\nASCII\nDATASET UNSTRUCTURED_GRID\n\n"
-        vtktxt += f'POINTS {m*3:d} double\n'
-        for triangle in mesh()['pt']:
-            for point in triangle:
+        vtktxt += f'POINTS {m*ppe:d} double\n'
+        for element in elementContainer:
+            for point in element:
                 coords = mesh()['xp'][point]
-                vtktxt += f2s(coords[0]) + " " + f2s(coords[1])
-                if mesh()['problemDimension'] == 2:
-                    vtktxt += " 0 "
+                if len(coords) == 2:
+                    vtktxt += f2s(coords[0]) + " " + f2s(coords[1]) + " 0 "
+                else:
+                    vtktxt += f2s(coords[0]) + " " + f2s(coords[1]) + " " + f2s(coords[2]) + " "
             vtktxt += '\n'
-        vtktxt += f'\nCELLS {m:d} {m*4:d}\n'
-        for triangleIndex, triangle in enumerate(mesh()['pt']):
-            vtktxt += f'3 {triangleIndex*3:d} {triangleIndex*3+1:d} {triangleIndex*3+2:d}\n'
+        vtktxt += f'\nCELLS {m:d} {m*(ppe+1):d}\n'
+        if ppe == 3:
+            for elementIndex, element in enumerate(elementContainer):
+                vtktxt += f'3 {elementIndex*ppe:d} {elementIndex*ppe+1:d} {elementIndex*ppe+2:d}\n'
+        else:
+            for elementIndex, element in enumerate(elementContainer):
+                vtktxt += f'4 {elementIndex*ppe:d} {elementIndex*ppe+1:d} {elementIndex*ppe+2:d} {elementIndex*ppe+3:d}\n'
         vtktxt += f'\nCELL_TYPES {m:d}\n'
-        for triangle in mesh()['pt']:
-            vtktxt += f"{vtk.VTK_LAGRANGE_TRIANGLE:d}\n"
+        for element in elementContainer:
+            vtktxt += f"{cellType:d}\n"
         if writePointData:
             if scalarValue:
-                vtktxt += f'\nPOINT_DATA {m*3:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
+                vtktxt += f'\nPOINT_DATA {m*ppe:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
             else:
-                vtktxt += f'\nPOINT_DATA {m*3:d}\nVECTORS u double\n'
-            for triangle in mesh()['pt']:
-                for point in triangle:
+                vtktxt += f'\nPOINT_DATA {m*ppe:d}\nVECTORS u double\n'
+            for element in mesh()['pt']:
+                for point in element:
                     if scalarValue:
                         vtktxt += f2s(u[point]) + "\n"
                     else:
-                        vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1])
                         if mesh()['problemDimension'] == 2:
-                            vtktxt += " 0"
+                            vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1]) + " 0"
+                        else:
+                            vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1]) + " " + f2s(u[point][2])
                         vtktxt += "\n"
         else:
             if scalarValue:
                 vtktxt += f'\nCELL_DATA {m:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
             else:
                 vtktxt += f'\nCELL_DATA {m:d}\nVECTORS u double\n'
-            for triangleIndex,triangle in enumerate(mesh()['pt']):
+            for elementIndex, element in enumerate(elementContainer):
                 if scalarValue:
-                    vtktxt += f2s(u[triangleIndex]) + "\n"
+                    vtktxt += f2s(u[elementIndex]) + "\n"
                 else:
-                    vtktxt += f2s(u[triangleIndex][0]) + " " + f2s(u[triangleIndex][1])
                     if mesh()['problemDimension'] == 2:
-                        vtktxt += " 0"
+                        vtktxt += f2s(u[elementIndex][0]) + " " + f2s(u[elementIndex][1]) + " 0"
+                    else:
+                        vtktxt += f2s(u[elementIndex][0]) + " " + f2s(u[elementIndex][1]) + " " + f2s(u[elementIndex][2])
                     vtktxt += "\n"
         file.write(vtktxt)
     stop = time.time()                    
