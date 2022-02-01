@@ -37,44 +37,80 @@ def localCoordinate(G, t, x):
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(sigmas, region=[]):
     Grads = shapeFunctionGradients()
-    # area of ref triangle is 0.5, integrands are constant within integral
-    B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
-    B_12 = 0.5 * Grads @ np.array([[0,1],[0,0]]) @ Grads.T
-    B_21 = 0.5 * Grads @ np.array([[0,0],[1,0]]) @ Grads.T
-    B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
-
     n = numberOfVertices()
-    m = numberOfTriangles()
-    #K_Ts = np.zeros([m,3,3])
-    rows = np.zeros(m*9)
-    cols = np.zeros(m*9)
-    data = np.zeros(m*9)
     if region == []:
         elements = mesh()['pt']
     else:
         elements = region.getElements()
         sigmas = sigmas.getValues(region)
-    for triangleIndex, triangle in enumerate(elements):
-        jac,_ = transformationJacobian(triangleIndex)
-        detJac = np.abs(np.linalg.det(jac))
-        if len(sigmas.shape) == 1:
-            gamma1 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
-            gamma2 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
-            gamma3 = -sigmas[triangleIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
-            gamma4 = sigmas[triangleIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
-        else:
+    m = len(elements)
+    elementMatrixSize = (mesh()['problemDimension']+1)**2
+    rows = np.zeros(m*elementMatrixSize)
+    cols = np.zeros(m*elementMatrixSize)
+    data = np.zeros(m*elementMatrixSize)    
+
+    if mesh()['problemDimension'] == 3:
+        # area of ref triangle is 0.5, integrands are constant within integral
+        B_11 = 0.5 * Grads @ np.array([[1,0,0],[0,0,0],[0,0,0]]) @ Grads.T 
+        B_12 = 0.5 * Grads @ np.array([[0,1,0],[0,0,0],[0,0,0]]) @ Grads.T
+        B_13 = 0.5 * Grads @ np.array([[0,0,1],[0,0,0],[0,0,0]]) @ Grads.T
+        B_21 = 0.5 * Grads @ np.array([[0,0,0],[1,0,0],[0,0,0]]) @ Grads.T
+        B_22 = 0.5 * Grads @ np.array([[0,0,0],[0,1,0],[0,0,0]]) @ Grads.T        
+        B_23 = 0.5 * Grads @ np.array([[0,0,0],[0,0,1],[0,0,0]]) @ Grads.T        
+        B_31 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[1,0,0]]) @ Grads.T
+        B_32 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,1,0]]) @ Grads.T        
+        B_33 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,0,1]]) @ Grads.T     
+        for elementIndex, element in enumerate(elements):
+            jac,_ = transformationJacobian(elementIndex, dim=3)
+            detJac = np.abs(np.linalg.det(jac))
             invJac = np.linalg.inv(jac)
-            sigma_dash = invJac @ sigmas[triangleIndex] @ invJac.T * detJac
-            gamma1 = sigma_dash[0,0] 
-            gamma2 = sigma_dash[1,0]
-            gamma3 = sigma_dash[0,1]
-            gamma4 = sigma_dash[1,1]
-        range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)            
-        rows[range] = np.tile(triangle[:],3).astype(np.int64)
-        cols[range] = np.repeat(triangle[:],3).astype(np.int64)
-        data[range] = (gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22).ravel()
-        #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
-        #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T        
+            sigma_dash = sigmas[elementIndex] * invJac @ invJac.T * detJac
+            gamma11 = sigma_dash[0,0] 
+            gamma12 = sigma_dash[0,1]
+            gamma13 = sigma_dash[0,2]
+            gamma21 = sigma_dash[1,0]
+            gamma22 = sigma_dash[1,1]
+            gamma23 = sigma_dash[1,2]
+            gamma31 = sigma_dash[2,0]
+            gamma32 = sigma_dash[2,1]
+            gamma33 = sigma_dash[2,2]
+            range = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[range] = np.tile(element[:],4).astype(np.int64)
+            cols[range] = np.repeat(element[:],4).astype(np.int64)
+            data[range] = (gamma11*B_11 + gamma12*B_12 + gamma13*B_13 + 
+                            gamma21*B_21 + gamma22*B_22 + gamma23*B_23 + 
+                            gamma31*B_31 + gamma32*B_32 + gamma33*B_33).ravel()
+            #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T              
+    
+    if mesh()['problemDimension'] == 2:
+        # area of ref triangle is 0.5, integrands are constant within integral
+        B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
+        B_12 = 0.5 * Grads @ np.array([[0,1],[0,0]]) @ Grads.T
+        B_21 = 0.5 * Grads @ np.array([[0,0],[1,0]]) @ Grads.T
+        B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
+        #K_Ts = np.zeros([m,3,3])
+        for elementIndex, element in enumerate(elements):
+            jac,_ = transformationJacobian(elementIndex)
+            detJac = np.abs(np.linalg.det(jac))
+            if len(sigmas.shape) == 1:
+                gamma11 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
+                gamma12 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
+                gamma21 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
+                gamma22 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
+            else:
+                invJac = np.linalg.inv(jac)
+                sigma_dash = invJac @ sigmas[elementIndex] @ invJac.T * detJac
+                gamma11 = sigma_dash[0,0] 
+                gamma12 = sigma_dash[1,0]
+                gamma21 = sigma_dash[0,1]
+                gamma22 = sigma_dash[1,1]
+            range = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[range] = np.tile(element[:],3).astype(np.int64)
+            cols[range] = np.repeat(element[:],3).astype(np.int64)
+            data[range] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
+            #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T        
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
@@ -319,14 +355,12 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     surfaceRegion.append(incl1)
     surfaceRegion.append(incl2)
     surfaceRegion.append(air)
-    surfaceRegion.calculateElements()
 
     boundaryRegion = region()
     boundaryRegion.append(infBottom)
     boundaryRegion.append(infTop)
     boundaryRegion.append(infLeft)
     boundaryRegion.append(infRight)
-    boundaryRegion.calculateElements()
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
     B = boundaryMassMatrix(alpha, boundaryRegion)
@@ -373,25 +407,19 @@ def exampleMagnetInRoom():
     alpha.set(inf, 1e9) # Dirichlet BC
 
     surfaceRegion = region()
-    surfaceRegion.append(wall)
-    surfaceRegion.append(magnet)
-    surfaceRegion.append(insideAir)
-    surfaceRegion.append(outsideAir)
-    surfaceRegion.calculateElements()    
+    surfaceRegion.append([wall, magnet, insideAir, outsideAir])
 
     boundaryRegion = region()
     boundaryRegion.append(inf)
-    boundaryRegion.calculateElements()
 
     K = stiffnessMatrix(mu, surfaceRegion)
     B = boundaryMassMatrix(alpha, boundaryRegion)
     rhs = fluxRhs(br, surfaceRegion)
-    stop = time.time()    
     b = rhs
     A = K+B
+    stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, 'petsc')
-    print(f'u_max = {max(u):.4f}')
     storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
     h = grad(u)
@@ -399,10 +427,50 @@ def exampleMagnetInRoom():
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = -np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3) # this value should theoretically be lower than 1.5T
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnet():
     loadMesh("examples/h_magnet.msh")
+    mu0 = 4*np.pi*1e-7
+    mur_frame = 1000
+    b_r_magnet = 1.5    
+    # regions
+    magnet = 0
+    frame = 1
+    air = 2
+    inf = 3
+
+    start = time.time()
+    mu = parameter()
+    mu.set(frame, mu0*mur_frame)
+    mu.set([magnet, air], mu0)
+    #storeInVTK(mu, "mu.vtk")
+    
+    br = parameter(3)
+    br.set(magnet, [b_r_magnet, 0, 0])
+    br.set([frame, air], [0, 0, 0])
+    #storeInVTK(br, "br.vtk")    
+
+    alpha = parameter()
+    alpha.set(inf, 1e9) # Dirichlet BC
+
+    volumeRegion = region()
+    volumeRegion.append([magnet, frame, air])
+
+    boundaryRegion = region()
+    boundaryRegion.append(inf)
+
+    K = stiffnessMatrix(mu, volumeRegion)   # WIP
+    #B = boundaryMassMatrix(alpha, volumeRegion)
+    #rhs = fluxRhs(br, volumeRegion)    
+    #b = rhs
+    #A = K+B    
+    stop = time.time()
+    print(f'assembled in {stop - start:.2f} s')       
+    #u = solve(A, b, 'petsc')    
+
 
 def main():
     if False:
@@ -442,7 +510,7 @@ def main():
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
-    # exampleHMagnet()
+    exampleHMagnet()
     exampleMagnetInRoom()
     print('finished')
 

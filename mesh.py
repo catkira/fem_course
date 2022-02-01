@@ -77,14 +77,21 @@ def dimensionOfRegion(id):
         return 1
     elif id in mesh['physical'][1]:
         return 2
+    elif id in mesh['physical'][2]:
+        return 3
     else:
         return -1
 
-def transformationJacobian(t):
+def transformationJacobian(t, dim=2):
     global mesh
-    ps = mesh['pt'][t,:]
-    x1 = mesh['xp'][ps[0],:]
-    B = np.array([mesh['xp'][ps[1],:]-x1, mesh['xp'][ps[2],:]-x1]).T
+    if dim == 2:
+        ps = mesh['pt'][t,:]
+        x1 = mesh['xp'][ps[0],:]
+        B = np.array([mesh['xp'][ps[1],:]-x1, mesh['xp'][ps[2],:]-x1]).T
+    elif dim == 3:
+        ps = mesh['ptt'][t,:]
+        x1 = mesh['xp'][ps[0],:]
+        B = np.array([mesh['xp'][ps[1],:]-x1, mesh['xp'][ps[2],:]-x1, mesh['xp'][ps[3],:]-x1]).T
     return (B, x1)    
 
 def plotMesh():
@@ -123,6 +130,8 @@ def regionDimension(id):
         return 1
     elif id in mesh['physical'][1]: # check triangles
         return 2
+    elif id in mesh['physical'][2]: # check tetraeders
+        return 3
     else:
         print(f'Error: Region with id {id:d} not found!')
         sys.exit()
@@ -159,13 +168,25 @@ def loadMesh(filename):
     else:
         problemDimension = 2
     if problemDimension == 2 or problemDimension == 3:
-        G['xp'] = meshioMesh.points[:,0:2] # tale only x,y coordinates
+        G['xp'] = meshioMesh.points[:,0:2] # take only x,y coordinates
         if 'line' in meshioMesh.cells_dict:
             G['pl'] = meshioMesh.cells_dict['line']
         G['pt'] = meshioMesh.cells_dict['triangle']
     if problemDimension == 3:
+        G['xp'] = meshioMesh.points
+        if 'line' in meshioMesh.cells_dict:
+            G['pl'] = meshioMesh.cells_dict['line']
+        if 'triangle' in meshioMesh.cells_dict:
+           G['pt'] = meshioMesh.cells_dict['triangle']
         G['ptt'] = meshioMesh.cells_dict['tetra']
-    G['physical'] = meshioMesh.cell_data['gmsh:physical']
+    #G['physical'] = meshioMesh.cell_data['gmsh:physical']
+    G['physical'] = [np.empty(0), np.empty(0), np.empty(0)]
+    if 'line' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['physical'][0] = meshioMesh.cell_data_dict['gmsh:physical']['line']
+    if 'triangle' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['physical'][1] = meshioMesh.cell_data_dict['gmsh:physical']['triangle']
+    if 'tetra' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['physical'][2] = meshioMesh.cell_data_dict['gmsh:physical']['tetra']
     G['problemDimension'] = problemDimension
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later

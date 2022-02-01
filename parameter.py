@@ -46,6 +46,9 @@ class parameter:
             for i in range(len(mesh()['physical'][1])): # check triangles
                 if mesh()['physical'][1][i] == setting[0]:
                     self.preparedValues[str(ids)].append(setting[1])
+            for i in range(len(mesh()['physical'][2])): # check tetraeders
+                if mesh()['physical'][2][i] == setting[0]:
+                    self.preparedValues[str(ids)].append(setting[1])
 
     def getValues(self, region=[]):
         ids = []

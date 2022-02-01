@@ -12,8 +12,12 @@ class region:
         self.regionDimension = 0
         regionList.append(self)
 
-    def append(self, id):
-        self.ids.append(id)
+    def append(self, ids):
+        if isinstance(ids, list):
+            for id in ids:
+                self.ids.append(id)
+        else:
+            self.ids.append(ids)
 
     def getElements(self):
         if self.elements == []:
@@ -24,19 +28,17 @@ class region:
         # always sort physicalIds so that numbering of region elements and parameters match
         self.ids.sort()
         for id in self.ids:
-            if id in mesh()['physical'][0]: # check lines
-                if self.regionDimension != 0 and self.regionDimension != 2:
-                    print("cannot mix dimensions in single region!")
-                    sys.exit()
-                self.regionDimension = 2
-                for i in range(len(mesh()['physical'][0])):
-                    if mesh()['physical'][0][i] == id:
-                        self.elements.append(mesh()['pl'][i])
-            if id in mesh()['physical'][1]: # check triangles
-                if self.regionDimension != 0 and self.regionDimension != 3:
-                    print("cannot mix dimensions in single region!")
-                    sys.exit()
-                self.regionDimension = 3
-                for i in range(len(mesh()['physical'][1])):
-                    if mesh()['physical'][1][i] == id:
-                        self.elements.append(mesh()['pt'][i])
+            for dim in np.arange(start=1,stop=4):
+                if id in mesh()['physical'][dim-1]:
+                    if self.regionDimension != 0 and self.regionDimension != dim:
+                        print("cannot mix dimensions in single region!")
+                        sys.exit()
+                    self.regionDimension = dim
+                    for i in range(len(mesh()['physical'][dim-1])):
+                        if mesh()['physical'][dim-1][i] == id:
+                            if dim == 1:
+                                self.elements.append(mesh()['pl'][i])
+                            elif dim==2:
+                                self.elements.append(mesh()['pt'][i])
+                            elif dim==3:
+                                self.elements.append(mesh()['ptt'][i])
