@@ -429,11 +429,11 @@ def exampleMagnetInRoom():
     u = solve(A, b, 'petsc')
     storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
-    h = grad(u)
+    h = -grad(u)
     storeInVTK(h,"magnet_in_room_h.vtk")
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
-    b = -np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3) # this value should theoretically be lower than 1.5T
     storeInVTK(b,"magnet_in_room_b.vtk")
@@ -469,7 +469,7 @@ def exampleHMagnet():
     boundaryRegion = region()
     boundaryRegion.append(inf)
 
-    K = stiffnessMatrix(mu, volumeRegion)   # WIP
+    K = stiffnessMatrix(mu, volumeRegion)
     B = massMatrix(alpha, boundaryRegion)
     rhs = fluxRhs(br, volumeRegion)    
     b = rhs
@@ -478,14 +478,14 @@ def exampleHMagnet():
     print(f'assembled in {stop - start:.2f} s')       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnet_u.vtk", writePointData=True)    
-    h = grad(u, dim=3)
+    h = -grad(u, dim=3)
     storeInVTK(h, "h_magnet_h.vtk")
     mus = mu.getValues()  
     m = numberOfTetraeders()       
-    brs = np.column_stack([br.getValues(), np.zeros(m)])
-    b = -np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    brs = br.getValues()
+    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    #assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3) # this value should theoretically be lower than 1.5T
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6049) < 1e-3) # this value should theoretically be lower than 1.5T
     storeInVTK(b,"h_magnet_b.vtk")    
 
 def main():
