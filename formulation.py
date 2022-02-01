@@ -483,8 +483,62 @@ def exampleHMagnet():
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1))) - 3.2898 < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
     storeInVTK(b,"h_magnet_b.vtk")    
+
+def exampleHMagnetOctant():
+    loadMesh("examples/h_magnet_octant.msh")
+    mu0 = 4*np.pi*1e-7
+    mur_frame = 1000
+    b_r_magnet = 1.5    
+    # regions
+    magnet = 1
+    frame = 2
+    air = 3
+    inf = 4
+    innerXZBoundary = 5
+    innerYZBoundary = 6
+    innerXYBoundary = 7
+    magnetXYBoundary = 8
+
+    start = time.time()
+    mu = Parameter()
+    mu.set(frame, mu0*mur_frame)
+    mu.set([magnet, air], mu0)
+    #storeInVTK(mu, "mu.vtk")
+    
+    br = Parameter(3)
+    br.set(magnet, [0, 0, b_r_magnet])
+    br.set([frame, air], [0, 0, 0])
+    #storeInVTK(br, "br.vtk")    
+
+    alpha = Parameter()
+    alpha.set([inf, innerXYBoundary, magnetXYBoundary], 1e9) # Dirichlet BC
+
+    volumeRegion = Region()
+    volumeRegion.append([magnet, frame, air])
+
+    boundaryRegion = Region()
+    boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
+
+    K = stiffnessMatrix(mu, volumeRegion)
+    B = massMatrix(alpha, boundaryRegion)
+    rhs = fluxRhs(br, volumeRegion)    
+    b = rhs
+    A = K+B    
+    stop = time.time()
+    print(f'assembled in {stop - start:.2f} s')       
+    u = solve(A, b, 'petsc')    
+    storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
+    h = -grad(u, dim=3)
+    storeInVTK(h, "h_magnet_octant_h.vtk")
+    mus = mu.getValues()  
+    m = numberOfTetraeders()       
+    brs = br.getValues()
+    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.945) < 1e-3)
+    storeInVTK(b,"h_magnet_octant_b.vtk")        
 
 def main():
     if False:
@@ -530,6 +584,7 @@ def main():
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
 
+    exampleHMagnetOctant()
     exampleHMagnet()
 
     exampleMagnetInRoom()
