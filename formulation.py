@@ -64,23 +64,14 @@ def stiffnessMatrix(sigmas, region=[]):
             jac,_ = transformationJacobian(elementIndex)
             detJac = np.abs(np.linalg.det(jac))
             invJac = np.linalg.inv(jac)
-            sigma_dash = sigmas[elementIndex] * invJac @ invJac.T * detJac
-            gamma11 = sigma_dash[0,0] 
-            gamma12 = sigma_dash[0,1]
-            gamma13 = sigma_dash[0,2]
-            gamma21 = sigma_dash[1,0]
-            gamma22 = sigma_dash[1,1]
-            gamma23 = sigma_dash[1,2]
-            gamma31 = sigma_dash[2,0]
-            gamma32 = sigma_dash[2,1]
-            gamma33 = sigma_dash[2,2]
+            gamma = sigmas[elementIndex] * invJac @ invJac.T * detJac
             range = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
             rows[range] = np.tile(element[:],4).astype(np.int64)
             cols[range] = np.repeat(element[:],4).astype(np.int64)
-            data[range] = (gamma11*B_11 + gamma12*B_12 + gamma13*B_13 + 
-                            gamma21*B_21 + gamma22*B_22 + gamma23*B_23 + 
-                            gamma31*B_31 + gamma32*B_32 + gamma33*B_33).ravel()
-            #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+            data[range] = (gamma[0,0]*B_11 + gamma[0,1]*B_12 + gamma[0,2]*B_13 + 
+                            gamma[1,0]*B_21 + gamma[1,1]*B_22 + gamma[1,2]*B_23 + 
+                            gamma[2,0]*B_31 + gamma[2,1]*B_32 + gamma[2,2]*B_33).ravel()
+            #K_Ts[triangleIndex] = gamma[0,0]*B_11 + gamma[0,1]*B_12 + ....
             #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T              
     
     if mesh()['problemDimension'] == 2:
