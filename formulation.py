@@ -160,6 +160,9 @@ def massMatrix(rhos, region=[], dim=2):
         Mm = 1/24 * np.array([[2,1,1],
                             [1,2,1],
                             [1,1,2]])
+    else:
+        print("Error: this dimension is not implemented!")
+        sys.exit()
     nPoints = dim+1
     k = nPoints**2
     m = len(elements)
