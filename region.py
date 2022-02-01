@@ -4,7 +4,7 @@ from mesh import *
 
 regionList = []
 
-class region:
+class Region:
     def __init__(self):
         global regionList
         self.ids = []

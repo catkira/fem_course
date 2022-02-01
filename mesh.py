@@ -29,6 +29,7 @@ def numberOfTetraeders():
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
+# this function is only used when the mesh is created with rectangularCriss
 def computeEdges():
     global mesh
     # first triangle is stored in triu, second triangle in tril
@@ -54,6 +55,7 @@ def computeEdges():
         ps = mesh['pe'][edgeIndex]
         mesh['te'][edgeIndex,1] = E[ps[1],ps[0]]
 
+# this function is only used when the mesh is created with rectangularCriss
 def computeBoundary():
     global mesh
     if mesh['problemDimension'] == 2:
@@ -80,7 +82,8 @@ def dimensionOfRegion(id):
     elif id in mesh['physical'][2]:
         return 3
     else:
-        return -1
+        print(f'Error: region with id {id:d} not found!')
+        sys.exit()
 
 def transformationJacobian(t):
     global mesh
@@ -121,9 +124,9 @@ def printEdgesofTriangle(G, triangleIndex):
 def printMeshInfo():
     global mesh
     if mesh['problemDimension'] == 2:
-        print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges, {numberOfBoundaryEdges():d} boundaryEdges')
+        print(f'mesh contains {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices')
     elif mesh['problemDimension'] == 3:
-        print(f'mesh contains {numberOfTetraeders():d} tetraeder, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices, {numberOfEdges():d} edges')
+        print(f'mesh contains {numberOfTetraeders():d} tetraeder, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices')
 
 def regionDimension(id):
     global mesh
@@ -153,8 +156,6 @@ def rectangularCriss(w, h):
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
     G['problemDimension'] = 2    
     mesh = G
-    computeEdges()
-    computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()
@@ -192,8 +193,6 @@ def loadMesh(filename):
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later
     mesh['eb'] = []
-    computeEdges()
-    computeBoundary()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()

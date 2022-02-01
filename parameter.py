@@ -8,7 +8,7 @@ parameterList = []
 
 # TODO: make parameter able to handle regions of different dimensions
 
-class parameter:
+class Parameter:
     def __init__(self, rows=1):
         self.settings = []
         self.preparedValues = dict()
@@ -124,7 +124,7 @@ def f2s(inputValue):
 # u can be of type parameter or a list
 def storeInVTK(u, filename, writePointData = False):
     start = time.time()    
-    if isinstance(u, parameter):
+    if isinstance(u, Parameter):
         if writePointData:
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:

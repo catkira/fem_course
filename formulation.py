@@ -8,7 +8,7 @@ import sys
 import pkg_resources
 from scipy.sparse import *
 from parameter import *
-from region import region
+from region import Region
 from field import *
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
@@ -143,19 +143,23 @@ def fluxRhs(br, region=[]):
 # integral rho * u * tf(u)
 def massMatrix(rhos, region=[], dim=2):
     Grads = shapeFunctionGradients()
-    Mm = 1/24 * np.array([[2,1,1],
-                        [1,2,1],
-                        [1,1,2]])
     n = numberOfVertices()
-    if region == []:
-        elements = mesh()['pt']
-    else:
+    if isinstance(region, list) or type(region) is np.ndarray:
+        elements = region
+    elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
         dim = region.regionDimension
-        if region.regionDimension == 1:
-            Mm = 1/6 * np.array([[2,1],
-                                [1,2]])                    
+    else:
+        print("Error: unsupported paramter!")
+        sys.exit()
+    if dim == 1:
+        Mm = 1/6 * np.array([[2,1],
+                            [1,2]])
+    elif dim == 2:
+        Mm = 1/24 * np.array([[2,1,1],
+                            [1,2,1],
+                            [1,1,2]])
     nPoints = dim+1
     k = nPoints**2
     m = len(elements)
@@ -176,7 +180,8 @@ def massMatrix(rhos, region=[], dim=2):
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
-# TODO: this function will be removed
+# this function is only here for legacy
+# it can be used to simulate the most simple poisson equation
 def boundaryMassMatrix(alphas, region=[]):
     Grads = shapeFunctionGradients()
     Bb = 1/6 * np.array([[2,1],
@@ -249,8 +254,9 @@ def bookExample1():
     f = np.ones(n)
 
     K = stiffnessMatrix(sigmas)
-    M = massMatrix(rhos)
-    B = boundaryMassMatrix(alphas)
+    M = massMatrix(rhos, region=mesh()['pt'])
+    #B = boundaryMassMatrix(alphas) # this function is only here to illustrate the most simple way to do it
+    B = massMatrix(alphas, region=mesh()['pe'][mesh()['eb']], dim=1)
     b = M @ f
     A = K+B
     u = solve(A,b)
@@ -331,8 +337,6 @@ def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
 def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
     # example from book page 34
     n = numberOfVertices()
-    m = numberOfTriangles()
-    r = numberOfBoundaryEdges()
     # regions
     incl1 = 0
     incl2 = 1
@@ -343,11 +347,11 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     infTop = 6
 
     start = time.time()    
-    sigma = parameter()
+    sigma = Parameter()
     sigma.set([incl1, incl2], 1e-3)
     sigma.set(air, 1)
 
-    alpha = parameter()
+    alpha = Parameter()
     alpha.set([infBottom, infTop], 0)
     alpha.set(infLeft, 1e-9) # Neumann BC
     alpha.set(infRight, 1e9) # Dirichlet BC
@@ -363,14 +367,14 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     print(f'parameters prepared in {stop - start:.2f} s')        
     start = time.time()
 
-    surfaceRegion = region()
+    surfaceRegion = Region()
     surfaceRegion.append([incl1, incl2, air])
 
-    boundaryRegion = region()
+    boundaryRegion = Region()
     boundaryRegion.append([infBottom, infTop, infLeft, infRight])
 
     K = stiffnessMatrix(sigma, surfaceRegion)    
-    B = boundaryMassMatrix(alpha, boundaryRegion)
+    B = massMatrix(alpha, boundaryRegion)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -400,23 +404,23 @@ def exampleMagnetInRoom():
     inf = 5
 
     start = time.time()
-    mu = parameter()
+    mu = Parameter()
     mu.set(wall, mu0*mur_wall)
     mu.set([magnet, insideAir, outsideAir], mu0)
     #storeInVTK(mu, "mu.vtk")
     
-    br = parameter(2)
+    br = Parameter(2)
     br.set(magnet, [b_r_magnet, 0])
     br.set([wall, insideAir, outsideAir], [0, 0])
     #storeInVTK(br, "br.vtk")
 
-    alpha = parameter()
+    alpha = Parameter()
     alpha.set(inf, 1e9) # Dirichlet BC
 
-    surfaceRegion = region()
+    surfaceRegion = Region()
     surfaceRegion.append([wall, magnet, insideAir, outsideAir])
 
-    boundaryRegion = region()
+    boundaryRegion = Region()
     boundaryRegion.append(inf)
 
     K = stiffnessMatrix(mu, surfaceRegion)
@@ -435,7 +439,7 @@ def exampleMagnetInRoom():
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3) # this value should theoretically be lower than 1.5T
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3)
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnet():
@@ -450,23 +454,23 @@ def exampleHMagnet():
     inf = 3
 
     start = time.time()
-    mu = parameter()
+    mu = Parameter()
     mu.set(frame, mu0*mur_frame)
     mu.set([magnet, air], mu0)
     #storeInVTK(mu, "mu.vtk")
     
-    br = parameter(3)
+    br = Parameter(3)
     br.set(magnet, [0, 0, b_r_magnet])
     br.set([frame, air], [0, 0, 0])
     #storeInVTK(br, "br.vtk")    
 
-    alpha = parameter()
+    alpha = Parameter()
     alpha.set(inf, 1e9) # Dirichlet BC
 
-    volumeRegion = region()
+    volumeRegion = Region()
     volumeRegion.append([magnet, frame, air])
 
-    boundaryRegion = region()
+    boundaryRegion = Region()
     boundaryRegion.append(inf)
 
     K = stiffnessMatrix(mu, volumeRegion)
@@ -485,7 +489,7 @@ def exampleHMagnet():
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6049) < 1e-3) # this value should theoretically be lower than 1.5T
+    assert(abs(max(np.linalg.norm(b,axis=1))) - 3.2898 < 1e-3)
     storeInVTK(b,"h_magnet_b.vtk")    
 
 def main():
@@ -512,6 +516,8 @@ def main():
     #plotShapeFunctions()
     loadMesh("examples/air_box_2d.msh")
     # rectangularCriss(50,50)
+    computeEdges()
+    computeBoundary()    
     # printEdgesofTriangle(G,1)
     # plotMesh(G)
 
@@ -524,10 +530,16 @@ def main():
 
     loadMesh("examples/example2.msh")
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
+
+    computeEdges()
+    computeBoundary()       
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
+
     exampleHMagnet()
+
     exampleMagnetInRoom()
+
     print('finished')
 
 if __name__ == "__main__":
