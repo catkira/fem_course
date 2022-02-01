@@ -143,21 +143,31 @@ def massMatrix(rhos, region=[]):
                         [1,2,1],
                         [1,1,2]])
     n = numberOfVertices()
-    m = numberOfTriangles()
-    rows = np.zeros(m*9)
-    cols = np.zeros(m*9)
-    data = np.zeros(m*9)    
     if region == []:
         elements = mesh()['pt']
+        dim = 2
     else:
         elements = region.getElements()
-        rhos = rhos.getValues(region)        
-    for triangleIndex, triangle in enumerate(elements):
-        detJac = np.abs(np.linalg.det(transformationJacobian(triangleIndex)[0]))
-        range = np.arange(start=triangleIndex*9, stop=triangleIndex*9+9)
-        rows[range] = np.tile(triangle,3).astype(np.int64)
-        cols[range] = np.repeat(triangle,3).astype(np.int64)
-        data[range] = (rhos[triangleIndex]*detJac*Mm).ravel()
+        rhos = rhos.getValues(region)
+        dim = region.regionDimension
+        if region.regionDimension == 1:
+            Mm = 1/6 * np.array([[2,1],
+                                [1,2]])                    
+    nPoints = dim+1
+    k = nPoints**2
+    m = len(elements)
+    rows = np.zeros(m*k)
+    cols = np.zeros(m*k)
+    data = np.zeros(m*k)    
+    for elementIndex, element in enumerate(elements):
+        if dim == 1:
+            detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
+        else:
+            detJac = np.abs(np.linalg.det(transformationJacobian(elementIndex)[0]))
+        range = np.arange(start=elementIndex*k, stop=elementIndex*k+k)
+        rows[range] = np.tile(element,nPoints).astype(np.int64)
+        cols[range] = np.repeat(element,nPoints).astype(np.int64)
+        data[range] = (rhos[elementIndex]*detJac*Mm).ravel()
         #M_T = rhos[triangleIndex]*detJac*Mm
         #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
@@ -178,14 +188,12 @@ def boundaryMassMatrix(alphas, region=[]):
     else:
         elements = region.getElements()
         alphas = alphas.getValues(region)
-    for edgeCount, ps in enumerate(elements):
-#    for edgeCount, edgeIndex in enumerate(mesh()['eb']):
-#        ps = mesh()['pe'][edgeIndex]
-        detJac = np.abs(np.linalg.norm(mesh()['xp'][ps[0]] - mesh()['xp'][ps[1]]))
-        range = np.arange(start=edgeCount*4, stop=edgeCount*4+4)        
-        rows[range] = np.tile(ps[:],2).astype(np.int64)
-        cols[range] = np.repeat(ps[:],2).astype(np.int64)
-        data[range] = (alphas[edgeCount]*detJac*Bb).ravel()
+    for elementIndex, element in enumerate(elements):
+        detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
+        range = np.arange(start=elementIndex*4, stop=elementIndex*4+4)        
+        rows[range] = np.tile(element[:],2).astype(np.int64)
+        cols[range] = np.repeat(element[:],2).astype(np.int64)
+        data[range] = (alphas[elementIndex]*detJac*Bb).ravel()
         #B_Ts[edgeCount] = alphas[edgeCount]*detJac*Bb
         #B[np.ix_(ps[:],ps[:])] = B[np.ix_(ps[:],ps[:])] + B_T
     B = csr_matrix((data, (rows, cols)), shape=[n,n]) 
@@ -413,7 +421,7 @@ def exampleMagnetInRoom():
     boundaryRegion.append(inf)
 
     K = stiffnessMatrix(mu, surfaceRegion)
-    B = boundaryMassMatrix(alpha, boundaryRegion)
+    B = massMatrix(alpha, boundaryRegion)
     rhs = fluxRhs(br, surfaceRegion)
     b = rhs
     A = K+B
