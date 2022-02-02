@@ -8,7 +8,7 @@ def shapeFunctionGradients():
                         [1, 0],
                         [0, 1]])
     else:
-        return np.array([[-1, -1, -1],  # TODO verify that this is correct
+        return np.array([[-1, -1, -1],
                         [1, 0, 0],
                         [0, 1, 0],
                         [0, 0, 1]])
