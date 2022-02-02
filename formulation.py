@@ -50,16 +50,16 @@ def stiffnessMatrix(sigmas, region=[]):
     data = np.zeros(m*elementMatrixSize)    
 
     if mesh()['problemDimension'] == 3:
-        # area of ref triangle is 0.5, integrands are constant within integral
-        B_11 = 0.5 * Grads @ np.array([[1,0,0],[0,0,0],[0,0,0]]) @ Grads.T 
-        B_12 = 0.5 * Grads @ np.array([[0,1,0],[0,0,0],[0,0,0]]) @ Grads.T
-        B_13 = 0.5 * Grads @ np.array([[0,0,1],[0,0,0],[0,0,0]]) @ Grads.T
-        B_21 = 0.5 * Grads @ np.array([[0,0,0],[1,0,0],[0,0,0]]) @ Grads.T
-        B_22 = 0.5 * Grads @ np.array([[0,0,0],[0,1,0],[0,0,0]]) @ Grads.T        
-        B_23 = 0.5 * Grads @ np.array([[0,0,0],[0,0,1],[0,0,0]]) @ Grads.T        
-        B_31 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[1,0,0]]) @ Grads.T
-        B_32 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,1,0]]) @ Grads.T        
-        B_33 = 0.5 * Grads @ np.array([[0,0,0],[0,0,0],[0,0,1]]) @ Grads.T     
+        # area of ref tetraeder is 1/6, integrands are constant within integral
+        B_11 = 1/6 * Grads @ np.array([[1,0,0],[0,0,0],[0,0,0]]) @ Grads.T 
+        B_12 = 1/6 * Grads @ np.array([[0,1,0],[0,0,0],[0,0,0]]) @ Grads.T
+        B_13 = 1/6 * Grads @ np.array([[0,0,1],[0,0,0],[0,0,0]]) @ Grads.T
+        B_21 = 1/6 * Grads @ np.array([[0,0,0],[1,0,0],[0,0,0]]) @ Grads.T
+        B_22 = 1/6 * Grads @ np.array([[0,0,0],[0,1,0],[0,0,0]]) @ Grads.T        
+        B_23 = 1/6 * Grads @ np.array([[0,0,0],[0,0,1],[0,0,0]]) @ Grads.T        
+        B_31 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[1,0,0]]) @ Grads.T
+        B_32 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[0,1,0]]) @ Grads.T        
+        B_33 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[0,0,1]]) @ Grads.T     
         for elementIndex, element in enumerate(elements):
             jac,_ = transformationJacobian(elementIndex)
             detJac = np.abs(np.linalg.det(jac))
@@ -117,15 +117,17 @@ def fluxRhs(br, region=[]):
     rhs = np.zeros(n)
     if mesh()['problemDimension'] == 2:
         zero = [0, 0]
+        area = 1/2
     else:
         zero = [0, 0, 0]
+        area = 1/6
     for triangleIndex, triangle in enumerate(elements):
         if np.array_equal(br[triangleIndex], zero): # just for speedup
             continue
         jac,_ = transformationJacobian(triangleIndex)
         invJac = np.linalg.inv(jac)
         detJac = np.abs(np.linalg.det(jac))        
-        temp = 0.5 * invJac.T @ Grads.T * detJac
+        temp = area * invJac.T @ Grads.T * detJac
         rhs[triangle[0]] = rhs[triangle[0]] + np.dot(br[triangleIndex], temp.T[0])
         rhs[triangle[1]] = rhs[triangle[1]] + np.dot(br[triangleIndex], temp.T[1])
         rhs[triangle[2]] = rhs[triangle[2]] + np.dot(br[triangleIndex], temp.T[2])
