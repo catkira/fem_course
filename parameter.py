@@ -87,35 +87,7 @@ class Parameter:
             vertexValues[mesh()['pt'][n][0]] = triangleValues[n]
             vertexValues[mesh()['pt'][n][1]] = triangleValues[n]
             vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
-        return vertexValues
-
-# calculates gradient for each element
-def grad(u, dim=2):
-    if dim == 2:
-        m = numberOfTriangles()
-        grads = np.zeros((m,3))
-        sfGrads = shapeFunctionGradients()
-        for elementIndex, element in enumerate(mesh()['pt']):    
-            jac,_ = transformationJacobian(elementIndex)        
-            invJac = np.linalg.inv(jac)
-            grads[elementIndex] = np.append(invJac.T @ sfGrads.T @ u[element], 0)
-    else:
-        m = numberOfTetraeders()
-        grads = np.zeros((m,3))
-        sfGrads = shapeFunctionGradients()
-        for elementIndex, element in enumerate(mesh()['ptt']):    
-            jac,_ = transformationJacobian(elementIndex)        
-            invJac = np.linalg.inv(jac)
-            grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
-    return grads
-    # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
-    # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
-    # celltypes = np.empty(m, np.uint8)
-    # celltypes[:] = vtk.VTK_TRIANGLE    
-    # grid = pv.UnstructuredGrid(cells, celltypes, points)
-    # grid.point_data["u"] = u
-    # grid = grid.compute_derivative(scalars='u', gradient='velocity')
-    # return grid.get_array('velocity')       
+        return vertexValues  
 
 # double values have around 16 decimals
 def f2s(inputValue):
@@ -217,10 +189,10 @@ def storeInVTKpv(u, filename, writePointData = False):
 # functions expects sigmas to be triangleData if its not a parameter object
 # until now this function can only write point_data, because compute_derivative()
 # returns point_data
-def storeFluxInVTK(u, sigmas, filename):
+def storeFluxInVTK(field, u, sigmas, filename):
     n = numberOfVertices()    
     m = numberOfTriangles()    
-    v = grad(u)   
+    v = grad(field, u)   
     if isinstance(sigmas, parameter):
         sigmaValues = sigmas.getValues()
     else:

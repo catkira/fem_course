@@ -34,10 +34,69 @@ def localCoordinate(G, t, x):
     xi,_,_,_ = np.linalg.lstsq(B, x-x1, rcond=None)
     return xi
 
+
+# integral curl(u) * sigma * curl(tf(u)) 
+def stiffnessMatrixCurl(field, sigmas, region=[]):
+    Curls = field.shapeFunctionCurls()
+    if mesh()['problemDimension'] == 3:
+        dofs = 6
+        elementMatrixSize = dofs*4
+    else:
+        dofs = 3
+        elementMatrixSize = dofs*3
+    if region == []:
+        elements = mesh()['pt']
+    else:
+        elements = region.getElements()
+        sigmas = sigmas.getValues(region)
+    m = len(elements)
+    rows = np.zeros(m*elementMatrixSize)
+    cols = np.zeros(m*elementMatrixSize)
+    data = np.zeros(m*elementMatrixSize)    
+    B = np.zeros((dofs,dofs))
+
+    if mesh()['problemDimension'] == 3:
+        # area of ref tetraeder is 1/6, integrands are constant within integral
+        B = np.zeros((3,3,6,6))
+        for i in range(3):
+            for k in range(3):
+                B[i,k] = 1/6 * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
+
+        for elementIndex, element in enumerate(elements):
+            jac,_ = transformationJacobian(elementIndex)
+            detJac = np.abs(np.linalg.det(jac))
+            invJac = np.linalg.inv(jac)
+            gamma = sigmas[elementIndex] * invJac @ invJac.T * detJac
+            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[indexRange] = np.tile(element[:],6).astype(np.int64)
+            cols[indexRange] = np.repeat(element[:],6).astype(np.int64)
+            data[indexRange] = (gamma[0,0]*B[0,0] + gamma[0,1]*B[0,1] + gamma[0,2]*B[0,2] + 
+                            gamma[1,0]*B[1,0] + gamma[1,1]*B[1,1] + gamma[1,2]*B[1,2] + 
+                            gamma[2,0]*B[2,0] + gamma[2,1]*B[2,1] + gamma[2,2]*B[2,2]).ravel()         
+    
+    if mesh()['problemDimension'] == 2:
+        # area of ref triangle is 0.5, integrands are constant within integral
+        for elementIndex, element in enumerate(elements):
+            jac,_ = transformationJacobian(elementIndex)
+            detJac = np.abs(np.linalg.det(jac))
+            invJac = np.linalg.inv(jac)
+            sigma_dash = invJac @ sigmas[elementIndex] @ invJac.T * detJac
+            gamma11 = sigma_dash[0,0] 
+            gamma12 = sigma_dash[1,0]
+            gamma21 = sigma_dash[0,1]
+            gamma22 = sigma_dash[1,1]
+            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[indexRange] = np.tile(element[:],3).astype(np.int64)
+            cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
+            data[indexRange] = (gamma11 + gamma12 + gamma21 + gamma22).ravel()
+    
+    n = numberOfVertices()      
+    K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
+    return K    
+
 # integral grad(u) * sigma * grad(tf(u)) 
-def stiffnessMatrix(sigmas, region=[]):
-    Grads = shapeFunctionGradients()
-    n = numberOfVertices()
+def stiffnessMatrix(field, sigmas, region=[]):
+    Grads = field.shapeFunctionGradients()
     if region == []:
         elements = mesh()['pt']
     else:
@@ -51,35 +110,26 @@ def stiffnessMatrix(sigmas, region=[]):
 
     if mesh()['problemDimension'] == 3:
         # area of ref tetraeder is 1/6, integrands are constant within integral
-        B_11 = 1/6 * Grads @ np.array([[1,0,0],[0,0,0],[0,0,0]]) @ Grads.T 
-        B_12 = 1/6 * Grads @ np.array([[0,1,0],[0,0,0],[0,0,0]]) @ Grads.T
-        B_13 = 1/6 * Grads @ np.array([[0,0,1],[0,0,0],[0,0,0]]) @ Grads.T
-        B_21 = 1/6 * Grads @ np.array([[0,0,0],[1,0,0],[0,0,0]]) @ Grads.T
-        B_22 = 1/6 * Grads @ np.array([[0,0,0],[0,1,0],[0,0,0]]) @ Grads.T        
-        B_23 = 1/6 * Grads @ np.array([[0,0,0],[0,0,1],[0,0,0]]) @ Grads.T        
-        B_31 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[1,0,0]]) @ Grads.T
-        B_32 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[0,1,0]]) @ Grads.T        
-        B_33 = 1/6 * Grads @ np.array([[0,0,0],[0,0,0],[0,0,1]]) @ Grads.T     
+        B = np.zeros((3,3,4,4))
+        for i in range(3):
+            for k in range(3):
+                B[i,k] = 1/6 * np.matrix(Grads[:,i]).T * np.matrix(Grads[:,k]) 
         for elementIndex, element in enumerate(elements):
             jac,_ = transformationJacobian(elementIndex)
             detJac = np.abs(np.linalg.det(jac))
             invJac = np.linalg.inv(jac)
             gamma = sigmas[elementIndex] * invJac @ invJac.T * detJac
-            range = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            rows[range] = np.tile(element[:],4).astype(np.int64)
-            cols[range] = np.repeat(element[:],4).astype(np.int64)
-            data[range] = (gamma[0,0]*B_11 + gamma[0,1]*B_12 + gamma[0,2]*B_13 + 
-                            gamma[1,0]*B_21 + gamma[1,1]*B_22 + gamma[1,2]*B_23 + 
-                            gamma[2,0]*B_31 + gamma[2,1]*B_32 + gamma[2,2]*B_33).ravel()
-            #K_Ts[triangleIndex] = gamma[0,0]*B_11 + gamma[0,1]*B_12 + ....
-            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T              
+            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[indexRange] = np.tile(element[:],4).astype(np.int64)
+            cols[indexRange] = np.repeat(element[:],4).astype(np.int64)
+            data[indexRange] = np.einsum('jk,jk...',gamma,B).ravel() # this is generic and faster than explicit summation like below
     
     if mesh()['problemDimension'] == 2:
         # area of ref triangle is 0.5, integrands are constant within integral
-        B_11 = 0.5 * Grads @ np.array([[1,0],[0,0]]) @ Grads.T 
-        B_12 = 0.5 * Grads @ np.array([[0,1],[0,0]]) @ Grads.T
-        B_21 = 0.5 * Grads @ np.array([[0,0],[1,0]]) @ Grads.T
-        B_22 = 0.5 * Grads @ np.array([[0,0],[0,1]]) @ Grads.T
+        B_11 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,0]) 
+        B_12 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,1])
+        B_21 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,0])
+        B_22 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,1])
         #K_Ts = np.zeros([m,3,3])
         for elementIndex, element in enumerate(elements):
             jac,_ = transformationJacobian(elementIndex)
@@ -96,18 +146,19 @@ def stiffnessMatrix(sigmas, region=[]):
                 gamma12 = sigma_dash[1,0]
                 gamma21 = sigma_dash[0,1]
                 gamma22 = sigma_dash[1,1]
-            range = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            rows[range] = np.tile(element[:],3).astype(np.int64)
-            cols[range] = np.repeat(element[:],3).astype(np.int64)
-            data[range] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
+            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+            rows[indexRange] = np.tile(element[:],3).astype(np.int64)
+            cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
+            data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
             #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
-            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T        
+            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
+    n = numberOfVertices()
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
 # integral br * grad(tf(u))
-def fluxRhs(br, region=[]):
-    Grads = shapeFunctionGradients()    
+def fluxRhs(field, br, region=[]):
+    Grads = field.shapeFunctionGradients()    
     if region == []:
         elements = mesh()['pt']
     else:
@@ -134,8 +185,8 @@ def fluxRhs(br, region=[]):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrix(rhos, region=[], dim=2):
-    Grads = shapeFunctionGradients()
+def massMatrix(field, rhos, region=[], dim=2):
+    Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
@@ -178,8 +229,8 @@ def massMatrix(rhos, region=[], dim=2):
 
 # this function is only here for legacy
 # it can be used to simulate the most simple poisson equation
-def boundaryMassMatrix(alphas, region=[]):
-    Grads = shapeFunctionGradients()
+def boundaryMassMatrix(field, alphas, region=[]):
+    Grads = field.shapeFunctionGradients()
     Bb = 1/6 * np.array([[2,1],
                         [1,2]])
     r = numberOfBoundaryEdges()
@@ -249,10 +300,11 @@ def bookExample1():
     alphas = 1e9*np.ones(r)  # dirichlet BC
     f = np.ones(n)
 
-    K = stiffnessMatrix(sigmas)
-    M = massMatrix(rhos, region=mesh()['pt'])
+    field = FieldH1()
+    K = stiffnessMatrix(field, sigmas)
+    M = massMatrix(field, rhos, region=mesh()['pt'])
     #B = boundaryMassMatrix(alphas) # this function is only here to illustrate the most simple way to do it
-    B = massMatrix(alphas, region=mesh()['pe'][mesh()['eb']], dim=1)
+    B = massMatrix(field, alphas, region=mesh()['pe'][mesh()['eb']], dim=1)
     b = M @ f
     A = K+B
     u = solve(A,b)
@@ -311,8 +363,9 @@ def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
     stop = time.time()    
     print(f'parameters prepared in {stop - start:.2f} s')        
     start = time.time()
-    K = stiffnessMatrix(sigmas)
-    B = boundaryMassMatrix(alphas)
+    field = FieldH1()
+    K = stiffnessMatrix(field, sigmas)
+    B = boundaryMassMatrix(field, alphas)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -369,8 +422,9 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     boundaryRegion = Region()
     boundaryRegion.append([infBottom, infTop, infLeft, infRight])
 
-    K = stiffnessMatrix(sigma, surfaceRegion)    
-    B = massMatrix(alpha, boundaryRegion)
+    field = FieldH1()
+    K = stiffnessMatrix(field, sigma, surfaceRegion)    
+    B = massMatrix(field, alpha, boundaryRegion)
     b = B @ pd
     A = K+B
     stop = time.time()    
@@ -419,9 +473,10 @@ def exampleMagnetInRoom():
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    K = stiffnessMatrix(mu, surfaceRegion)
-    B = massMatrix(alpha, boundaryRegion)
-    rhs = fluxRhs(br, surfaceRegion)
+    field = FieldH1()
+    K = stiffnessMatrix(field, mu, surfaceRegion)
+    B = massMatrix(field, alpha, boundaryRegion)
+    rhs = fluxRhs(field, br, surfaceRegion)
     b = rhs
     A = K+B
     stop = time.time()    
@@ -429,7 +484,7 @@ def exampleMagnetInRoom():
     u = solve(A, b, 'petsc')
     storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
-    h = -grad(u)
+    h = -field.grad(u)
     storeInVTK(h,"magnet_in_room_h.vtk")
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
@@ -437,6 +492,57 @@ def exampleMagnetInRoom():
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3)
     storeInVTK(b,"magnet_in_room_b.vtk")
+
+def exampleHMagnetCurl():
+    loadMesh("examples/h_magnet.msh")
+    mu0 = 4*np.pi*1e-7
+    mur_frame = 1000
+    b_r_magnet = 1.5    
+    # regions
+    magnet = 0
+    frame = 1
+    air = 2
+    inf = 3
+
+    start = time.time()
+    mu = Parameter()
+    mu.set(frame, mu0*mur_frame)
+    mu.set([magnet, air], mu0)
+    #storeInVTK(mu, "mu.vtk")
+    
+    br = Parameter(3)
+    br.set(magnet, [0, 0, b_r_magnet])
+    br.set([frame, air], [0, 0, 0])
+    #storeInVTK(br, "br.vtk")    
+
+    alpha = Parameter()
+    alpha.set(inf, 1e9) # Dirichlet BC
+
+    volumeRegion = Region()
+    volumeRegion.append([magnet, frame, air])
+
+    boundaryRegion = Region()
+    boundaryRegion.append(inf)
+
+    field = FieldHCurl()
+    K = stiffnessMatrixCurl(field, mu, volumeRegion)
+    B = massMatrix(field, alpha, boundaryRegion)
+    rhs = fluxRhs(field, br, volumeRegion)    
+    b = rhs
+    A = K+B    
+    stop = time.time()
+    print(f'assembled in {stop - start:.2f} s')       
+    u = solve(A, b, 'petsc')    
+    storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
+    h = -field.grad(u, dim=3)
+    storeInVTK(h, "h_magnetCurl_h.vtk")
+    mus = mu.getValues()  
+    m = numberOfTetraeders()       
+    brs = br.getValues()
+    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
+    storeInVTK(b,"h_magnetCurl_b.vtk")    
 
 def exampleHMagnet():
     loadMesh("examples/h_magnet.msh")
@@ -469,16 +575,17 @@ def exampleHMagnet():
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    K = stiffnessMatrix(mu, volumeRegion)
-    B = massMatrix(alpha, boundaryRegion)
-    rhs = fluxRhs(br, volumeRegion)    
+    field = FieldH1()
+    K = stiffnessMatrix(field, mu, volumeRegion)
+    B = massMatrix(field, alpha, boundaryRegion)
+    rhs = fluxRhs(field, br, volumeRegion)    
     b = rhs
     A = K+B    
     stop = time.time()
     print(f'assembled in {stop - start:.2f} s')       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnet_u.vtk", writePointData=True)    
-    h = -grad(u, dim=3)
+    h = -field.grad(u, dim=3)
     storeInVTK(h, "h_magnet_h.vtk")
     mus = mu.getValues()  
     m = numberOfTetraeders()       
@@ -523,16 +630,17 @@ def exampleHMagnetOctant():
     boundaryRegion = Region()
     boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
 
-    K = stiffnessMatrix(mu, volumeRegion)
-    B = massMatrix(alpha, boundaryRegion)
-    rhs = fluxRhs(br, volumeRegion)    
+    field = FieldH1()
+    K = stiffnessMatrix(field, mu, volumeRegion)
+    B = massMatrix(field, alpha, boundaryRegion)
+    rhs = fluxRhs(field, br, volumeRegion)    
     b = rhs
     A = K+B    
     stop = time.time()
     print(f'assembled in {stop - start:.2f} s')       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
-    h = -grad(u, dim=3)
+    h = -field.grad(u, dim=3)
     storeInVTK(h, "h_magnet_octant_h.vtk")
     mus = mu.getValues()  
     m = numberOfTetraeders()       
@@ -586,9 +694,10 @@ def main():
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
 
+    # exampleHMagnetCurl()
     exampleHMagnetOctant()
     exampleHMagnet()
-
+    
     exampleMagnetInRoom()
 
     print('finished')
