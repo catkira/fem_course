@@ -59,37 +59,35 @@ def computeEdges():
         ps = mesh['pe'][edgeIndex]
         mesh['te'][edgeIndex,1] = E[ps[1],ps[0]]
 
-def edgesOfTetraeder(tetraeder):
-    edges = np.zeros((6,2))
-    for numEdge, edge in enumerate(np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])): 
-        lowIndex = tetraeder[edge[0]]
-        highIndex = tetraeder[edge[1]]
-        if lowIndex > highIndex:
-            lowIndex, highIndex = highIndex, lowIndex        
-        edges[numEdge] = [lowIndex, highIndex]
-    return edges
-
 # computes edges for use with edge elements
 def computeEdges2():
     global mesh
+    if mesh['pe'] != []:
+        return   # edges are already computed
     start = time.time()
     if mesh['problemDimension'] == 3:
         mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
-        mesh['pe'] = np.empty((0,2))
-        E = lil_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)        
-        for tetraederIndex, tetraeder in enumerate(mesh['ptt']):
-            for edgeIndex, edge in enumerate(edgesOfTetraeder(tetraeder)):
+        mesh['pe'] = []
+        E = dok_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)    # dok_matrix is faster here than lil_matrix
+        edgePoints = np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])
+        allEdges = mesh['ptt'][:,edgePoints]        
+        allEdges.sort(axis=2)    # make sure lowest edge index is in front        
+        for tetraederIndex, edges in enumerate(allEdges):
+            #storedIndices = E[edges[:,0],edges[:,1]].toarray()[0]            
+            for edgeIndex, edge in enumerate(edges):
                 storedIndex = E[edge[0],edge[1]]
                 if storedIndex == 0:
                     globalEdgeIndex = len(mesh['pe']) 
-                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex+1
-                    mesh['pe'] = np.append(mesh['pe'],[edge[0], edge[1]])
-                    E[edge[0],edge[1]] = globalEdgeIndex
+                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
+                    mesh['pe'].append(edge)
+                    E[edge[0],edge[1]] = globalEdgeIndex + 1
                 else:
                     globalEdgeIndex = storedIndex-1
                     mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
     stop = time.time()
-    print(f'calculated edges in {stop - start:.2f} s')                       
+    mesh['pe'] = np.array(mesh['pe'])
+    numEdges = len(mesh['pe'])
+    print(f'calculated {numEdges:d} edges in {stop - start:.2f} s')                       
 
 # this function is only used when the mesh is created with rectangularCriss
 def computeBoundary():
@@ -229,6 +227,8 @@ def loadMesh(filename):
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later
     mesh['eb'] = []
+    mesh['ett'] = []
+    mesh['pe'] = []
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()

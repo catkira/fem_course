@@ -42,9 +42,11 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     if mesh()['problemDimension'] == 3:
         dofs = 6
         elementMatrixSize = dofs**2
+        elementArea = 1/6
     else:
         dofs = 3
         elementMatrixSize = dofs**2
+        elementArea = 1/2
     if region == []:
         elements = mesh()['ett']         # TODO: iterate over edges instead of nodes
     else:
@@ -57,11 +59,10 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     B = np.zeros((dofs,dofs))
 
     if mesh()['problemDimension'] == 3:
-        # area of ref tetraeder is 1/6, integrands are constant within integral
-        B = np.zeros((3,3,6,6))
+        B = np.zeros((3,3,dofs,dofs))
         for i in range(3):
             for k in range(3):
-                B[i,k] = 1/6 * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
+                B[i,k] = elementArea * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
 
         for elementIndex, element in enumerate(elements):
             jac,_ = transformationJacobian(elementIndex)
@@ -74,20 +75,8 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
             data[indexRange] = np.einsum('jk,jk...',gamma,B).ravel() # this is generic and faster than explicit summation like below
     
     if mesh()['problemDimension'] == 2:
-        # area of ref triangle is 0.5, integrands are constant within integral
-        for elementIndex, element in enumerate(elements):
-            jac,_ = transformationJacobian(elementIndex)
-            detJac = np.abs(np.linalg.det(jac))
-            invJac = np.linalg.inv(jac)
-            sigma_dash = invJac @ sigmas[elementIndex] @ invJac.T * detJac
-            gamma11 = sigma_dash[0,0] 
-            gamma12 = sigma_dash[1,0]
-            gamma21 = sigma_dash[0,1]
-            gamma22 = sigma_dash[1,1]
-            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            rows[indexRange] = np.tile(element[:],3).astype(np.int64)
-            cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
-            data[indexRange] = (gamma11 + gamma12 + gamma21 + gamma22).ravel()
+        pass
+        # TODO
     
     n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
