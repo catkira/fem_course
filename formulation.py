@@ -49,7 +49,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
         elementMatrixSize = dofs**2
         elementArea = 1/2
     if region == []:
-        elements = mesh()['ett']         # TODO: iterate over edges instead of nodes
+        elements = mesh()['ett']
     else:
         elements = region.getElements(edges=True)
         sigmas = sigmas.getValues(region)
@@ -69,12 +69,12 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
         for elementIndex, element in enumerate(elements):
             jac,_ = transformationJacobian(elementIndex)
             detJac = np.abs(np.linalg.det(jac))
-            invJac = np.linalg.inv(jac)
-            gamma = sigmas[elementIndex] * invJac @ invJac.T * detJac
+            gamma = sigmas[elementIndex] * jac @ jac.T * 1/detJac
             indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
             rows[indexRange] = np.tile(element[:],6).astype(np.int64)
             cols[indexRange] = np.repeat(element[:],6).astype(np.int64)
-            data[indexRange] = np.einsum('jk,jk...',gamma,B).ravel() # this is generic and faster than explicit summation like below
+            signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
+            data[indexRange] = np.multiply(np.einsum('jk,jk...',gamma,B),signs).ravel() # this is generic and faster than explicit summation like below
     
     if mesh()['problemDimension'] == 2:
         pass
@@ -181,7 +181,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
     elif isinstance(region, Region):
-        elements = region.getElements()
+        elements = region.getElements(edges=True)
         rhos = rhos.getValues(region)
         dim = region.regionDimension
     else:
