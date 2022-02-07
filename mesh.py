@@ -68,17 +68,17 @@ def computeEdges3d():
     # compute tetraeder-to-edges list
     if mesh['problemDimension'] == 3:
         if True:
-            vertices = np.zeros((mesh['ptt'].shape[0]*6,2))
-            vertices[0::6] = mesh['ptt'][:,[0,1]]            
-            vertices[1::6] = mesh['ptt'][:,[1,2]]            
-            vertices[2::6] = mesh['ptt'][:,[2,3]]            
-            vertices[3::6] = mesh['ptt'][:,[3,0]]            
-            vertices[4::6] = mesh['ptt'][:,[0,2]]            
-            vertices[5::6] = mesh['ptt'][:,[1,3]]            
-            vertices.sort(axis=1)
-            _,J,I = np.unique(vertices, return_index=True, return_inverse=True, axis=0)
+            vertices3d = np.zeros((mesh['ptt'].shape[0]*6,2))
+            vertices3d[0::6] = mesh['ptt'][:,[0,1]]            
+            vertices3d[1::6] = mesh['ptt'][:,[1,2]]            
+            vertices3d[2::6] = mesh['ptt'][:,[2,3]]            
+            vertices3d[3::6] = mesh['ptt'][:,[3,0]]            
+            vertices3d[4::6] = mesh['ptt'][:,[0,2]]            
+            vertices3d[5::6] = mesh['ptt'][:,[1,3]]            
+            vertices3d.sort(axis=1)
+            _,J,I = np.unique(vertices3d, return_index=True, return_inverse=True, axis=0)
             mesh['ett'] = I.reshape(mesh['ptt'].shape[0],6)
-            mesh['pe'] = vertices[J,:]
+            mesh['pe'] = vertices3d[J,:]
         if False:
             mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
             mesh['pe'] = []
@@ -96,28 +96,37 @@ def computeEdges3d():
                         E[edge[0],edge[1]] = globalEdgeIndex + 1
                     else:
                         mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
-    # compute triangle-to-edges list
-    for triangleIndex, triangle in enumerate(mesh['pt']):
-        mesh['et'] = np.zeros((numberOfTriangles(), 3))  
+     # compute triangle-to-edges list
         if True:
-            #TODO
-            pass
+            vertices2d = np.zeros((mesh['pt'].shape[0]*6,2))
+            vertices2d[0::6] = mesh['pt'][:,[0,1]]            
+            vertices2d[1::6] = mesh['pt'][:,[1,2]]            
+            vertices2d[2::6] = mesh['pt'][:,[2,0]]            
+            vertices2d.sort(axis=1)
+            verticesMixed = np.row_stack((vertices3d, vertices2d))
+            _,J,I = np.unique(verticesMixed, return_index=True, return_inverse=True, axis=0)
+            mesh['et'] = I[mesh['ett'].shape[0]*6:].reshape(mesh['pt'].shape[0],6)[:,0:3]
+            mesh['pe'] = verticesMixed[J,:]  # there should not be much new edges from surface elements, but it can happen
         if False:      
-            for edgeIndex in range(3):
-                lowIndex = triangle[edgeIndex]
-                edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
-                highIndex = triangle[edgeIndex]
-                if lowIndex > highIndex:
-                    lowIndex, highIndex = highIndex, lowIndex
-                if E[lowIndex, highIndex] == 0:
-                    print("Error: all edges should be contained in volume elements!")
-                    sys.abort()
-                else:
-                    mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
+            for triangleIndex, triangle in enumerate(mesh['pt']):
+                mesh['et'] = np.zeros((numberOfTriangles(), 3))  
+                for edgeIndex in range(3):
+                    lowIndex = triangle[edgeIndex]
+                    edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
+                    highIndex = triangle[edgeIndex]
+                    if lowIndex > highIndex:
+                        lowIndex, highIndex = highIndex, lowIndex
+                    if E[lowIndex, highIndex] == 0:
+                        print("Error: all edges should be contained in volume elements!")
+                        sys.abort()
+                    else:
+                        mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
     stop = time.time()
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])
-    print(f'calculated {numEdges:d} edges in {stop - start:.2f} s')                       
+    numTT = len(mesh['ptt'])
+    numT = len(mesh['pt'])
+    print(f'calculated {numEdges:d} edges, from {numTT:d} tetraeders and {numT:d} triangles in {stop - start:.2f} s')                       
 
 # this function is only used when the mesh is created with rectangularCriss
 def computeBoundary():
@@ -148,6 +157,15 @@ def dimensionOfRegion(id):
     else:
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
+
+def computeSigns():
+    global mesh
+    if mesh['problemDimension'] == 2:
+        tmp = mesh['pt'][:,[1,2,0]] - mesh['pt'][:,[2,0,1]]
+        mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
+    elif mesh['problemDimension'] == 3:
+        tmp = mesh['ptt'][:,[0,0,0,1,2,3]] - mesh['ptt'][:,[1, 2, 3, 2, 3, 1]]
+        mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
 
 def transformationJacobian(t):
     global mesh
@@ -259,6 +277,8 @@ def loadMesh(filename):
     mesh['eb'] = []
     mesh['ett'] = []
     mesh['pe'] = []
+    mesh['signs2d'] = []
+    mesh['signs3d'] = []
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()
