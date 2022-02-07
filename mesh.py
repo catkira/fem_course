@@ -31,10 +31,10 @@ def numberOfEdges():
     return mesh['ett'].shape[0]
 
 # triangleIndices start with 1, because 0 is used for 'no triangle'
-# G['pe'] translates from points to edges, every row contains two points which form an edge
+# G['pe'] translates from edges to points, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
 # this function is only used when the mesh is created with rectangularCriss
-def computeEdges():
+def computeEdges2d():
     global mesh
     # first triangle is stored in triu, second triangle in tril
     E = lil_matrix((len(mesh['xp']),len(mesh['xp'])))
@@ -60,11 +60,12 @@ def computeEdges():
         mesh['te'][edgeIndex,1] = E[ps[1],ps[0]]
 
 # computes edges for use with edge elements
-def computeEdges2():
+def computeEdges3d():
     global mesh
     if mesh['pe'] != []:
         return   # edges are already computed
     start = time.time()
+    # compute tetraeder-to-edges list
     if mesh['problemDimension'] == 3:
         mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
         mesh['pe'] = []
@@ -82,8 +83,21 @@ def computeEdges2():
                     mesh['pe'].append(edge)
                     E[edge[0],edge[1]] = globalEdgeIndex + 1
                 else:
-                    globalEdgeIndex = storedIndex-1
-                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
+                    mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
+    # compute triangle-to-edges list
+    for triangleIndex, triangle in enumerate(mesh['pt']):
+        mesh['et'] = np.zeros((numberOfTriangles(), 3))        
+        for edgeIndex in range(3):
+            lowIndex = triangle[edgeIndex]
+            edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
+            highIndex = triangle[edgeIndex]
+            if lowIndex > highIndex:
+                lowIndex, highIndex = highIndex, lowIndex
+            if E[lowIndex, highIndex] == 0:
+                print("Error: all edges should be contained in volume elements!")
+                sys.abort()
+            else:
+                mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
     stop = time.time()
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])

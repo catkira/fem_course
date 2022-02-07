@@ -37,13 +37,14 @@ def localCoordinate(G, t, x):
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[]):
-    computeEdges2()
     Curls = field.shapeFunctionCurls()
     if mesh()['problemDimension'] == 3:
+        computeEdges3d()
         dofs = 6
         elementMatrixSize = dofs**2
         elementArea = 1/6
     else:
+        computeEdges2d()
         dofs = 3
         elementMatrixSize = dofs**2
         elementArea = 1/2
@@ -662,7 +663,7 @@ def main():
     #plotShapeFunctions()
     loadMesh("examples/air_box_2d.msh")
     # rectangularCriss(50,50)
-    computeEdges()
+    computeEdges2d()
     computeBoundary()    
     # printEdgesofTriangle(G,1)
     # plotMesh(G)
@@ -677,7 +678,7 @@ def main():
     loadMesh("examples/example2.msh")
     bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
 
-    computeEdges()
+    computeEdges2d()
     computeBoundary()       
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
