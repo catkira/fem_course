@@ -174,6 +174,49 @@ def fluxRhs(field, br, region=[]):
     return rhs
 
 # integral rho * u * tf(u)
+def massMatrixCurl(field, rhos, region=[], dim=2):
+    Grads = field.shapeFunctionGradients()
+    n = numberOfVertices()
+    if isinstance(region, list) or type(region) is np.ndarray:
+        elements = region
+    elif isinstance(region, Region):
+        elements = region.getElements()
+        rhos = rhos.getValues(region)
+        dim = region.regionDimension
+    else:
+        print("Error: unsupported paramter!")
+        sys.exit()
+    if dim == 1:
+        Mm = 1/6 * np.array([[2,1],
+                            [1,2]])
+    elif dim == 2:
+        Mm = 1/24 * np.array([[2,1,1],
+                            [1,2,1],
+                            [1,1,2]])
+    else:
+        print("Error: this dimension is not implemented!")
+        sys.exit()
+    nPoints = dim+1
+    k = nPoints**2
+    m = len(elements)
+    rows = np.zeros(m*k)
+    cols = np.zeros(m*k)
+    data = np.zeros(m*k)    
+    for elementIndex, element in enumerate(elements):
+        if dim == 1: # TODO: why can det(..) not be used here?
+            detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
+        else:
+            detJac = np.abs(np.linalg.det(transformationJacobian(elementIndex)[0]))
+        range = np.arange(start=elementIndex*k, stop=elementIndex*k+k)
+        rows[range] = np.tile(element,nPoints).astype(np.int64)
+        cols[range] = np.repeat(element,nPoints).astype(np.int64)
+        data[range] = (rhos[elementIndex]*detJac*Mm).ravel()
+        #M_T = rhos[triangleIndex]*detJac*Mm
+        #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+    M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
+    return M    
+
+# integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], dim=2):
     Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
@@ -515,7 +558,7 @@ def exampleHMagnetCurl():
 
     field = FieldHCurl()
     K = stiffnessMatrixCurl(field, mu, volumeRegion)
-    B = massMatrix(field, alpha, boundaryRegion)
+    B = massMatrixCurl(field, alpha, boundaryRegion)
     rhs = fluxRhs(field, br, volumeRegion)    
     b = rhs
     A = K+B    
