@@ -125,7 +125,7 @@ def computeEdges3d():
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])
     numTT = len(mesh['ptt'])
-    numT = len(mesh['ptt'])
+    numT = len(mesh['pt'])
     print(f'calculated {numEdges:d} edges, from {numTT:d} tetraeders and {numT:d} triangles in {stop - start:.2f} s')                       
 
 # this function is only used when the mesh is created with rectangularCriss
@@ -157,6 +157,15 @@ def dimensionOfRegion(id):
     else:
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
+
+def computeSigns():
+    global mesh
+    if mesh['problemDimension'] == 2:
+        tmp = mesh['pt'][:,[1,2,0]] - mesh['pt'][:,[2,0,1]]
+        mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
+    elif mesh['problemDimension'] == 3:
+        tmp = mesh['ptt'][:,[0,0,0,1,2,3]] - mesh['ptt'][:,[1, 2, 3, 2, 3, 1]]
+        mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
 
 def transformationJacobian(t):
     global mesh
@@ -268,6 +277,8 @@ def loadMesh(filename):
     mesh['eb'] = []
     mesh['ett'] = []
     mesh['pe'] = []
+    mesh['signs2d'] = []
+    mesh['signs3d'] = []
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()

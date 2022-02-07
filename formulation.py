@@ -53,6 +53,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     else:
         elements = region.getElements(edges=True)
         sigmas = sigmas.getValues(region)
+    computeSigns()
     m = len(elements)
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
