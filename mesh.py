@@ -67,37 +67,53 @@ def computeEdges3d():
     start = time.time()
     # compute tetraeder-to-edges list
     if mesh['problemDimension'] == 3:
-        mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
-        mesh['pe'] = []
-        E = dok_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)    # dok_matrix is faster here than lil_matrix
-        edgePoints = np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])
-        allEdges = mesh['ptt'][:,edgePoints]        
-        allEdges.sort(axis=2)    # make sure lowest edge index is in front        
-        for tetraederIndex, edges in enumerate(allEdges):
-            #storedIndices = E[edges[:,0],edges[:,1]].toarray()[0]            
-            for edgeIndex, edge in enumerate(edges):
-                storedIndex = E[edge[0],edge[1]]
-                if storedIndex == 0:
-                    globalEdgeIndex = len(mesh['pe']) 
-                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
-                    mesh['pe'].append(edge)
-                    E[edge[0],edge[1]] = globalEdgeIndex + 1
-                else:
-                    mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
+        if True:
+            vertices = np.zeros((mesh['ptt'].shape[0]*6,2))
+            vertices[0::6] = mesh['ptt'][:,[0,1]]            
+            vertices[1::6] = mesh['ptt'][:,[1,2]]            
+            vertices[2::6] = mesh['ptt'][:,[2,3]]            
+            vertices[3::6] = mesh['ptt'][:,[3,0]]            
+            vertices[4::6] = mesh['ptt'][:,[0,2]]            
+            vertices[5::6] = mesh['ptt'][:,[1,3]]            
+            vertices.sort(axis=1)
+            _,J,I = np.unique(vertices, return_index=True, return_inverse=True, axis=0)
+            mesh['ett'] = I.reshape(mesh['ptt'].shape[0],6)
+            mesh['pe'] = vertices[J,:]
+        if False:
+            mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
+            mesh['pe'] = []
+            E = dok_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)    # dok_matrix is faster here than lil_matrix
+            edgePoints = np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])
+            allEdges = mesh['ptt'][:,edgePoints]        
+            allEdges.sort(axis=2)    # make sure lowest edge index is in front        
+            for tetraederIndex, edges in enumerate(allEdges):
+                for edgeIndex, edge in enumerate(edges):
+                    storedIndex = E[edge[0],edge[1]]
+                    if storedIndex == 0:
+                        globalEdgeIndex = len(mesh['pe']) 
+                        mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
+                        mesh['pe'].append(edge)
+                        E[edge[0],edge[1]] = globalEdgeIndex + 1
+                    else:
+                        mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
     # compute triangle-to-edges list
     for triangleIndex, triangle in enumerate(mesh['pt']):
-        mesh['et'] = np.zeros((numberOfTriangles(), 3))        
-        for edgeIndex in range(3):
-            lowIndex = triangle[edgeIndex]
-            edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
-            highIndex = triangle[edgeIndex]
-            if lowIndex > highIndex:
-                lowIndex, highIndex = highIndex, lowIndex
-            if E[lowIndex, highIndex] == 0:
-                print("Error: all edges should be contained in volume elements!")
-                sys.abort()
-            else:
-                mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
+        mesh['et'] = np.zeros((numberOfTriangles(), 3))  
+        if True:
+            #TODO
+            pass
+        if False:      
+            for edgeIndex in range(3):
+                lowIndex = triangle[edgeIndex]
+                edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
+                highIndex = triangle[edgeIndex]
+                if lowIndex > highIndex:
+                    lowIndex, highIndex = highIndex, lowIndex
+                if E[lowIndex, highIndex] == 0:
+                    print("Error: all edges should be contained in volume elements!")
+                    sys.abort()
+                else:
+                    mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
     stop = time.time()
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])
