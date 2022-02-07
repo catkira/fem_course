@@ -37,17 +37,18 @@ def localCoordinate(G, t, x):
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[]):
+    computeEdges2()
     Curls = field.shapeFunctionCurls()
     if mesh()['problemDimension'] == 3:
         dofs = 6
-        elementMatrixSize = dofs*4
+        elementMatrixSize = dofs**2
     else:
         dofs = 3
-        elementMatrixSize = dofs*3
+        elementMatrixSize = dofs**2
     if region == []:
-        elements = mesh()['pt']
+        elements = mesh()['ett']         # TODO: iterate over edges instead of nodes
     else:
-        elements = region.getElements()
+        elements = region.getElements(edges=True)
         sigmas = sigmas.getValues(region)
     m = len(elements)
     rows = np.zeros(m*elementMatrixSize)
@@ -70,9 +71,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
             indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
             rows[indexRange] = np.tile(element[:],6).astype(np.int64)
             cols[indexRange] = np.repeat(element[:],6).astype(np.int64)
-            data[indexRange] = (gamma[0,0]*B[0,0] + gamma[0,1]*B[0,1] + gamma[0,2]*B[0,2] + 
-                            gamma[1,0]*B[1,0] + gamma[1,1]*B[1,1] + gamma[1,2]*B[1,2] + 
-                            gamma[2,0]*B[2,0] + gamma[2,1]*B[2,1] + gamma[2,2]*B[2,2]).ravel()         
+            data[indexRange] = np.einsum('jk,jk...',gamma,B).ravel() # this is generic and faster than explicit summation like below
     
     if mesh()['problemDimension'] == 2:
         # area of ref triangle is 0.5, integrands are constant within integral
@@ -90,7 +89,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
             cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
             data[indexRange] = (gamma11 + gamma12 + gamma21 + gamma22).ravel()
     
-    n = numberOfVertices()      
+    n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K    
 
@@ -694,7 +693,7 @@ def main():
     #bookExample2(False, 'petsc')
     bookExample2(False, anisotropicInclusion=True, method='petsc')
 
-    # exampleHMagnetCurl()
+    exampleHMagnetCurl()  # WIP
     exampleHMagnetOctant()
     exampleHMagnet()
     

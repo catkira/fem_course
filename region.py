@@ -19,12 +19,12 @@ class Region:
         else:
             self.ids.append(ids)
 
-    def getElements(self):
+    def getElements(self, edges=False):
         if self.elements == []:
-            self.calculateElements()
+            self.calculateElements(edges)
         return self.elements
 
-    def calculateElements(self):
+    def calculateElements(self, edges=False):
         # always sort physicalIds so that numbering of region elements and parameters match
         self.ids.sort()
         for id in self.ids:
@@ -41,4 +41,7 @@ class Region:
                             elif dim==2:
                                 self.elements.append(mesh()['pt'][i])
                             elif dim==3:
-                                self.elements.append(mesh()['ptt'][i])
+                                if edges:
+                                    self.elements.append(mesh()['ett'][i])
+                                else:
+                                    self.elements.append(mesh()['ptt'][i])

@@ -26,6 +26,10 @@ def numberOfTetraeders():
     global mesh
     return mesh['ptt'].shape[0]
 
+def numberOfEdges():
+    global mesh
+    return mesh['ett'].shape[0]
+
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from points to edges, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
@@ -54,6 +58,38 @@ def computeEdges():
     for edgeIndex in range(numEdges):
         ps = mesh['pe'][edgeIndex]
         mesh['te'][edgeIndex,1] = E[ps[1],ps[0]]
+
+def edgesOfTetraeder(tetraeder):
+    edges = np.zeros((6,2))
+    for numEdge, edge in enumerate(np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])): 
+        lowIndex = tetraeder[edge[0]]
+        highIndex = tetraeder[edge[1]]
+        if lowIndex > highIndex:
+            lowIndex, highIndex = highIndex, lowIndex        
+        edges[numEdge] = [lowIndex, highIndex]
+    return edges
+
+# computes edges for use with edge elements
+def computeEdges2():
+    global mesh
+    start = time.time()
+    if mesh['problemDimension'] == 3:
+        mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
+        mesh['pe'] = np.empty((0,2))
+        E = lil_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)        
+        for tetraederIndex, tetraeder in enumerate(mesh['ptt']):
+            for edgeIndex, edge in enumerate(edgesOfTetraeder(tetraeder)):
+                storedIndex = E[edge[0],edge[1]]
+                if storedIndex == 0:
+                    globalEdgeIndex = len(mesh['pe']) 
+                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex+1
+                    mesh['pe'] = np.append(mesh['pe'],[edge[0], edge[1]])
+                    E[edge[0],edge[1]] = globalEdgeIndex
+                else:
+                    globalEdgeIndex = storedIndex-1
+                    mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
+    stop = time.time()
+    print(f'calculated edges in {stop - start:.2f} s')                       
 
 # this function is only used when the mesh is created with rectangularCriss
 def computeBoundary():
