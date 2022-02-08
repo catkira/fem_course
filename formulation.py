@@ -207,16 +207,16 @@ def fluxRhs(field, br, region=[]):
         zero = [0, 0, 0]
         area = 1/6
         Grads = field.shapeFunctionGradients()    
-    for triangleIndex, triangle in enumerate(elements):
-        if np.array_equal(br[triangleIndex], zero): # just for speedup
+    jacs = transformationJacobians(elements)
+    detJacs = np.abs(np.linalg.det(jacs))    
+    invJacs = np.linalg.inv(jacs)            
+    for elementIndex, element in enumerate(elements):
+        if np.array_equal(br[elementIndex], zero): # just for speedup
             continue
-        jac,_ = transformationJacobian(triangleIndex)
-        invJac = np.linalg.inv(jac)
-        detJac = np.abs(np.linalg.det(jac))        
-        temp = area * invJac.T @ Grads.T * detJac
-        rhs[triangle[0]] = rhs[triangle[0]] + np.dot(br[triangleIndex], temp.T[0])
-        rhs[triangle[1]] = rhs[triangle[1]] + np.dot(br[triangleIndex], temp.T[1])
-        rhs[triangle[2]] = rhs[triangle[2]] + np.dot(br[triangleIndex], temp.T[2])
+        temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
+        rhs[element[0]] = rhs[element[0]] + np.dot(br[elementIndex], temp.T[0])
+        rhs[element[1]] = rhs[element[1]] + np.dot(br[elementIndex], temp.T[1])
+        rhs[element[2]] = rhs[element[2]] + np.dot(br[elementIndex], temp.T[2])
     return rhs
 
 # integral rho * u * tf(u)
@@ -261,7 +261,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     if dim == 1: # TODO: why can det(..) not be used here?
         detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
     elif dim == 2:
-        jacs = transformationJacobians()
+        jacs = transformationJacobians(elements)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
@@ -316,17 +316,18 @@ def massMatrix(field, rhos, region=[], dim=2):
     if dim == 1: # TODO: why can det(..) not be used here?
         detJacs = np.abs(np.linalg.norm( mesh()['xp'][elements[:,0]] - mesh()['xp'][elements[:,1]], axis=1))
     else:
-        jacs = transformationJacobians()
+        jacs = transformationJacobians(elements)
         detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
-    if True:
+    if False:
         for elementIndex, element in enumerate(elements):
             rangeIndex = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)
             data[rangeIndex] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
             #M_T = rhos[triangleIndex]*detJac*Mm
             #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
-    data2 = (rhos * detJacs * Mm).ravel()    # WIP    
+    else:
+        data = np.einsum('i,jk',rhos * detJacs, Mm).ravel()
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
@@ -593,7 +594,7 @@ def exampleMagnetInRoom():
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-2)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.674) < 1e-3)
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnetCurl():
@@ -695,7 +696,7 @@ def exampleHMagnet():
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2912) < 1e-3)
     storeInVTK(b,"h_magnet_b.vtk")    
 
 def exampleHMagnetOctant():
