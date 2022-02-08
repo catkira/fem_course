@@ -102,17 +102,30 @@ def stiffnessMatrix(field, sigmas, region=[]):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
 
-    if mesh()['problemDimension'] == 3:
-        # area of ref tetraeder is 1/6, integrands are constant within integral
-        dim = 3
-        nBasis = 4
+    if True:
+        if mesh()['problemDimension'] == 2:
+            dim = 2
+            nBasis = 3
+            area = 1/2
+        elif mesh()['problemDimension'] == 3:
+            dim = 3
+            nBasis = 4
+            area = 1/6
+        
+        # precalculate mesh independant parts of the integral
         B = np.zeros((dim, dim, nBasis, nBasis))
         for i in range(dim):
             for k in range(dim):
-                B[i,k] = 1/6 * np.matrix(Grads[:,i]).T * np.matrix(Grads[:,k]) 
-        sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
+                B[i,k] = area * np.matrix(Grads[:,i]).T * np.matrix(Grads[:,k]) 
+        
         detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
-        gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+        if len(sigmas.shape) == 1:
+            sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
+            gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+        else:
+            gammas = np.zeros((len(elements),dim,dim))
+            for elementIndex in range(len(elements)):        # TODO: vectorize this        
+                gammas[elementIndex] = sigmas[elementIndex] @ invJacs[elementIndex] @ np.swapaxes(invJacs,1,2)[elementIndex] * detJacsDuplicated[elementIndex]
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
         if False:
@@ -120,43 +133,65 @@ def stiffnessMatrix(field, sigmas, region=[]):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
                 data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
         else:
-            data = np.einsum('ijk,jklm', gammas,B).swapaxes(0,2).ravel(order='F')
+            data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
     
-    if mesh()['problemDimension'] == 2:
-        # area of ref triangle is 0.5, integrands are constant within integral
-        B_11 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,0]) 
-        B_12 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,1])
-        B_21 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,0])
-        B_22 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,1])
-        #K_Ts = np.zeros([m,3,3])
-        for elementIndex, element in enumerate(elements):
-            jac,_ = transformationJacobian(elementIndex)
-            detJac = np.abs(np.linalg.det(jac))
-            if len(sigmas.shape) == 1:
-                gamma11 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
-                gamma12 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
-                gamma21 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
-                gamma22 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
-            else:
-                invJac = np.linalg.inv(jac)
-                sigma_dash = invJac @ sigmas[elementIndex] @ invJac.T * detJac
-                gamma11 = sigma_dash[0,0] 
-                gamma12 = sigma_dash[1,0]
-                gamma21 = sigma_dash[0,1]
-                gamma22 = sigma_dash[1,1]
-            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            rows[indexRange] = np.tile(element[:],3).astype(np.int64)
-            cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
-            data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
-            #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
-            #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
+    else:  # LEGACY CODE
+        
+        if mesh()['problemDimension'] == 3:
+        # area of ref tetraeder is 1/6, integrands are constant within integral
+            dim = 3
+            nBasis = 4
+            area = 1/6
+            
+            # precalculate mesh independant parts of the integral
+            B = np.zeros((dim, dim, nBasis, nBasis))
+            for i in range(dim):
+                for k in range(dim):
+                    B[i,k] = area * np.matrix(Grads[:,i]).T * np.matrix(Grads[:,k]) 
+            
+            sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
+            detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
+            gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+            rows = np.tile(elements, nBasis).astype(np.int64).ravel()
+            cols = np.repeat(elements,nBasis).astype(np.int64).ravel()      
+            for elementIndex, element in enumerate(elements):
+                indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+                data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
+
+        if mesh()['problemDimension'] == 2:
+            # area of ref triangle is 0.5, integrands are constant within integral
+            B_11 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,0]) 
+            B_12 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,1])
+            B_21 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,0])
+            B_22 = 0.5 * np.matrix(Grads[:,1]).T * np.matrix(Grads[:,1])
+            #K_Ts = np.zeros([m,3,3])
+            for elementIndex, element in enumerate(elements):
+                jac,_ = transformationJacobian(elementIndex)
+                detJac = np.abs(np.linalg.det(jac))
+                if len(sigmas.shape) == 1:
+                    gamma11 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,1])
+                    gamma12 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,1])
+                    gamma21 = -sigmas[elementIndex]*1/detJac*np.dot(jac[:,1],jac[:,0])
+                    gamma22 = sigmas[elementIndex]*1/detJac*np.dot(jac[:,0],jac[:,0])
+                else:
+                    invJac = np.linalg.inv(jac)
+                    sigma_dash = invJac @ sigmas[elementIndex] @ invJac.T * detJac
+                    gamma11 = sigma_dash[0,0] 
+                    gamma12 = sigma_dash[1,0]
+                    gamma21 = sigma_dash[0,1]
+                    gamma22 = sigma_dash[1,1]
+                indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+                rows[indexRange] = np.tile(element[:],3).astype(np.int64)
+                cols[indexRange] = np.repeat(element[:],3).astype(np.int64)
+                data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
+                #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
+                #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
     n = numberOfVertices()
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[]):
-    Grads = field.shapeFunctionGradients()    
     if region == []:
         elements = mesh()['pt']
     else:
@@ -167,9 +202,11 @@ def fluxRhs(field, br, region=[]):
     if mesh()['problemDimension'] == 2:
         zero = [0, 0]
         area = 1/2
+        Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
     else:
         zero = [0, 0, 0]
         area = 1/6
+        Grads = field.shapeFunctionGradients()    
     for triangleIndex, triangle in enumerate(elements):
         if np.array_equal(br[triangleIndex], zero): # just for speedup
             continue
@@ -253,31 +290,43 @@ def massMatrix(field, rhos, region=[], dim=2):
     if dim == 1:
         Mm = 1/6 * np.array([[2,1],
                             [1,2]])
+        nBasis = 2
     elif dim == 2:
-        Mm = 1/24 * np.array([[2,1,1],
-                            [1,2,1],
-                            [1,1,2]])
+        nBasis = 3
+        if False:
+            Mm = 1/24 * np.array([[2,1,1],
+                                [1,2,1],
+                                [1,1,2]])
+        else: 
+            # precalculate mesh independant parts of the integral
+            Mm = np.zeros((nBasis,nBasis))
+            gfs = np.array([1/6, 1/6, 1/6])
+            gps = np.array([[1/6, 1/6, 0],
+                            [2/3, 1/6, 0],
+                            [1/6, 2/3, 0]])
+            for i,gp in enumerate(gps):
+                for j in range(nBasis):
+                    for k in range(nBasis):
+                        Mm[j,k] = Mm[j,k] + gfs[i] * field.shapeFunctionValues(gp)[j] * field.shapeFunctionValues(gp)[k] 
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
-    nPoints = dim+1
-    k = nPoints**2
-    m = len(elements)
-    rows = np.zeros(m*k)
-    cols = np.zeros(m*k)
-    data = np.zeros(m*k)    
+    elementMatrixSize = nBasis**2        
+    data = np.zeros(len(elements)*nBasis**2)    
     if dim == 1: # TODO: why can det(..) not be used here?
         detJacs = np.abs(np.linalg.norm( mesh()['xp'][elements[:,0]] - mesh()['xp'][elements[:,1]], axis=1))
     else:
         jacs = transformationJacobians()
         detJacs = np.abs(np.linalg.det(jacs))        
-    for elementIndex, element in enumerate(elements):
-        range = np.arange(start=elementIndex*k, stop=elementIndex*k+k)
-        rows[range] = np.tile(element,nPoints).astype(np.int64)
-        cols[range] = np.repeat(element,nPoints).astype(np.int64)
-        data[range] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
-        #M_T = rhos[triangleIndex]*detJac*Mm
-        #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+    rows = np.tile(elements, nBasis).astype(np.int64).ravel()
+    cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
+    if True:
+        for elementIndex, element in enumerate(elements):
+            rangeIndex = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)
+            data[rangeIndex] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
+            #M_T = rhos[triangleIndex]*detJac*Mm
+            #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+    data2 = (rhos * detJacs * Mm).ravel()    # WIP    
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
@@ -544,7 +593,7 @@ def exampleMagnetInRoom():
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.604) < 1e-2)
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnetCurl():

@@ -27,9 +27,9 @@ class FieldHCurl:
 class FieldH1:    
     def shapeFunctionGradients(self):
         if mesh()['problemDimension'] == 2:
-            return np.array([[-1, -1],
-                            [1, 0],
-                            [0, 1]])
+            return np.array([[-1, -1, 0],
+                            [1, 0, 0],
+                            [0, 1, 0]])
         else:
             return np.array([[-1, -1, -1],
                             [1, 0, 0],
@@ -37,14 +37,17 @@ class FieldH1:
                             [0, 0, 1]])
 
     def shapeFunctionValues(self, xi):
-        return [1, 0, 0] + self.shapeFunctionGradients() @ xi
+        if mesh()['problemDimension'] == 2:        
+            return [1, 0, 0] + self.shapeFunctionGradients() @ xi
+        elif mesh()['problemDimension'] == 3:        
+            return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
 
     # calculates gradient for each element
     def grad(self, u, dim=2):
         if dim == 2:
             m = numberOfTriangles()
             grads = np.zeros((m,3))
-            sfGrads = self.shapeFunctionGradients()
+            sfGrads = self.shapeFunctionGradients()[:,0:2]
             for elementIndex, element in enumerate(mesh()['pt']):    
                 jac,_ = transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
