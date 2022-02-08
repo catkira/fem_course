@@ -11,6 +11,17 @@ from parameter import *
 from region import Region
 from field import *
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
     import petsc4py
@@ -85,7 +96,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     return K    
 
 # integral grad(u) * sigma * grad(tf(u)) 
-def stiffnessMatrix(field, sigmas, region=[], vectorized=True):
+def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     Grads = field.shapeFunctionGradients()
     if region == []:
         elements = mesh()['pt']
@@ -102,7 +113,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
 
-    if True:
+    if not legacy:
         if mesh()['problemDimension'] == 2:
             dim = 2
             nBasis = 3
@@ -394,7 +405,7 @@ def solve(A, b, method='np'):
         ksp.setFromOptions()
         print(f'Solving with: {ksp.getType():s}')
         ksp.solve(bp, up)
-        print(f'Converged in {ksp.getIterationNumber():d} iterations.')
+        print(f"Converged in {ksp.getIterationNumber():d} iterations.")
         u = np.array(up)
     elif method == 'np':
         u = np.linalg.inv(A.toarray()) @ b
@@ -402,7 +413,7 @@ def solve(A, b, method='np'):
         print("unknown method")
         sys.exit()
     stop = time.time()
-    print(f'solved in {stop - start:.2f} s')    
+    print(f"{bcolors.OKGREEN}solved in {stop - start:.2f} s{bcolors.ENDC}")    
     return u
 
 def bookExample1():
@@ -646,7 +657,7 @@ def exampleHMagnetCurl():
     b = rhs
     A = K+B    
     stop = time.time()
-    print(f'assembled in {stop - start:.2f} s')       
+    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)
@@ -659,7 +670,7 @@ def exampleHMagnetCurl():
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
 
-def exampleHMagnet(vectorized=True):
+def exampleHMagnet(vectorized=True, legacy=False):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -691,13 +702,13 @@ def exampleHMagnet(vectorized=True):
     boundaryRegion.append(inf)
 
     field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized)
+    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
     B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
     rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
     b = rhs
     A = K+B    
     stop = time.time()
-    print(f'assembled in {stop - start:.2f} s')       
+    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnet_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)
@@ -706,11 +717,11 @@ def exampleHMagnet(vectorized=True):
     m = numberOfTetraeders()       
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    storeInVTK(b,"h_magnet_b.vtk")    
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 2.863) < 1e-3)
-    storeInVTK(b,"h_magnet_b.vtk")    
 
-def exampleHMagnetOctant(vectorized=True):
+def exampleHMagnetOctant(vectorized=True, legacy=False):
     loadMesh("examples/h_magnet_octant.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -746,13 +757,13 @@ def exampleHMagnetOctant(vectorized=True):
     boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
 
     field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized)
+    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
     B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
     rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
     b = rhs
     A = K+B    
     stop = time.time()
-    print(f'assembled in {stop - start:.2f} s')       
+    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)
@@ -810,10 +821,12 @@ def main():
     bookExample2(False, anisotropicInclusion=True, method='petsc')
 
     #exampleHMagnetCurl()  # WIP
-    exampleHMagnetOctant(vectorized=True)
+    exampleHMagnetOctant()
     exampleHMagnetOctant(vectorized=False)
-    exampleHMagnet(vectorized=True)
+    exampleHMagnetOctant(vectorized=False, legacy=True)
+    exampleHMagnet()
     exampleHMagnet(vectorized=False)
+    exampleHMagnet(vectorized=False, legacy=True)
     
     exampleMagnetInRoom()
 
