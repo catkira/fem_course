@@ -85,7 +85,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     return K    
 
 # integral grad(u) * sigma * grad(tf(u)) 
-def stiffnessMatrix(field, sigmas, region=[]):
+def stiffnessMatrix(field, sigmas, region=[], vectorized=True):
     Grads = field.shapeFunctionGradients()
     if region == []:
         elements = mesh()['pt']
@@ -128,12 +128,12 @@ def stiffnessMatrix(field, sigmas, region=[]):
                 gammas[elementIndex] = sigmas[elementIndex] @ invJacs[elementIndex] @ np.swapaxes(invJacs,1,2)[elementIndex] * detJacsDuplicated[elementIndex]
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
-        if False:
+        if vectorized:
+            data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
+        else:
             for elementIndex, element in enumerate(elements):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
                 data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
-        else:
-            data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
     
     else:  # LEGACY CODE
         
@@ -191,7 +191,7 @@ def stiffnessMatrix(field, sigmas, region=[]):
     return K
 
 # integral br * grad(tf(u))
-def fluxRhs(field, br, region=[]):
+def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
         elements = mesh()['pt']
     else:
@@ -203,25 +203,31 @@ def fluxRhs(field, br, region=[]):
         zero = [0, 0]
         area = 1/2
         Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
+        nCoords = 2
+        nBasis = 3
     else:
         zero = [0, 0, 0]
         area = 1/6
         Grads = field.shapeFunctionGradients()    
+        nCoords = 3
+        nBasis = 4
     jacs = transformationJacobians(elements)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
-    if True:   
+    if vectorized:
+        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
+        rows = elements.ravel(order='F')
+        rhs2 = np.zeros((len(elements),nBasis))
+        for basis in range(nBasis):
+            rhs2[:,basis] = np.einsum('ij,ij->i',br,temp2[:,:,basis])
+        rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    else:
         for elementIndex, element in enumerate(elements):
             if np.array_equal(br[elementIndex], zero): # just for speedup
                 continue
             temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
-            rhs[element[0]] = rhs[element[0]] + np.dot(br[elementIndex], temp.T[0])
-            rhs[element[1]] = rhs[element[1]] + np.dot(br[elementIndex], temp.T[1])
-            rhs[element[2]] = rhs[element[2]] + np.dot(br[elementIndex], temp.T[2])
-            if mesh()['problemDimension'] == 3:
-                rhs[element[3]] = rhs[element[3]] + np.dot(br[elementIndex], temp.T[3])
-    else:
-        temp2 = area* np.tile(detJacs,3*4).reshape((len(detJacs),3,4))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
+            for basis in range(nBasis):
+                rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
     return rhs
 
 # integral rho * u * tf(u)
@@ -280,7 +286,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     return M    
 
 # integral rho * u * tf(u)
-def massMatrix(field, rhos, region=[], dim=2):
+def massMatrix(field, rhos, region=[], dim=2, vectorized=True):
     Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
@@ -325,14 +331,14 @@ def massMatrix(field, rhos, region=[], dim=2):
         detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
-    if False:  # LEGACY CODE
+    if vectorized:
+        data = np.einsum('i,jk',rhos * detJacs, Mm).ravel()
+    else:
         for elementIndex, element in enumerate(elements):
             rangeIndex = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)
             data[rangeIndex] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
             #M_T = rhos[triangleIndex]*detJac*Mm
             #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
-    else:
-        data = np.einsum('i,jk',rhos * detJacs, Mm).ravel()
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
@@ -539,8 +545,6 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
     stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
     u = solve(A, b, method)
-    print(f'u_max = {max(u):.4f}')    
-    assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
         #storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
         pass
@@ -549,6 +553,8 @@ def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc
             storeInVTK(u,"example2_scalar_isotropicInclusions_p.vtk", writePointData=True)
         else:
             storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk", writePointData=True)
+    print(f'u_max = {max(u):.4f}')    
+    assert(abs(max(u) - 4) < 1e-3)
 
 def exampleMagnetInRoom():
     loadMesh("examples/magnet_in_room.msh")
@@ -598,9 +604,9 @@ def exampleMagnetInRoom():
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.607) < 1e-3)
     storeInVTK(b,"magnet_in_room_b.vtk")
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.60171) < 1e-3)
 
 def exampleHMagnetCurl():
     loadMesh("examples/h_magnet.msh")
@@ -649,11 +655,11 @@ def exampleHMagnetCurl():
     m = numberOfTetraeders()       
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    storeInVTK(b,"h_magnetCurl_b.vtk")    
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
-    storeInVTK(b,"h_magnetCurl_b.vtk")    
 
-def exampleHMagnet():
+def exampleHMagnet(vectorized=True):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -685,9 +691,9 @@ def exampleHMagnet():
     boundaryRegion.append(inf)
 
     field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion)
-    B = massMatrix(field, alpha, boundaryRegion)
-    rhs = fluxRhs(field, br, volumeRegion)    
+    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized)
+    B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
+    rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
     b = rhs
     A = K+B    
     stop = time.time()
@@ -704,7 +710,7 @@ def exampleHMagnet():
     assert(abs(max(np.linalg.norm(b,axis=1)) - 2.863) < 1e-3)
     storeInVTK(b,"h_magnet_b.vtk")    
 
-def exampleHMagnetOctant():
+def exampleHMagnetOctant(vectorized=True):
     loadMesh("examples/h_magnet_octant.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -740,9 +746,9 @@ def exampleHMagnetOctant():
     boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
 
     field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion)
-    B = massMatrix(field, alpha, boundaryRegion)
-    rhs = fluxRhs(field, br, volumeRegion)    
+    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized)
+    B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
+    rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
     b = rhs
     A = K+B    
     stop = time.time()
@@ -755,9 +761,9 @@ def exampleHMagnetOctant():
     m = numberOfTetraeders()       
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    storeInVTK(b,"h_magnet_octant_b.vtk")        
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 2.675) < 1e-3)
-    storeInVTK(b,"h_magnet_octant_b.vtk")        
 
 def main():
     if False:
@@ -804,8 +810,10 @@ def main():
     bookExample2(False, anisotropicInclusion=True, method='petsc')
 
     #exampleHMagnetCurl()  # WIP
-    exampleHMagnetOctant()
-    exampleHMagnet()
+    exampleHMagnetOctant(vectorized=True)
+    exampleHMagnetOctant(vectorized=False)
+    exampleHMagnet(vectorized=True)
+    exampleHMagnet(vectorized=False)
     
     exampleMagnetInRoom()
 
