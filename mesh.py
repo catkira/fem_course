@@ -167,6 +167,19 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
+def transformationJacobians():
+    global mesh
+    dim = len(mesh['xp'][0])
+    if dim == 2:
+        ps = mesh['pt']
+        x1 = mesh['xp'][ps[:,0],:]
+        B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).T
+    elif dim == 3:
+        ps = mesh['ptt']
+        x1 = mesh['xp'][ps[:,0],:]        
+        B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, mesh['xp'][ps[:,3],:]-x1]).T
+    return np.swapaxes(B,0,1)      
+
 def transformationJacobian(t):
     global mesh
     dim = len(mesh['xp'][0])

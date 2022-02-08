@@ -22,7 +22,7 @@ class Region:
     def getElements(self, edges=False):
         if self.elements == []:
             self.calculateElements(edges)
-        return self.elements
+        return np.array(self.elements)
 
     def calculateElements(self, edges=False):
         # always sort physicalIds so that numbering of region elements and parameters match
