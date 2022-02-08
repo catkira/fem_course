@@ -599,7 +599,7 @@ def exampleMagnetInRoom():
     brs = np.column_stack([br.getValues(), np.zeros(m)])
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.674) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.607) < 1e-3)
     storeInVTK(b,"magnet_in_room_b.vtk")
 
 def exampleHMagnetCurl():
