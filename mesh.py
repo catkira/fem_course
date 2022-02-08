@@ -9,6 +9,7 @@ import meshio
 import sys
 from scipy.sparse import *
 import region
+from utils import *
 
 mesh = dict()
 
@@ -306,5 +307,5 @@ def loadMesh(filename):
     mesh['signs2d'] = []
     mesh['signs3d'] = []
     stop = time.time()
-    print(f'loaded mesh in {stop - start:.2f} s')    
+    print(f"loaded mesh {bcolors.OKCYAN}{filename}{bcolors.ENDC} in {stop - start:.2f} s")    
     printMeshInfo()

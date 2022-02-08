@@ -10,17 +10,7 @@ from scipy.sparse import *
 from parameter import *
 from region import Region
 from field import *
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+from utils import *
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -776,6 +766,39 @@ def exampleHMagnetOctant(vectorized=True, legacy=False):
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 2.675) < 1e-3)
 
+def runAll():
+    loadMesh("examples/air_box_2d.msh")
+    computeEdges2d()
+    computeBoundary()    
+    bookExample1()
+
+    rectangularCriss(50,50)
+    computeEdges2d()
+    computeBoundary()    
+    bookExample1()
+
+    loadMesh("examples/example2.msh")
+    bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
+    computeEdges2d()
+    computeBoundary()       
+    bookExample2(False, anisotropicInclusion=True, method='petsc')    
+
+    rectangularCriss(50,50)
+    computeEdges2d()
+    computeBoundary()       
+    mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
+    mesh()['xp'][:,1] = mesh()['xp'][:,1]*4    
+    bookExample2(False, anisotropicInclusion=True, method='petsc')    
+
+    exampleHMagnetOctant()
+    exampleHMagnetOctant(vectorized=False)
+    exampleHMagnetOctant(vectorized=False, legacy=True)
+    exampleHMagnet()
+    exampleHMagnet(vectorized=False)
+    exampleHMagnet(vectorized=False, legacy=True)
+    
+    exampleMagnetInRoom()    
+
 def main():
     if False:
         G = {}
@@ -798,37 +821,17 @@ def main():
         print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
     
     #plotShapeFunctions()
-    loadMesh("examples/air_box_2d.msh")
+    #loadMesh("examples/air_box_2d.msh")
     # rectangularCriss(50,50)
-    computeEdges2d()
-    computeBoundary()    
-    # printEdgesofTriangle(G,1)
     # plotMesh(G)
 
-    bookExample1()
-    
-    # scale mesh to size [0,5] x [0,4]
-    #rectangularCriss(50,50)
-    #mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-    #mesh()['xp'][:,1] = mesh()['xp'][:,1]*4
-
-    loadMesh("examples/example2.msh")
-    bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
-
-    computeEdges2d()
-    computeBoundary()       
-    #bookExample2(False, 'petsc')
-    bookExample2(False, anisotropicInclusion=True, method='petsc')
-
-    #exampleHMagnetCurl()  # WIP
-    exampleHMagnetOctant()
-    exampleHMagnetOctant(vectorized=False)
-    exampleHMagnetOctant(vectorized=False, legacy=True)
-    exampleHMagnet()
-    exampleHMagnet(vectorized=False)
-    exampleHMagnet(vectorized=False, legacy=True)
-    
-    exampleMagnetInRoom()
+    if True:
+        runAll()
+    else:
+        #exampleHMagnetCurl()  # WIP
+        exampleHMagnetOctant()
+        exampleHMagnet()    
+        exampleMagnetInRoom()  
 
     print('finished')
 
