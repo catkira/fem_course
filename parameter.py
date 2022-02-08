@@ -2,7 +2,7 @@ import numpy as np
 import sys
 from mesh import *
 from field import *
-import region
+from region import Region
 
 parameterList = []
 

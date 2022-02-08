@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-from mesh import *
+import mesh as m
 
 regionList = []
 
@@ -29,19 +29,19 @@ class Region:
         self.ids.sort()
         for id in self.ids:
             for dim in np.arange(start=1,stop=4):
-                if id in mesh()['physical'][dim-1]:
+                if id in m.mesh['physical'][dim-1]:
                     if self.regionDimension != 0 and self.regionDimension != dim:
                         print("cannot mix dimensions in single region!")
                         sys.exit()
                     self.regionDimension = dim
-                    for i in range(len(mesh()['physical'][dim-1])):
-                        if mesh()['physical'][dim-1][i] == id:
+                    for i in range(len(m.mesh['physical'][dim-1])):
+                        if m.mesh['physical'][dim-1][i] == id:
                             if dim == 1:
-                                self.elements.append(mesh()['pl'][i])
+                                self.elements.append(m.mesh['pl'][i])
                             elif dim==2:
-                                self.elements.append(mesh()['pt'][i])
+                                self.elements.append(m.mesh['pt'][i])
                             elif dim==3:
                                 if edges:
-                                    self.elements.append(mesh()['ett'][i])
+                                    self.elements.append(m.mesh['ett'][i])
                                 else:
-                                    self.elements.append(mesh()['ptt'][i])
+                                    self.elements.append(m.mesh['ptt'][i])

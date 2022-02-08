@@ -8,6 +8,7 @@ import scipy as sp
 import meshio
 import sys
 from scipy.sparse import *
+import region
 
 mesh = dict()
 
@@ -167,18 +168,30 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
-def transformationJacobians():
+def transformationJacobians(reg = []):
     global mesh
-    dim = len(mesh['xp'][0])
-    if dim == 2:
-        ps = mesh['pt']
+    if reg == []:
+        if mesh['problemDimension'] == 2:
+            ps = mesh['pt']
+        elif mesh['problemDimension'] == 3:
+            ps = mesh['ptt']
+    elif isinstance(reg, region.Region):
+        ps = reg.getElements()
+    else:
+        ps = reg
+    elementDim = ps.shape[1]-1
+    if elementDim == 2:
         x1 = mesh['xp'][ps[:,0],:]
-        B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).T
-    elif dim == 3:
-        ps = mesh['ptt']
+        if mesh['problemDimension'] == 2:
+            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).T
+        elif mesh['problemDimension'] == 3:
+            # extend jacobi matrix with a [0,0,1] vector, so that the determinant can be calculated
+            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, np.tile([0,0,1],len(ps)).reshape((len(ps),3))]).T
+    elif elementDim == 3:
         x1 = mesh['xp'][ps[:,0],:]        
         B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, mesh['xp'][ps[:,3],:]-x1]).T
-    return np.swapaxes(B,0,1)      
+    B = B.swapaxes(0,1)
+    return B
 
 def transformationJacobian(t):
     global mesh
