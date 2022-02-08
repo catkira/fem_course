@@ -209,14 +209,19 @@ def fluxRhs(field, br, region=[]):
         Grads = field.shapeFunctionGradients()    
     jacs = transformationJacobians(elements)
     detJacs = np.abs(np.linalg.det(jacs))    
-    invJacs = np.linalg.inv(jacs)            
-    for elementIndex, element in enumerate(elements):
-        if np.array_equal(br[elementIndex], zero): # just for speedup
-            continue
-        temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
-        rhs[element[0]] = rhs[element[0]] + np.dot(br[elementIndex], temp.T[0])
-        rhs[element[1]] = rhs[element[1]] + np.dot(br[elementIndex], temp.T[1])
-        rhs[element[2]] = rhs[element[2]] + np.dot(br[elementIndex], temp.T[2])
+    invJacs = np.linalg.inv(jacs)         
+    if True:   
+        for elementIndex, element in enumerate(elements):
+            if np.array_equal(br[elementIndex], zero): # just for speedup
+                continue
+            temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
+            rhs[element[0]] = rhs[element[0]] + np.dot(br[elementIndex], temp.T[0])
+            rhs[element[1]] = rhs[element[1]] + np.dot(br[elementIndex], temp.T[1])
+            rhs[element[2]] = rhs[element[2]] + np.dot(br[elementIndex], temp.T[2])
+            if mesh()['problemDimension'] == 3:
+                rhs[element[3]] = rhs[element[3]] + np.dot(br[elementIndex], temp.T[3])
+    else:
+        temp2 = area* np.tile(detJacs,3*4).reshape((len(detJacs),3,4))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
     return rhs
 
 # integral rho * u * tf(u)
@@ -320,7 +325,7 @@ def massMatrix(field, rhos, region=[], dim=2):
         detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
-    if False:
+    if False:  # LEGACY CODE
         for elementIndex, element in enumerate(elements):
             rangeIndex = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)
             data[rangeIndex] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
@@ -696,7 +701,7 @@ def exampleHMagnet():
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2912) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.863) < 1e-3)
     storeInVTK(b,"h_magnet_b.vtk")    
 
 def exampleHMagnetOctant():
@@ -751,7 +756,7 @@ def exampleHMagnetOctant():
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.945) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.675) < 1e-3)
     storeInVTK(b,"h_magnet_octant_b.vtk")        
 
 def main():
