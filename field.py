@@ -16,13 +16,18 @@ class FieldHCurl:
                             [2, 0, 0],
                             [0, 2, 0]])
 
-    def shapeFunctionValues(self, xi):
-        return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
-                        [xi[2],         1-xi[2]-xi[0],  xi[1]],
-                        [xi[2],         xi[2],          1-xi[1]-xi[0]],
-                        [-xi[1],        xi[0],          0],
-                        [0,             -xi[2],         xi[1]],
-                        [xi[2],         0,              -xi[0]]])
+    def shapeFunctionValues(self, xi, elementDim=3):
+        if elementDim == 2:
+            return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
+                            [xi[2],         1-xi[2]-xi[0],  xi[1]],
+                            [xi[2],         xi[2],          1-xi[1]-xi[0]]])
+        elif elementDim == 3:
+            return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
+                            [xi[2],         1-xi[2]-xi[0],  xi[1]],
+                            [xi[2],         xi[2],          1-xi[1]-xi[0]],
+                            [-xi[1],        xi[0],          0],
+                            [0,             -xi[2],         xi[1]],
+                            [xi[2],         0,              -xi[0]]])
 
 class FieldH1:    
     def shapeFunctionGradients(self):
@@ -36,11 +41,14 @@ class FieldH1:
                             [0, 1, 0],
                             [0, 0, 1]])
 
-    def shapeFunctionValues(self, xi):
+    def shapeFunctionValues(self, xi, elementDim = 2):
         if mesh()['problemDimension'] == 2:        
             return [1, 0, 0] + self.shapeFunctionGradients() @ xi
         elif mesh()['problemDimension'] == 3:        
-            return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
+            if elementDim == 2:  # TODO fix
+                return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
+            elif elementDim == 3:
+                return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
 
     # calculates gradient for each element
     def grad(self, u, dim=2):

@@ -9,6 +9,7 @@ class Region:
         global regionList
         self.ids = []
         self.elements = []
+        self.edgeElements = []
         self.regionDimension = 0
         regionList.append(self)
 
@@ -20,11 +21,18 @@ class Region:
             self.ids.append(ids)
 
     def getElements(self, edges=False):
-        if self.elements == []:
-            self.calculateElements(edges)
-        return np.array(self.elements)
+        if edges:
+            if self.edgeElements == []:
+                self.calculateElements(edges)
+            return np.array(self.edgeElements)
+        else:
+            if self.elements == []:
+                self.calculateElements(edges)
+            return np.array(self.elements)
 
     def calculateElements(self, edges=False):
+        if edges:
+            m.computeEdges3d()
         # always sort physicalIds so that numbering of region elements and parameters match
         self.ids.sort()
         for id in self.ids:
@@ -39,9 +47,12 @@ class Region:
                             if dim == 1:
                                 self.elements.append(m.mesh['pl'][i])
                             elif dim==2:
-                                self.elements.append(m.mesh['pt'][i])
+                                if edges:
+                                    self.edgeElements.append(m.mesh['et'][i])
+                                else:
+                                    self.elements.append(m.mesh['pt'][i])
                             elif dim==3:
                                 if edges:
-                                    self.elements.append(m.mesh['ett'][i])
+                                    self.edgeElements.append(m.mesh['ett'][i])
                                 else:
                                     self.elements.append(m.mesh['ptt'][i])
