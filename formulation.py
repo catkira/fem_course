@@ -90,7 +90,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
-    Grads = field.shapeFunctionGradients()
     if region == []:
         elements = mesh()['pt']
     else:
@@ -105,6 +104,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
         nBasis = 4
         area = 1/6        
     m = len(elements)
+    Grads = field.shapeFunctionGradients(dim)
     elementMatrixSize = (mesh()['problemDimension']+1)**2
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
@@ -246,17 +246,17 @@ def fluxRhs(field, br, region=[], vectorized=True):
     if mesh()['problemDimension'] == 2:
         zero = [0, 0]
         area = 1/2
-        Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
+        #Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
         nCoords = 2
         nBasis = 3
         dim = 2
     else:
         zero = [0, 0, 0]
         area = 1/6
-        Grads = field.shapeFunctionGradients()    
         nCoords = 3
         nBasis = 4
         dim = 3
+    Grads = field.shapeFunctionGradients(dim)    
     jacs = transformationJacobians(elements, elementDim = dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         

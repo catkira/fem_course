@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from mesh import *
 
 class FieldHCurl:
-    def shapeFunctionCurls(self):
-        if mesh()['problemDimension'] == 2:
+    def shapeFunctionCurls(self, elementDim = 2):
+        if elementDim == 2:
             return np.array([2,
                             2,
                             2])
-        else:
+        elif elementDim == 3:
             return np.array([[0, -2, 2],
                             [2, 0, -2],
                             [-2, 2, 0],
@@ -16,7 +16,7 @@ class FieldHCurl:
                             [2, 0, 0],
                             [0, 2, 0]])
 
-    def shapeFunctionValues(self, xi, elementDim=3):
+    def shapeFunctionValues(self, xi, elementDim = 3):
         if elementDim == 2:
             return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
                             [xi[2],         1-xi[2]-xi[0],  xi[1]],
@@ -30,12 +30,17 @@ class FieldHCurl:
                             [xi[2],         0,              -xi[0]]])
 
 class FieldH1:    
-    def shapeFunctionGradients(self):
-        if mesh()['problemDimension'] == 2:
-            return np.array([[-1, -1, 0],
-                            [1, 0, 0],
-                            [0, 1, 0]])
-        else:
+    def shapeFunctionGradients(self, elementDim = 2):
+        if elementDim == 2:
+            if mesh()['problemDimension'] == 2:
+                return np.array([[-1, -1],
+                                [1, 0],
+                                [0, 1]])
+            elif mesh()['problemDimension'] == 3:
+                return np.array([[-1, -1, 0],
+                                [1, 0, 0],
+                                [0, 1, 0]])
+        elif elementDim == 3:
             return np.array([[-1, -1, -1],
                             [1, 0, 0],
                             [0, 1, 0],
@@ -45,17 +50,17 @@ class FieldH1:
         if mesh()['problemDimension'] == 2:        
             return [1, 0, 0] + self.shapeFunctionGradients() @ xi
         elif mesh()['problemDimension'] == 3:        
-            if elementDim == 2:  # TODO fix
-                return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
+            if elementDim == 2:
+                return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
             elif elementDim == 3:
-                return [1, 0, 0, 0] + self.shapeFunctionGradients() @ xi
+                return [1, 0, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
 
     # calculates gradient for each element
     def grad(self, u, dim=2):
         if dim == 2:
             m = numberOfTriangles()
             grads = np.zeros((m,3))
-            sfGrads = self.shapeFunctionGradients()[:,0:2]
+            sfGrads = self.shapeFunctionGradients(dim)
             for elementIndex, element in enumerate(mesh()['pt']):    
                 jac,_ = transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
@@ -63,7 +68,7 @@ class FieldH1:
         else:
             m = numberOfTetraeders()
             grads = np.zeros((m,3))
-            sfGrads = self.shapeFunctionGradients()
+            sfGrads = self.shapeFunctionGradients(dim)
             for elementIndex, element in enumerate(mesh()['ptt']):    
                 jac,_ = transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
