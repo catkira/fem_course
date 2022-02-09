@@ -414,7 +414,12 @@ def solve(A, b, method='np'):
         if not hasPetsc:
             print("petsc is not available on this system")
             sys.exit()            
+        opts = PETSc.Options()
+        opts.setValue("st_pc_factor_shift_type", "NONZERO")        
         n = len(b)   
+        for i in range(n):
+            if A[i,i] == 0:
+                A[i,i] = 1e-10
         csr_mat=csr_matrix(A)
         Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
         Ap.setUp()
@@ -423,11 +428,20 @@ def solve(A, b, method='np'):
         bp = PETSc.Vec().createSeq(n) 
         bp.setValues(range(n),b)        
         up = PETSc.Vec().createSeq(n)        
-        ksp = PETSc.KSP().create()
-        ksp.setOperators(Ap)        
-        ksp.setFromOptions()
-        print(f'Solving with: {ksp.getType():s}')
-        ksp.solve(bp, up)
+        if True:
+            ksp = PETSc.KSP().create()
+            ksp.setOperators(Ap)        
+            ksp.setFromOptions()
+            ksp.setType('cg')  # conjugate gradient
+            ksp.getPC().setType('icc') # incomplete cholesky
+            print(f'Solving with: {ksp.getType():s}')
+            ksp.solve(bp, up)
+        else:
+            snes = PETSc.SNES() 
+            snes.create(PETSc.COMM_SELF)
+            snes.setUseMF(True)
+            snes.getKSP().setType('cg')
+            snes.setFromOptions()
         print(f"Converged in {ksp.getIterationNumber():d} iterations.")
         u = np.array(up)
     elif method == 'np':
