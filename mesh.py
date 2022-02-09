@@ -169,7 +169,7 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
-def transformationJacobians(reg = []):
+def transformationJacobians(reg = [], elementDim=3):
     global mesh
     if reg == []:
         if mesh['problemDimension'] == 2:
@@ -180,7 +180,6 @@ def transformationJacobians(reg = []):
         ps = reg.getElements()
     else:
         ps = reg
-    elementDim = ps.shape[1]-1
     if elementDim == 2:
         x1 = mesh['xp'][ps[:,0],:]
         if mesh['problemDimension'] == 2:

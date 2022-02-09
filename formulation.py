@@ -61,7 +61,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
-    jacs = transformationJacobians()
+    jacs = transformationJacobians(elementDim=dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)      
 
@@ -97,26 +97,25 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     else:
         elements = region.getElements()
         sigmas = sigmas.getValues(region)
+    if mesh()['problemDimension'] == 2:
+        dim = 2
+        nBasis = 3
+        area = 1/2
+    elif mesh()['problemDimension'] == 3:
+        dim = 3
+        nBasis = 4
+        area = 1/6        
     m = len(elements)
     elementMatrixSize = (mesh()['problemDimension']+1)**2
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
     data2 = np.zeros(0)    
-    jacs = transformationJacobians()
+    jacs = transformationJacobians(elementDim=dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
 
-    if not legacy:
-        if mesh()['problemDimension'] == 2:
-            dim = 2
-            nBasis = 3
-            area = 1/2
-        elif mesh()['problemDimension'] == 3:
-            dim = 3
-            nBasis = 4
-            area = 1/6
-        
+    if not legacy:  
         # precalculate mesh independant parts of the integral
         B = np.zeros((dim, dim, nBasis, nBasis))
         for i in range(dim):
@@ -145,14 +144,8 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
                 data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
     
-    else:  # LEGACY CODE
-        
+    else:  # LEGACY CODE       
         if mesh()['problemDimension'] == 3:
-        # area of ref tetraeder is 1/6, integrands are constant within integral
-            dim = 3
-            nBasis = 4
-            area = 1/6
-            
             # precalculate mesh independant parts of the integral
             B = np.zeros((dim, dim, nBasis, nBasis))
             for i in range(dim):
@@ -205,27 +198,29 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     if region == []:
         elements = mesh()['pt']
     else:
-        elements = region.getElements()
+        elements = region.getElements(edges=True)
         br = br.getValues(region)
-    n = numberOfVertices()
+    n = numberOfEdges()
     rhs = np.zeros(n)
     if mesh()['problemDimension'] == 2:
         zero = [0, 0]
         area = 1/2
-        Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
+        Curls = field.shapeFunctionCurls()[:,0:2]  # discard z coordinates  
         nCoords = 2
         nBasis = 3
+        dim = 2
     else:
         zero = [0, 0, 0]
         area = 1/6
-        Grads = field.shapeFunctionGradients()    
+        Curls = field.shapeFunctionCurls()    
         nCoords = 3
-        nBasis = 4
-    jacs = transformationJacobians(elements)
+        nBasis = 6
+        dim = 3
+    jacs = transformationJacobians(elementDim=dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
-        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
+        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Curls.T)
         rows = elements.ravel(order='F')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
@@ -235,7 +230,7 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
         for elementIndex, element in enumerate(elements):
             if np.array_equal(br[elementIndex], zero): # just for speedup
                 continue
-            temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
+            temp = area * invJacs[elementIndex].T @ Curls.T * detJacs[elementIndex]
             for basis in range(nBasis):
                 rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
     return rhs
@@ -255,13 +250,15 @@ def fluxRhs(field, br, region=[], vectorized=True):
         Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
         nCoords = 2
         nBasis = 3
+        dim = 2
     else:
         zero = [0, 0, 0]
         area = 1/6
         Grads = field.shapeFunctionGradients()    
         nCoords = 3
         nBasis = 4
-    jacs = transformationJacobians(elements)
+        dim = 3
+    jacs = transformationJacobians(elements, elementDim = dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
@@ -321,7 +318,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     if dim == 1: # TODO: why can det(..) not be used here?
         sys.exit()
     elif dim == 2:
-        jacs = transformationJacobians(elements)
+        jacs = transformationJacobians(elements, elementDim=2)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
@@ -373,7 +370,7 @@ def massMatrix(field, rhos, region=[], dim=2, vectorized=True):
     if dim == 1: # TODO: why can det(..) not be used here?
         detJacs = np.abs(np.linalg.norm( mesh()['xp'][elements[:,0]] - mesh()['xp'][elements[:,1]], axis=1))
     else:
-        jacs = transformationJacobians(elements)
+        jacs = transformationJacobians(elements, elementDim=dim)
         detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
@@ -426,7 +423,7 @@ def solve(A, b, method='np'):
         if not hasPetsc:
             print("petsc is not available on this system")
             sys.exit()            
-        n = numberOfVertices()    
+        n = len(b)   
         csr_mat=csr_matrix(A)
         Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
         Ap.setUp()
