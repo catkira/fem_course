@@ -293,14 +293,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2):
     elif elementDim == 2:
         order = 2
         nBasis = 3
-        if order == 1:
-            gfs = np.array([1/2])
-            gps = np.array([[1/3, 1/3, 0]])
-        elif order == 2:
-            gfs = np.array([1/6, 1/6, 1/6])
-            gps = np.array([[1/3, 1/6, 0],
-                            [2/3, 1/6, 0],
-                            [1/3, 2/3, 0]])
+        gfs,gps = gaussData(order, elementDim)
         Mm = np.zeros((3,3,nBasis,nBasis))
         for i in range(3):
             for k in range(3):
@@ -356,10 +349,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
         else: 
             # precalculate mesh independant parts of the integral
             Mm = np.zeros((nBasis,nBasis))
-            gfs = np.array([1/6, 1/6, 1/6])
-            gps = np.array([[1/6, 1/6, 0],
-                            [2/3, 1/6, 0],
-                            [1/6, 2/3, 0]])
+            gfs,gps = gaussData(2, elementDim)
             for i,gp in enumerate(gps):
                 for j in range(nBasis):
                     for k in range(nBasis):
@@ -869,7 +859,7 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if False:
+    if True:
         runAll()
     else:
         #exampleHMagnetCurl()  # WIP

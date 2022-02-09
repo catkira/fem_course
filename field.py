@@ -48,7 +48,7 @@ class FieldH1:
 
     def shapeFunctionValues(self, xi, elementDim = 2):
         if mesh()['problemDimension'] == 2:        
-            return [1, 0, 0] + self.shapeFunctionGradients() @ xi
+            return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
         elif mesh()['problemDimension'] == 3:        
             if elementDim == 2:
                 return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
