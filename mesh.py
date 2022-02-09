@@ -70,6 +70,12 @@ def computeSigns():
         tmp = mesh['ptt'][:,[0,0,0,1,2,3]] - mesh['ptt'][:,[1, 2, 3, 2, 3, 1]]
         mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
 
+def edgeSigns():
+    if mesh['problemDimension'] == 2:
+        return mesh['signs2d']
+    elif mesh['problemDimension'] == 2:
+        return mesh['signs2d']
+
 # computes edges for use with edge elements
 def computeEdges3d():
     global mesh

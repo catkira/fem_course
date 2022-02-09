@@ -38,7 +38,6 @@ def localCoordinate(G, t, x):
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[]):
-    Curls = field.shapeFunctionCurls()
     if region == []:
         elements = mesh()['ett']
         elementDim = mesh()['problemDimension'] 
@@ -56,6 +55,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
         nBasis = 6
         elementMatrixSize = nBasis**2
         elementArea = 1/6        
+    Curls = field.shapeFunctionCurls(elementDim)
     m = len(elements)
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
@@ -204,18 +204,17 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     if mesh()['problemDimension'] == 2:
         zero = [0, 0]
         area = 1/2
-        Curls = field.shapeFunctionCurls()[:,0:2]  # discard z coordinates  
         nCoords = 2
         nBasis = 3
-        dim = 2
+        elementDim = 2
     else:
         zero = [0, 0, 0]
         area = 1/6
-        Curls = field.shapeFunctionCurls()    
         nCoords = 3
         nBasis = 6
-        dim = 3
-    jacs = transformationJacobians(elementDim=dim)
+        elementDim = 3
+    Curls = field.shapeFunctionCurls(elementDim)    
+    jacs = transformationJacobians([], elementDim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
@@ -294,13 +293,13 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2):
         order = 2
         nBasis = 3
         gfs,gps = gaussData(order, elementDim)
-        Mm = np.zeros((3,3,nBasis,nBasis))
-        for i in range(3):
-            for k in range(3):
+        Mm = np.zeros((nBasis,nBasis))
+        for i in range(nBasis):
+            for k in range(nBasis):
                 for j in range(len(gfs)):
                     # Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
                     # np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
-                    Mm[i,k] = Mm[i,k] + gfs[j] * np.matrix(field.shapeFunctionValues(gps[j], elementDim))[:,i] @ np.matrix(field.shapeFunctionValues(gps[j], elementDim))[:,j].T
+                    Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j], elementDim)[:,i], field.shapeFunctionValues(gps[j], elementDim)[:,j])
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
@@ -317,8 +316,8 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2):
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
         indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)    
-        signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])        
-        data[indexRange] = (rhos[elementIndex]* invJacs[elementIndex] @ invJacs[elementIndex].T * detJacs[elementIndex] @ Mm).ravel()
+        signs = edgeSigns()        
+        data[indexRange] = (rhos[elementIndex]* invJacs[elementIndex] @ invJacs[elementIndex].T * detJacs[elementIndex] * Mm).ravel()
     n = numberOfEdges()           
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
@@ -859,10 +858,10 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if True:
+    if False:
         runAll()
     else:
-        #exampleHMagnetCurl()  # WIP
+        exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  

@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mesh import *
 
+# HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl:
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -18,9 +19,14 @@ class FieldHCurl:
 
     def shapeFunctionValues(self, xi, elementDim = 3):
         if elementDim == 2:
-            return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
-                            [xi[2],         1-xi[2]-xi[0],  xi[1]],
-                            [xi[2],         xi[2],          1-xi[1]-xi[0]]])
+            if mesh()['problemDimension'] == 2:
+                return np.array([[-xi[1],    xi[0]],
+                                [-xi[1],     xi[0]],
+                                [1-xi[1],    xi[0]]])
+            if mesh()['problemDimension'] == 3:
+                return np.array([[-xi[1],    xi[0],     0],
+                                [-xi[1],     xi[0]-1,   0],
+                                [1-xi[1],    xi[0],     0]])
         elif elementDim == 3:
             return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
                             [xi[2],         1-xi[2]-xi[0],  xi[1]],

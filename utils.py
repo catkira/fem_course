@@ -14,14 +14,14 @@ class bcolors:
 
 def gaussData(order, elementDim):
     if order == 1:
-        if elementDim == 2:
+        if elementDim == 2: # triangles
             gfs = np.array([1/2])
             if m.mesh['problemDimension'] == 2:
                 gps = np.array([[1/3, 1/3]])        
             elif m.mesh['problemDimension'] == 3:
                 gps = np.array([[1/3, 1/3, 0]])        
     elif order == 2:
-        if elementDim == 2:
+        if elementDim == 2: # triangles
             gfs = np.array([1/6, 1/6, 1/6])            
             if m.mesh['problemDimension'] == 2:
                 gps = np.array([[1/6, 1/6],
