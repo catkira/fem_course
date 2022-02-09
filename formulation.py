@@ -39,40 +39,43 @@ def localCoordinate(G, t, x):
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[]):
     Curls = field.shapeFunctionCurls()
-    if mesh()['problemDimension'] == 2:    
-        computeEdges2d()
-        dim = 2
-        nBasis = 3
-        elementMatrixSize = nBasis**2
-        elementArea = 1/2
-    if mesh()['problemDimension'] == 3:
-        computeEdges3d()
-        dim = 3
-        nBasis = 6
-        elementMatrixSize = nBasis**2
-        elementArea = 1/6
     if region == []:
         elements = mesh()['ett']
+        elementDim = mesh()['problemDimension'] 
     else:
         elements = region.getElements(edges=True)
         sigmas = sigmas.getValues(region)
-    computeSigns()
+        elementDim = region.regionDimension
+    if elementDim == 2:    
+        elementDim = 2
+        nBasis = 3
+        elementMatrixSize = nBasis**2
+        elementArea = 1/2
+    elif elementDim == 3:
+        elementDim = 3
+        nBasis = 6
+        elementMatrixSize = nBasis**2
+        elementArea = 1/6        
     m = len(elements)
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
-    jacs = transformationJacobians(elementDim=dim)
+    jacs = transformationJacobians(elementDim=elementDim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)      
 
-    if mesh()['problemDimension'] == 3:
-        B = np.zeros((dim,dim,nBasis,nBasis))
+    if elementDim == 2:
+        pass
+        # TODO
+
+    elif elementDim == 3:
+        B = np.zeros((elementDim,elementDim,nBasis,nBasis))
         for i in range(3):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
 
-        sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
-        detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
+        sigmasDuplicated = np.repeat(sigmas, elementDim**2).reshape((len(elements), elementDim, elementDim))
+        detJacsDuplicated = np.repeat(detJacs, elementDim**2).reshape((len(elements), elementDim, elementDim))
         gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()  
@@ -80,11 +83,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
             indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
             signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
             data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel() # this is generic and faster than explicit summation like below
-    
-    if mesh()['problemDimension'] == 2:
-        pass
-        # TODO
-    
+        
     n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K    
@@ -278,20 +277,20 @@ def fluxRhs(field, br, region=[], vectorized=True):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrixCurl(field, rhos, region=[], dim=2):
+def massMatrixCurl(field, rhos, region=[], elementDim=2):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
     elif isinstance(region, Region):
         elements = region.getElements(edges=True)
         rhos = rhos.getValues(region)
-        dim = region.regionDimension
+        elementDim = region.regionDimension
     else:
         print("Error: unsupported paramter!")
         sys.exit()
-    if dim == 1:
+    if elementDim == 1:
         #TODO
         sys.exit()
-    elif dim == 2:
+    elif elementDim == 2:
         order = 2
         nBasis = 3
         if order == 1:
@@ -302,13 +301,13 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
             gps = np.array([[1/3, 1/6, 0],
                             [2/3, 1/6, 0],
                             [1/3, 2/3, 0]])
-        Mm = np.zeros((3,3,nBasis,nBasis))  # TODO: is 3 correct here?
+        Mm = np.zeros((3,3,nBasis,nBasis))
         for i in range(3):
             for k in range(3):
                 for j in range(len(gfs)):
                     # Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
                     # np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
-                    Mm[i,k] = Mm[i,k] + gfs[j] * np.matrix(field.shapeFunctionValues(gps[j])).T[i,:] * np.matrix(field.shapeFunctionValues(gps[j]))[:,k]
+                    Mm[i,k] = Mm[i,k] + gfs[j] * np.matrix(field.shapeFunctionValues(gps[j], elementDim))[:,i] @ np.matrix(field.shapeFunctionValues(gps[j], elementDim))[:,j].T
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
@@ -317,10 +316,10 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     data = np.zeros(m*elementMatrixSize)    
-    if dim == 1: # TODO: why can det(..) not be used here?
+    if elementDim == 1: # TODO: why can det(..) not be used here?
         sys.exit()
-    elif dim == 2:
-        jacs = transformationJacobians(elements, elementDim=2)
+    elif elementDim == 2:
+        jacs = transformationJacobians(region.getElements(edges=False), elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
@@ -332,7 +331,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
     return M    
 
 # integral rho * u * tf(u)
-def massMatrix(field, rhos, region=[], dim=2, vectorized=True):
+def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
     Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
@@ -340,15 +339,15 @@ def massMatrix(field, rhos, region=[], dim=2, vectorized=True):
     elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
-        dim = region.regionDimension
+        elementDim = region.regionDimension
     else:
         print("Error: unsupported paramter!")
         sys.exit()
-    if dim == 1:
+    if elementDim == 1:
         Mm = 1/6 * np.array([[2,1],
                             [1,2]])
         nBasis = 2
-    elif dim == 2:
+    elif elementDim == 2:
         nBasis = 3
         if False:
             Mm = 1/24 * np.array([[2,1,1],
@@ -364,16 +363,16 @@ def massMatrix(field, rhos, region=[], dim=2, vectorized=True):
             for i,gp in enumerate(gps):
                 for j in range(nBasis):
                     for k in range(nBasis):
-                        Mm[j,k] = Mm[j,k] + gfs[i] * field.shapeFunctionValues(gp)[j] * field.shapeFunctionValues(gp)[k] 
+                        Mm[j,k] = Mm[j,k] + gfs[i] * field.shapeFunctionValues(gp, elementDim)[j] * field.shapeFunctionValues(gp, elementDim)[k] 
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
     elementMatrixSize = nBasis**2        
     data = np.zeros(len(elements)*nBasis**2)    
-    if dim == 1: # TODO: why can det(..) not be used here?
+    if elementDim == 1: # TODO: why can det(..) not be used here?
         detJacs = np.abs(np.linalg.norm( mesh()['xp'][elements[:,0]] - mesh()['xp'][elements[:,1]], axis=1))
     else:
-        jacs = transformationJacobians(elements, elementDim=dim)
+        jacs = transformationJacobians(elements, elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
@@ -465,7 +464,7 @@ def bookExample1():
     K = stiffnessMatrix(field, sigmas)
     M = massMatrix(field, rhos, region=mesh()['pt'])
     #B = boundaryMassMatrix(alphas) # this function is only here to illustrate the most simple way to do it
-    B = massMatrix(field, alphas, region=mesh()['pe'][mesh()['eb']], dim=1)
+    B = massMatrix(field, alphas, region=mesh()['pe'][mesh()['eb']], elementDim=1)
     b = M @ f
     A = K+B
     u = solve(A,b)
@@ -873,7 +872,7 @@ def main():
     if False:
         runAll()
     else:
-        exampleHMagnetCurl()  # WIP
+        #exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
