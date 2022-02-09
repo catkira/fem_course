@@ -184,14 +184,17 @@ def transformationJacobians(reg = []):
     if elementDim == 2:
         x1 = mesh['xp'][ps[:,0],:]
         if mesh['problemDimension'] == 2:
-            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).T
+            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).swapaxes(0,1).swapaxes(1,2)
         elif mesh['problemDimension'] == 3:
-            # extend jacobi matrix with a [0,0,1] vector, so that the determinant can be calculated
-            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, np.tile([0,0,1],len(ps)).reshape((len(ps),3))]).T
+            B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1]).swapaxes(0,1).swapaxes(1,2)
+            # extend jacobi matrix with a 3rd orthogonal vector of length 1, so that the determinant and inverse can be calculated
+            cross = np.cross(B[:,:,0],B[:,:,1])
+            cross /= np.sqrt(np.einsum('...i,...i', cross, cross))[...,np.newaxis]
+            B = np.dstack((B,cross))
+
     elif elementDim == 3:
         x1 = mesh['xp'][ps[:,0],:]        
-        B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, mesh['xp'][ps[:,3],:]-x1]).T
-    B = B.swapaxes(0,1)
+        B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, mesh['xp'][ps[:,3],:]-x1]).swapaxes(0,1).swapaxes(1,2)
     return B
 
 def transformationJacobian(t):

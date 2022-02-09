@@ -39,16 +39,18 @@ def localCoordinate(G, t, x):
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[]):
     Curls = field.shapeFunctionCurls()
+    if mesh()['problemDimension'] == 2:    
+        computeEdges2d()
+        dim = 2
+        nBasis = 3
+        elementMatrixSize = nBasis**2
+        elementArea = 1/2
     if mesh()['problemDimension'] == 3:
         computeEdges3d()
-        dofs = 6
-        elementMatrixSize = dofs**2
+        dim = 3
+        nBasis = 6
+        elementMatrixSize = nBasis**2
         elementArea = 1/6
-    else:
-        computeEdges2d()
-        dofs = 3
-        elementMatrixSize = dofs**2
-        elementArea = 1/2
     if region == []:
         elements = mesh()['ett']
     else:
@@ -59,23 +61,25 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
-    B = np.zeros((dofs,dofs))
+    jacs = transformationJacobians()
+    detJacs = np.abs(np.linalg.det(jacs))    
+    invJacs = np.linalg.inv(jacs)      
 
     if mesh()['problemDimension'] == 3:
-        B = np.zeros((3,3,dofs,dofs))
+        B = np.zeros((dim,dim,nBasis,nBasis))
         for i in range(3):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
 
+        sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
+        detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
+        gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+        rows = np.tile(elements, nBasis).astype(np.int64).ravel()
+        cols = np.repeat(elements,nBasis).astype(np.int64).ravel()  
         for elementIndex, element in enumerate(elements):
-            jac,_ = transformationJacobian(elementIndex)
-            detJac = np.abs(np.linalg.det(jac))
-            gamma = sigmas[elementIndex] * jac @ jac.T * 1/detJac
             indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            rows[indexRange] = np.tile(element[:],6).astype(np.int64)
-            cols[indexRange] = np.repeat(element[:],6).astype(np.int64)
             signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
-            data[indexRange] = np.multiply(np.einsum('jk,jk...',gamma,B),signs).ravel() # this is generic and faster than explicit summation like below
+            data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel() # this is generic and faster than explicit summation like below
     
     if mesh()['problemDimension'] == 2:
         pass
@@ -120,10 +124,13 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 B[i,k] = area * np.matrix(Grads[:,i]).T * np.matrix(Grads[:,k]) 
         
         if len(sigmas.shape) == 1:
-            # detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
-            # sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
-            # gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
-            gammas = np.einsum('i,i,ijk,ilk->ijl',sigmas,detJacs,invJacs,invJacs)  # np.einsum is epic!
+            if False:
+                # this looks ugly, bit is a tiny bit faster than einsum!
+                detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
+                sigmasDuplicated = np.repeat(sigmas, dim**2).reshape((len(elements), dim, dim))
+                gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+            else:
+                gammas = np.einsum('i,i,ijk,ilk->ijl',sigmas,detJacs,invJacs,invJacs)  # np.einsum is epic!
         else:
             detJacsDuplicated = np.repeat(detJacs, dim**2).reshape((len(elements), dim, dim))
             gammas = np.zeros((len(elements),dim,dim))
@@ -193,6 +200,46 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
+# integral br * rot(tf(u))
+def fluxRhsCurl(field, br, region=[], vectorized=True):
+    if region == []:
+        elements = mesh()['pt']
+    else:
+        elements = region.getElements()
+        br = br.getValues(region)
+    n = numberOfVertices()
+    rhs = np.zeros(n)
+    if mesh()['problemDimension'] == 2:
+        zero = [0, 0]
+        area = 1/2
+        Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
+        nCoords = 2
+        nBasis = 3
+    else:
+        zero = [0, 0, 0]
+        area = 1/6
+        Grads = field.shapeFunctionGradients()    
+        nCoords = 3
+        nBasis = 4
+    jacs = transformationJacobians(elements)
+    detJacs = np.abs(np.linalg.det(jacs))    
+    invJacs = np.linalg.inv(jacs)         
+    if vectorized:
+        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
+        rows = elements.ravel(order='F')
+        rhs2 = np.zeros((len(elements),nBasis))
+        for basis in range(nBasis):
+            rhs2[:,basis] = np.einsum('ij,ij->i',br,temp2[:,:,basis])
+        rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    else:
+        for elementIndex, element in enumerate(elements):
+            if np.array_equal(br[elementIndex], zero): # just for speedup
+                continue
+            temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
+            for basis in range(nBasis):
+                rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
+    return rhs
+
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
@@ -235,7 +282,6 @@ def fluxRhs(field, br, region=[], vectorized=True):
 
 # integral rho * u * tf(u)
 def massMatrixCurl(field, rhos, region=[], dim=2):
-    n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
     elif isinstance(region, Region):
@@ -247,9 +293,10 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
         sys.exit()
     if dim == 1:
         #TODO
-        pass
+        sys.exit()
     elif dim == 2:
         order = 2
+        nBasis = 3
         if order == 1:
             gfs = np.array([1/2])
             gps = np.array([[1/3, 1/3, 0]])
@@ -258,33 +305,29 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
             gps = np.array([[1/3, 1/6, 0],
                             [2/3, 1/6, 0],
                             [1/3, 2/3, 0]])
-        Mm = np.zeros((6,6))
-        for i in range(6):
-            for k in range(6):
+        Mm = np.zeros((3,3))  # TODO: is 3 correct here?
+        for i in range(3):
+            for k in range(3):
                 for j in range(len(gfs)):
                     Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
-    nPoints = dim+1
-    k = nPoints**2
+    elementMatrixSize = nBasis**2     
     m = len(elements)
-    rows = np.zeros(m*k)
-    cols = np.zeros(m*k)
-    data = np.zeros(m*k)    
+    rows = np.tile(elements, nBasis).astype(np.int64).ravel()
+    cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
+    data = np.zeros(m*elementMatrixSize)    
     if dim == 1: # TODO: why can det(..) not be used here?
-        detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
+        sys.exit()
     elif dim == 2:
         jacs = transformationJacobians(elements)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
-        indexRange = np.arange(start=elementIndex*k, stop=elementIndex*k+k)
-        rows[indexRange] = np.tile(element,nPoints).astype(np.int64)
-        cols[indexRange] = np.repeat(element,nPoints).astype(np.int64)
-        data[indexRange] = (rhos[elementIndex]* invJac @ invJac.T * detJac @ Mm).ravel()
-        #M_T = rhos[triangleIndex]*detJac*Mm
-        #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
+        indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)    
+        data[indexRange] = (rhos[elementIndex]* invJacs[elementIndex] @ invJacs[elementIndex].T * detJacs[elementIndex] @ Mm).ravel()
+    n = numberOfEdges()           
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return M    
 
@@ -598,7 +641,7 @@ def exampleMagnetInRoom():
     b = rhs
     A = K+B
     stop = time.time()    
-    print(f'assembled in {stop - start:.2f} s')        
+    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")        
     u = solve(A, b, 'petsc')
     storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
@@ -645,7 +688,7 @@ def exampleHMagnetCurl():
     field = FieldHCurl()
     K = stiffnessMatrixCurl(field, mu, volumeRegion)
     B = massMatrixCurl(field, alpha, boundaryRegion)
-    rhs = fluxRhs(field, br, volumeRegion)    
+    rhs = fluxRhsCurl(field, br, volumeRegion)    
     b = rhs
     A = K+B    
     stop = time.time()
@@ -830,7 +873,7 @@ def main():
     if False:
         runAll()
     else:
-        #exampleHMagnetCurl()  # WIP
+        exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
