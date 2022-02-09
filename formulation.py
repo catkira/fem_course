@@ -415,11 +415,8 @@ def solve(A, b, method='np'):
             print("petsc is not available on this system")
             sys.exit()            
         opts = PETSc.Options()
-        opts.setValue("st_pc_factor_shift_type", "NONZERO")        
+        #opts.setValue("st_pc_factor_shift_type", "NONZERO")        
         n = len(b)   
-        for i in range(n):
-            if A[i,i] == 0:
-                A[i,i] = 1e-10
         csr_mat=csr_matrix(A)
         Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
         Ap.setUp()
@@ -432,8 +429,10 @@ def solve(A, b, method='np'):
             ksp = PETSc.KSP().create()
             ksp.setOperators(Ap)        
             ksp.setFromOptions()
-            ksp.setType('cg')  # conjugate gradient
-            ksp.getPC().setType('icc') # incomplete cholesky
+            #ksp.setType('cg')  # conjugate gradient
+            ksp.getPC().setType('lu')
+            #ksp.getPC().setType('cholesky') # cholesky
+            #ksp.getPC().setType('icc') # incomplete cholesky
             print(f'Solving with: {ksp.getType():s}')
             ksp.solve(bp, up)
         else:
