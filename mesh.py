@@ -169,6 +169,7 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
+#TODO reg parameter does not work with edge elements
 def transformationJacobians(reg = [], elementDim=3):
     global mesh
     if reg == []:
@@ -196,6 +197,7 @@ def transformationJacobians(reg = [], elementDim=3):
         B = np.array([mesh['xp'][ps[:,1],:]-x1, mesh['xp'][ps[:,2],:]-x1, mesh['xp'][ps[:,3],:]-x1]).swapaxes(0,1).swapaxes(1,2)
     return B
 
+# this is legacy code, should not be used, incomplete!
 def transformationJacobian(t):
     global mesh
     dim = len(mesh['xp'][0])

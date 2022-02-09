@@ -302,11 +302,13 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
             gps = np.array([[1/3, 1/6, 0],
                             [2/3, 1/6, 0],
                             [1/3, 2/3, 0]])
-        Mm = np.zeros((3,3))  # TODO: is 3 correct here?
+        Mm = np.zeros((3,3,nBasis,nBasis))  # TODO: is 3 correct here?
         for i in range(3):
             for k in range(3):
                 for j in range(len(gfs)):
-                    Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
+                    # Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
+                    # np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
+                    Mm[i,k] = Mm[i,k] + gfs[j] * np.matrix(field.shapeFunctionValues(gps[j])).T[i,:] * np.matrix(field.shapeFunctionValues(gps[j]))[:,k]
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
@@ -323,6 +325,7 @@ def massMatrixCurl(field, rhos, region=[], dim=2):
         invJacs = np.linalg.inv(jacs)       
     for elementIndex, element in enumerate(elements):
         indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)    
+        signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])        
         data[indexRange] = (rhos[elementIndex]* invJacs[elementIndex] @ invJacs[elementIndex].T * detJacs[elementIndex] @ Mm).ravel()
     n = numberOfEdges()           
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
