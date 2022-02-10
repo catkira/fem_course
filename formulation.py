@@ -263,11 +263,11 @@ def fluxRhs(field, br, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
-        temp2 = area * np.einsum('i,ijk,kl->ijl',detJacs, invJacs.swapaxes(1,2), Grads.T)
+        temp2 = area * np.einsum('i,ikj,kl->ijl', detJacs, invJacs, Grads.T)
         rows = elements.ravel(order='F')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
-            rhs2[:,basis] = np.einsum('ij,ij->i',br,temp2[:,:,basis])
+            rhs2[:,basis] = np.einsum('ij,ij->i', br, temp2[:,:,basis])
         rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
     else:
         for elementIndex, element in enumerate(elements):
@@ -433,6 +433,7 @@ def solve(A, b, method='np'):
             ksp.setOperators(Ap)        
             ksp.setFromOptions()
             #ksp.setType('cg')  # conjugate gradient
+            #ksp.setType('gmres')
             #ksp.getPC().setType('lu')
             #ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
