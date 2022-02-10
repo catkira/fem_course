@@ -18,22 +18,33 @@ class FieldHCurl:
                             [0, 2, 0]])
 
     def shapeFunctionValues(self, xi, elementDim = 3):
+        # lambda[1] = 1 - xi[0] - xi[1] 
+        # lambda[2] = xi[0]
+        # lambda[3] = xi[1]
+        # shapeFunction_e1,e2 = lambda[e2]*grad(lambda[e1]) - lambda[e1]*grad(lambda[e2])
+        # edges in tetraeda are ordered like (1,2), (2,0), (0,1)       
         if elementDim == 2:
             if mesh()['problemDimension'] == 2:
-                return np.array([[-xi[1],    xi[0]],
-                                [-xi[1],     xi[0]],
-                                [1-xi[1],    xi[0]]])
+                return np.array([[-xi[1],    xi[0]],        # edge (1,2)
+                                [-xi[1],     xi[0]],        # edge (2,0)
+                                [1-xi[1],    xi[0]]])       # edge (0,1)
             if mesh()['problemDimension'] == 3:
                 return np.array([[-xi[1],    xi[0],     0],
                                 [-xi[1],     xi[0]-1,   0],
                                 [1-xi[1],    xi[0],     0]])
+        # lambda[1] = 1 - xi[0] - xi[1] - xi[2]                                
+        # lambda[2] = xi[0]
+        # lambda[3] = xi[1]
+        # lambda[4] = xi[2]
+        # shapeFunction_e1,e2 = lambda[e2]*grad(lambda[e1]) - lambda[e1]*grad(lambda[e2])
+        # edges in tetraeda are ordered like (0,1), (0,2), (0,3), (1,2), (2,3), (3,1)           
         elif elementDim == 3:
-            return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],
-                            [xi[2],         1-xi[2]-xi[0],  xi[1]],
-                            [xi[2],         xi[2],          1-xi[1]-xi[0]],
-                            [-xi[1],        xi[0],          0],
-                            [0,             -xi[2],         xi[1]],
-                            [xi[2],         0,              -xi[0]]])
+            return np.array([[1-xi[2]-xi[1], xi[0],          xi[0]],            # edge (0,1)
+                            [xi[2],         1-xi[2]-xi[0],  xi[1]],             # edge (0,2)
+                            [xi[2],         xi[2],          1-xi[1]-xi[0]],     # edge (0,3)
+                            [-xi[1],        xi[0],          0],                 # edge (1,2)
+                            [0,             -xi[2],         xi[1]],             # edge (2,3)
+                            [xi[2],         0,              -xi[0]]])           # edge (3,1)
 
     def curl(self, u, dim=3):
         if dim == 2:
