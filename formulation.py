@@ -61,39 +61,48 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
     jacs = transformationJacobians(elementDim=elementDim)
-    detJacs = np.linalg.det(jacs)
-    invJacs = np.linalg.inv(jacs)      
+    detJacs = np.abs(np.linalg.det(jacs))
 
     if elementDim == 2:
         pass
         # TODO
 
     elif elementDim == 3:
-        B = np.zeros((elementDim,elementDim,nBasis,nBasis))
+        B = np.zeros((elementDim, elementDim, nBasis, nBasis))
         for i in range(3):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
 
-        gammas = np.einsum('i,i,ijk,ilk->ijl',sigmas,detJacs,invJacs,invJacs)
+        gammas = np.einsum('i,i,ijk,ilk->ijl', sigmas, 1/detJacs, jacs, jacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
-        cols = np.repeat(elements,nBasis).astype(np.int64).ravel()  
+        cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         if vectorized:
             data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
-        else:        
-            for elementIndex, element in enumerate(elements):
-                indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-                signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
-                data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel()
+        # else:        
+        #     for elementIndex, element in enumerate(elements):
+        #         indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+        #         signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
+        #         data[indexRange] = np.multiply(np.einsum('jk,jk...', gammas[elementIndex], B), signs).ravel()
 
         if True:
-            STIFF = np.zeros((len(elements), nBasis, nBasis))
+            data2 = np.zeros((len(elements), nBasis, nBasis))
+            signs = mesh()['signs3d']
             for i in range(1):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        STIFF[:,m,k] = STIFF[:,m,k] + detJacs * signs[:,m] * curls[:,m]  * signs[:,k] * curls[:,k]
+                        factor1 = np.einsum('i,i,ijk,k->ij', elementArea * 1/detJacs, signs[:,m], jacs, curls[m,:])
+                        factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
+                        data2[:,m,k] = data2[:,m,k] + np.einsum('i,ij,ij->i', sigmas, factor1, factor2)
+            rows2 = np.tile(elements, nBasis).astype(np.int64).ravel()
+            cols2 = np.repeat(elements, nBasis).astype(np.int64).ravel()  
+            n = numberOfEdges()      
+            K2 = csr_matrix((data2.ravel(), (rows2, cols2)), shape=[n,n]) 
     n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    return K    
+    print(K[0:8,0:8].toarray())
+    print("\n")
+    print(K2[0:8,0:8].toarray())
+    return K2
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
@@ -222,25 +231,18 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
         nBasis = 6
         elementDim = 3
         signs = mesh()['signs3d']
-    Curls = field.shapeFunctionCurls(elementDim)    
+    curls = field.shapeFunctionCurls(elementDim)    
     jacs = transformationJacobians([], elementDim)
-    detJacs = np.linalg.det(jacs)
-    invJacs = np.linalg.inv(jacs)         
-    if vectorized:
-        #temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Curls.T)
-        temp2 = area* np.einsum('ik,i,ijk->ijk', signs, detJacs, np.einsum('ikj,lk', invJacs, Curls))
-        rows = elements.ravel(order='F')
-        rhs2 = np.zeros((len(elements),nBasis))
-        for basis in range(nBasis):
-            rhs2[:,basis] = np.einsum('ij,ij->i',br,temp2[:,:,basis])
-        rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
-    else:
-        for elementIndex, element in enumerate(elements):
-            if np.array_equal(br[elementIndex], zero): # just for speedup
-                continue
-            temp = area * invJacs[elementIndex].T @ Curls.T * detJacs[elementIndex]
-            for basis in range(nBasis):
-                rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
+    #detJacs = np.abs(np.linalg.det(jacs))
+    #invJacs = np.linalg.inv(jacs)         
+    
+    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ikj,lk', jacs, curls))  # TODO is detJac needed here??
+    rows = elements.ravel(order='F')
+    rhs2 = np.zeros((len(elements),nBasis))
+    for basis in range(nBasis):
+        rhs2[:,basis] = np.einsum('ij,ij->i',br,temp[:,:,basis])
+    rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+
     return rhs
 
 # integral br * grad(tf(u))
@@ -683,14 +685,17 @@ def exampleHMagnetCurl():
     inf = 3
 
     start = time.time()
-    mu = Parameter()
-    mu.set(frame, mu0*mur_frame)
-    mu.set([magnet, air], mu0)
+    nu = Parameter()
+    nu.set(frame, 1/mu0*mur_frame)
+    nu.set([magnet, air], 1/mu0)
     #storeInVTK(mu, "mu.vtk")
     
     br = Parameter(3)
     br.set(magnet, [0, 0, b_r_magnet])
     br.set([frame, air], [0, 0, 0])
+    hr = Parameter(3)
+    hr.set(magnet, [0, 0, b_r_magnet/mu0])
+    hr.set([frame, air], [0, 0, 0])    
     #storeInVTK(br, "br.vtk")    
 
     alpha = Parameter()
@@ -703,14 +708,16 @@ def exampleHMagnetCurl():
     boundaryRegion.append(inf)
 
     field = FieldHCurl()
-    K = stiffnessMatrixCurl(field, mu, volumeRegion)
+    K = stiffnessMatrixCurl(field, nu, volumeRegion)
     B = massMatrixCurl(field, alpha, boundaryRegion)
-    rhs = fluxRhsCurl(field, br, volumeRegion)    
+    rhs = fluxRhsCurl(field, hr, volumeRegion)    
     b = rhs
     A = K+B    
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, b, 'petsc')    
+    print(f'max(b) = {max(b)}')
+    print(f'max(u) = {max(u)}')
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
