@@ -38,7 +38,7 @@ def localCoordinate(G, t, x):
 
 
 # integral curl(u) * sigma * curl(tf(u)) 
-def stiffnessMatrixCurl(field, sigmas, region=[]):
+def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     if region == []:
         elements = mesh()['ett']
         elementDim = mesh()['problemDimension'] 
@@ -75,16 +75,16 @@ def stiffnessMatrixCurl(field, sigmas, region=[]):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
 
-        sigmasDuplicated = np.repeat(sigmas, elementDim**2).reshape((len(elements), elementDim, elementDim))
-        detJacsDuplicated = np.repeat(detJacs, elementDim**2).reshape((len(elements), elementDim, elementDim))
-        gammas = sigmasDuplicated * invJacs @ np.swapaxes(invJacs,1,2) * detJacsDuplicated
+        gammas = np.einsum('i,i,ijk,ilk->ijl',sigmas,detJacs,invJacs,invJacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()  
-        for elementIndex, element in enumerate(elements):
-            indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-            signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
-            data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel() # this is generic and faster than explicit summation like below
-        
+        if vectorized:
+            data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
+        else:        
+            for elementIndex, element in enumerate(elements):
+                indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
+                signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
+                data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel()
     n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K    
@@ -879,7 +879,7 @@ def main():
     if False:
         runAll()
     else:
-        #exampleHMagnetCurl()  # WIP
+        exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
