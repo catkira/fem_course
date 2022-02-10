@@ -208,12 +208,14 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
         nCoords = 2
         nBasis = 3
         elementDim = 2
+        signs = mesh()['signs2d']
     else:
         zero = [0, 0, 0]
         area = 1/6
         nCoords = 3
         nBasis = 6
         elementDim = 3
+        signs = mesh()['signs3d']
     Curls = field.shapeFunctionCurls(elementDim)    
     jacs = transformationJacobians([], elementDim)
     detJacs = np.abs(np.linalg.det(jacs))    
@@ -261,7 +263,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
-        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Grads.T)
+        temp2 = area * np.einsum('i,ijk,kl->ijl',detJacs, invJacs.swapaxes(1,2), Grads.T)
         rows = elements.ravel(order='F')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
@@ -870,7 +872,7 @@ def main():
     if False:
         runAll()
     else:
-        exampleHMagnetCurl()  # WIP
+        #exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
