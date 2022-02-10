@@ -35,6 +35,21 @@ class FieldHCurl:
                             [0,             -xi[2],         xi[1]],
                             [xi[2],         0,              -xi[0]]])
 
+    def curl(self, u, dim=3):
+        if dim == 2:
+            m = numberOfEdges()
+            curls = np.zeros((m,1))
+            # TODO
+        elif dim == 3:
+            m = numberOfEdges()
+            curls = np.zeros((m,3))
+            sfCurls = self.shapeFunctionCurls(dim)
+            for elementIndex, element in enumerate(mesh()['ett']):    
+                jac,_ = transformationJacobian(elementIndex)        
+                invJac = np.linalg.inv(jac)
+                curls[elementIndex] = invJac.T @ sfCurls.T @ u[element]            
+        return curls
+
 class FieldH1:    
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:

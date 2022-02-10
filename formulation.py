@@ -19,6 +19,7 @@ if 'petsc4py' in pkg_resources.working_set.by_key:
     from petsc4py import PETSc
 else:
     print("Warning: no petsc4py found, solving will be very slow!")
+np.set_printoptions(linewidth=400)    
 
 from mesh import *
 
@@ -430,7 +431,7 @@ def solve(A, b, method='np'):
             ksp.setOperators(Ap)        
             ksp.setFromOptions()
             #ksp.setType('cg')  # conjugate gradient
-            ksp.getPC().setType('lu')
+            #ksp.getPC().setType('lu')
             #ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
             print(f'Solving with: {ksp.getType():s}')
@@ -696,13 +697,8 @@ def exampleHMagnetCurl():
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, b, 'petsc')    
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
-    h = -field.grad(u, dim=3)
-    storeInVTK(h, "h_magnetCurl_h.vtk")
-    mus = mu.getValues()  
-    m = numberOfTetraeders()       
-    brs = br.getValues()
-    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
-    storeInVTK(b,"h_magnetCurl_b.vtk")    
+    b = field.curl(u, dim=3)
+    storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
 

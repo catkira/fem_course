@@ -65,10 +65,10 @@ def computeSigns():
     global mesh
     if mesh['problemDimension'] == 2:
         tmp = mesh['pt'][:,[1,2,0]] - mesh['pt'][:,[2,0,1]]
-        mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
+        mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).round()
     elif mesh['problemDimension'] == 3:
         tmp = mesh['ptt'][:,[0,0,0,1,2,3]] - mesh['ptt'][:,[1, 2, 3, 2, 3, 1]]
-        mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).astype(np.int8)
+        mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).round()
 
 def edgeSigns():
     if mesh['problemDimension'] == 2:
@@ -115,14 +115,14 @@ def computeEdges3d():
                         mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
      # compute triangle-to-edges list
         if True:
-            vertices2d = np.zeros((mesh['pt'].shape[0]*6,2))
-            vertices2d[0::6] = mesh['pt'][:,[1,2]]            
-            vertices2d[1::6] = mesh['pt'][:,[2,0]]            
-            vertices2d[2::6] = mesh['pt'][:,[0,1]]            
+            vertices2d = np.zeros((mesh['pt'].shape[0]*3,2))
+            vertices2d[0::3] = mesh['pt'][:,[1,2]]            
+            vertices2d[1::3] = mesh['pt'][:,[2,0]]            
+            vertices2d[2::3] = mesh['pt'][:,[0,1]]            
             vertices2d.sort(axis=1)
             verticesMixed = np.row_stack((vertices3d, vertices2d))
             _,J,I = np.unique(verticesMixed, return_index=True, return_inverse=True, axis=0)
-            mesh['et'] = I[mesh['ett'].shape[0]*6:].reshape(mesh['pt'].shape[0],6)[:,0:3]
+            mesh['et'] = I[mesh['ett'].shape[0]*6:].reshape(mesh['pt'].shape[0],3)
             mesh['pe'] = verticesMixed[J,:]  # there should not be much new edges from surface elements, but it can happen
         if False:      
             for triangleIndex, triangle in enumerate(mesh['pt']):
