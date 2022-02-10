@@ -221,7 +221,8 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
-        temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Curls.T)
+        #temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Curls.T)
+        temp2 = area* np.einsum('ik,i,ijk->ijk', signs, detJacs, np.einsum('ikj,lk', invJacs, Curls))
         rows = elements.ravel(order='F')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
@@ -263,7 +264,12 @@ def fluxRhs(field, br, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
-        temp2 = area * np.einsum('i,ikj,kl->ijl', detJacs, invJacs, Grads.T)
+        # this line has convergence issues with example magnet_in_room
+        # temp2 = area * np.einsum('i,ikj,lk->ijl', detJacs, invJacs, Grads)
+        # this line has no convergence issues - strange!
+        # temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ikj,lk', invJacs, Grads)        
+        # this line is also ok, the order of multiplication is probably favorable with regard to rounding errors
+        temp2 = area* np.einsum('i,i...->i...', detJacs, np.einsum('ikj,lk', invJacs, Grads))
         rows = elements.ravel(order='F')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
