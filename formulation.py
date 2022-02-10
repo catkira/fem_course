@@ -49,20 +49,19 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     if elementDim == 2:    
         elementDim = 2
         nBasis = 3
-        elementMatrixSize = nBasis**2
         elementArea = 1/2
     elif elementDim == 3:
         elementDim = 3
         nBasis = 6
-        elementMatrixSize = nBasis**2
         elementArea = 1/6        
-    Curls = field.shapeFunctionCurls(elementDim)
+    curls = field.shapeFunctionCurls(elementDim)
     m = len(elements)
+    elementMatrixSize = nBasis**2
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
     jacs = transformationJacobians(elementDim=elementDim)
-    detJacs = np.abs(np.linalg.det(jacs))    
+    detJacs = np.linalg.det(jacs)
     invJacs = np.linalg.inv(jacs)      
 
     if elementDim == 2:
@@ -73,7 +72,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         B = np.zeros((elementDim,elementDim,nBasis,nBasis))
         for i in range(3):
             for k in range(3):
-                B[i,k] = elementArea * np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
+                B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
 
         gammas = np.einsum('i,i,ijk,ilk->ijl',sigmas,detJacs,invJacs,invJacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
@@ -85,6 +84,13 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
                 signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
                 data[indexRange] = np.multiply(np.einsum('jk,jk...',gammas[elementIndex],B),signs).ravel()
+
+        if True:
+            STIFF = np.zeros((len(elements), nBasis, nBasis))
+            for i in range(1):
+                for m in range(nBasis):
+                    for k in range(nBasis):
+                        STIFF[:,m,k] = STIFF[:,m,k] + detJacs * signs[:,m] * curls[:,m]  * signs[:,k] * curls[:,k]
     n = numberOfEdges()      
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K    
@@ -218,7 +224,7 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
         signs = mesh()['signs3d']
     Curls = field.shapeFunctionCurls(elementDim)    
     jacs = transformationJacobians([], elementDim)
-    detJacs = np.abs(np.linalg.det(jacs))    
+    detJacs = np.linalg.det(jacs)
     invJacs = np.linalg.inv(jacs)         
     if vectorized:
         #temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ijk,kl',invJacs.swapaxes(1,2), Curls.T)

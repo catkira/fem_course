@@ -55,10 +55,12 @@ class FieldHCurl:
             m = numberOfEdges()
             curls = np.zeros((m,3))
             sfCurls = self.shapeFunctionCurls(dim)
+            jacs = transformationJacobians([], dim)
+            detJacs = np.linalg.det(jacs)
+            invJacs = np.linalg.inv(jacs)               
             for elementIndex, element in enumerate(mesh()['ett']):    
-                jac,_ = transformationJacobian(elementIndex)        
-                invJac = np.linalg.inv(jac)
-                curls[elementIndex] = invJac.T @ sfCurls.T @ u[element]            
+                #curls[elementIndex] = 1/6 * invJacs[elementIndex].T @ sfCurls.T @ u[element]           
+                curls[elementIndex] = 1/6 * jacs[elementIndex] @ sfCurls.T @ u[element]           
         return curls
 
 class FieldH1:    
