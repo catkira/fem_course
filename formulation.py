@@ -119,7 +119,6 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
-    data2 = np.zeros(0)    
     jacs = transformationJacobians(elementDim=dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
@@ -147,7 +146,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
         if vectorized:
-            data = np.einsum('ijk,jklm', gammas, B).swapaxes(0,2).ravel(order='F')
+            data = np.einsum('ijk,jklm', gammas, B).swapaxes(1,2).ravel(order='C')
         else:
             for elementIndex, element in enumerate(elements):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
@@ -684,7 +683,7 @@ def exampleMagnetInRoom():
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6192) < 1e-3)
 
 def exampleHMagnetCurl():
     loadMesh("examples/h_magnet.msh")
@@ -904,7 +903,7 @@ def main():
     if False:
         runAll()
     else:
-        #exampleHMagnetCurl()  # WIP
+        exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
