@@ -1,3 +1,4 @@
+import mmap
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
@@ -78,12 +79,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
         if vectorized:
-            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).swapaxes(0,2).ravel(order='F')
-        # else:        
-        #     for elementIndex, element in enumerate(elements):
-        #         indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-        #         signs = np.matrix(mesh()['signs3d'][elementIndex]).T @ np.matrix(mesh()['signs3d'][elementIndex])
-        #         data[indexRange] = np.multiply(np.einsum('jk,jk...', gammas[elementIndex], B), signs).ravel()
+            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).swapaxes(1,2).ravel(order='C')
 
         if True:
             data2 = np.zeros((len(elements), nBasis, nBasis))
@@ -91,15 +87,15 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
             for i in range(1):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:])
-                        factor2 = np.einsum('i,ikj,k->ij', signs[:,k], jacs, curls[k,:])
+                        factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:]) #TODO: ijk or ikj ???
+                        factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])                                      #TODO: ijk or ikj ???
                         data2[:,m,k] = np.einsum('ij,ij->i', factor1, factor2)    
             datax = data2.ravel(order='C')
             K2 = csr_matrix((datax, (rows, cols)), shape=[n,n]) 
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    print(K[0:8,0:8].toarray())
-    print("\n")
-    print(K2[0:8,0:8].toarray())
+    # print(K[0:8,0:8].toarray())
+    # print("\n")
+    # print(K2[0:8,0:8].toarray())
     return K2
 
 # integral grad(u) * sigma * grad(tf(u)) 
@@ -213,33 +209,30 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     else:
         elements = region.getElements(edges=True)
         br = br.getValues(region)
-    n = numberOfEdges()
-    rhs = np.zeros(n)
     if mesh()['problemDimension'] == 2:
-        zero = [0, 0]
         area = 1/2
-        nCoords = 2
         nBasis = 3
         elementDim = 2
         signs = mesh()['signs2d']
     else:
-        zero = [0, 0, 0]
         area = 1/6
-        nCoords = 3
         nBasis = 6
         elementDim = 3
         signs = mesh()['signs3d']
     curls = field.shapeFunctionCurls(elementDim)    
     jacs = transformationJacobians([], elementDim)
-    #detJacs = np.abs(np.linalg.det(jacs))
-    #invJacs = np.linalg.inv(jacs)         
-    
+    invJacs = transformationJacobians([], elementDim)
+    detJacs = np.abs(np.linalg.det(jacs))
+
+    #temp2 = area* np.einsum('i,i...->i...', detJacs, np.einsum('ikj,lk', invJacs, curls))    
+    # the line below seems to be right
     temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))  # TODO is detJac needed here??
-    rows = elements.ravel(order='F')
+    rows = elements.ravel(order='C')
     rhs2 = np.zeros((len(elements),nBasis))
     for basis in range(nBasis):
         rhs2[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
-    rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    n = numberOfEdges()
+    rhs = csr_matrix((rhs2.ravel(order='C'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
 
     return rhs
 
@@ -276,11 +269,11 @@ def fluxRhs(field, br, region=[], vectorized=True):
         # temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ikj,lk', invJacs, Grads)        
         # this line is also ok, the order of multiplication is probably favorable with regard to rounding errors
         temp2 = area* np.einsum('i,i...->i...', detJacs, np.einsum('ikj,lk', invJacs, Grads))
-        rows = elements.ravel(order='F')
+        rows = elements.ravel(order='C')
         rhs2 = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
             rhs2[:,basis] = np.einsum('ij,ij->i', br, temp2[:,:,basis])
-        rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+        rhs = csr_matrix((rhs2.ravel(order='C'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
     else:
         for elementIndex, element in enumerate(elements):
             if np.array_equal(br[elementIndex], zero): # just for speedup
@@ -291,7 +284,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrixCurl(field, rhos, region=[], elementDim=2):
+def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
     elif isinstance(region, Region):
@@ -308,7 +301,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2):
         order = 2
         nBasis = 3
         gfs,gps = gaussData(order, elementDim)
-        Mm = np.zeros((nBasis,nBasis))
+        Mm = np.zeros((nBasis,nBasis))      
         for i in range(nBasis):
             for k in range(nBasis):
                 for j in range(len(gfs)):
@@ -323,19 +316,41 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     data = np.zeros(m*elementMatrixSize)    
+    n = numberOfEdges()           
     if elementDim == 1: # TODO: why can det(..) not be used here?
         sys.exit()
     elif elementDim == 2:
         jacs = transformationJacobians(region.getElements(edges=False), elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
-    for elementIndex, element in enumerate(elements):
-        indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)    
-        signs = edgeSigns()        
-        data[indexRange] = (rhos[elementIndex]* invJacs[elementIndex] @ invJacs[elementIndex].T * detJacs[elementIndex] * Mm).ravel()
-    n = numberOfEdges()           
+        #signs = mesh()['signs2d']      
+        #data = np.einsum('ij,i,jk->ijk', signs, rhos * detJacs, Mm).ravel()  
+        
+        gammas = np.einsum('i,i,ijk,ikl->ilj', rhos, detJacs, invJacs, invJacs)
+        signs = np.einsum('ij,ik->ijk',mesh()['signs2d'],mesh()['signs2d']) 
+        if vectorized:
+            data = np.einsum('ijk,ijk,jk->ijk', signs, gammas, Mm).swapaxes(1,2).ravel(order='C')
+
+        if True:
+            data2 = np.zeros((len(elements), nBasis, nBasis))
+            signs = mesh()['signs2d']
+            gfs,gps = gaussData(order, elementDim)            
+            for i in range(len(gfs)):
+                for m in range(nBasis):
+                    for k in range(nBasis):
+                        factor1 = np.einsum('i,i,i,ijk->ij', signs[:,m], rhos, detJacs, invJacs) #TODO: ijk or ikj ???
+                        factor2 = np.einsum('i,ijk->ij', signs[:,k], invJacs)                    #TODO: ijk or ikj ???
+                        data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,j,ij,j->i', 
+                            factor1, field.shapeFunctionValues(gps[i], elementDim)[m,:],
+                            factor2, field.shapeFunctionValues(gps[i], elementDim)[k,:])    
+            datax = data2.ravel(order='C')
+            M2 = csr_matrix((datax, (rows, cols)), shape=[n,n])               
+
     M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    return M    
+    print(M[342:350,342:350].toarray())
+    print("\n")
+    print(M2[342:350,342:350].toarray())    
+    return M2    
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
@@ -669,7 +684,7 @@ def exampleMagnetInRoom():
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6054) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
 
 def exampleHMagnetCurl():
     loadMesh("examples/h_magnet.msh")
@@ -709,12 +724,11 @@ def exampleHMagnetCurl():
     K = stiffnessMatrixCurl(field, nu, volumeRegion)
     B = massMatrixCurl(field, alpha, boundaryRegion)
     rhs = fluxRhsCurl(field, hr, volumeRegion)    
-    b = rhs
     A = K+B    
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    u = solve(A, b, 'petsc')    
-    print(f'max(b) = {max(b)}')
+    print(f'max(rhs) = {max(rhs)}')
+    u = solve(A, rhs, 'petsc')    
     print(f'max(u) = {max(u)}')
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
@@ -890,7 +904,7 @@ def main():
     if False:
         runAll()
     else:
-        exampleHMagnetCurl()  # WIP
+        #exampleHMagnetCurl()  # WIP
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  

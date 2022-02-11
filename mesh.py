@@ -63,10 +63,9 @@ def computeEdges2d():
 
 def computeSigns():
     global mesh
-    if mesh['problemDimension'] == 2:
-        tmp = mesh['pt'][:,[1,2,0]] - mesh['pt'][:,[2,0,1]]
-        mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).round()
-    elif mesh['problemDimension'] == 3:
+    tmp = mesh['pt'][:,[1,2,0]] - mesh['pt'][:,[2,0,1]]
+    mesh['signs2d'] = np.multiply(tmp, 1/abs(tmp)).round()
+    if mesh['problemDimension'] == 3:
         tmp = mesh['ptt'][:,[0,0,0,1,2,3]] - mesh['ptt'][:,[1, 2, 3, 2, 3, 1]]
         mesh['signs3d'] = np.multiply(tmp, 1/abs(tmp)).round()
 
