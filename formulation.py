@@ -73,13 +73,13 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         for i in range(3):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
-
+        
         gammas = np.einsum('i,i,ijk,ilk->ilj', sigmas, 1/detJacs, jacs, jacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
         if vectorized:
-            data = np.einsum('ijk,jklm,ilm->ilm', gammas, B, signs).swapaxes(0,2).ravel(order='F')
+            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).swapaxes(0,2).ravel(order='F')
         # else:        
         #     for elementIndex, element in enumerate(elements):
         #         indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
@@ -92,9 +92,9 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
             for i in range(1):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,ijk,k->ij', elementArea * 1/detJacs, signs[:,m], jacs, curls[m,:])
-                        factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
-                        data2[:,m,k] = np.einsum('i,ij,ij->i', sigmas, factor1, factor2)    
+                        factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:])
+                        factor2 = np.einsum('i,ikj,k->ij', signs[:,k], jacs, curls[k,:])
+                        data2[:,m,k] = np.einsum('ij,ij->i', factor1, factor2)    
             datax = data2.ravel(order='C')
             K2 = csr_matrix((datax, (rows, cols)), shape=[n,n]) 
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
