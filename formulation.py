@@ -65,9 +65,8 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     n = numberOfEdges()      
 
     if elementDim == 2:
-        pass
-        # TODO
-
+        print("Error: hcurl elements are not possible in 2d!")
+        sys.exit()
     elif elementDim == 3:
         B = np.zeros((elementDim, elementDim, nBasis, nBasis))
         for i in range(3):
