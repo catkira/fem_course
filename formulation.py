@@ -234,11 +234,11 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     #detJacs = np.abs(np.linalg.det(jacs))
     #invJacs = np.linalg.inv(jacs)         
     
-    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ikj,lk', jacs, curls))  # TODO is detJac needed here??
+    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))  # TODO is detJac needed here??
     rows = elements.ravel(order='F')
     rhs2 = np.zeros((len(elements),nBasis))
     for basis in range(nBasis):
-        rhs2[:,basis] = np.einsum('ij,ij->i',br,temp[:,:,basis])
+        rhs2[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
     rhs = csr_matrix((rhs2.ravel(order='F'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
 
     return rhs
