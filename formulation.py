@@ -73,8 +73,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         for i in range(3):
             for k in range(3):
                 B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
-        
-        gammas = np.einsum('i,i,ikj,ikl->ilj', sigmas, 1/detJacs, jacs, jacs)
+        gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
@@ -96,7 +95,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     print(K[0:8,0:8].toarray())
     print("\n")
     print(K2[0:8,0:8].toarray())
-    return K
+    return K2  # K2 gives better results!
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
