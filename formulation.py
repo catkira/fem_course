@@ -79,7 +79,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
         if vectorized:
-            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).swapaxes(1,2).ravel(order='C')
+            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
 
         if True:
             data2 = np.zeros((len(elements), nBasis, nBasis))
@@ -93,9 +93,9 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
             datax = data2.ravel(order='C')
             K2 = csr_matrix((datax, (rows, cols)), shape=[n,n]) 
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    # print(K[0:8,0:8].toarray())
-    # print("\n")
-    # print(K2[0:8,0:8].toarray())
+    print(K[0:8,0:8].toarray())
+    print("\n")
+    print(K2[0:8,0:8].toarray())
     return K2
 
 # integral grad(u) * sigma * grad(tf(u)) 
@@ -146,7 +146,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
         if vectorized:
-            data = np.einsum('ijk,jklm', gammas, B).swapaxes(1,2).ravel(order='C')
+            data = np.einsum('ijk,jklm', gammas, B).ravel(order='C')
         else:
             for elementIndex, element in enumerate(elements):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
@@ -328,7 +328,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
         gammas = np.einsum('i,i,ijk,ikl->ilj', rhos, detJacs, invJacs, invJacs)
         signs = np.einsum('ij,ik->ijk',mesh()['signs2d'],mesh()['signs2d']) 
         if vectorized:
-            data = np.einsum('ijk,ijk,jk->ijk', signs, gammas, Mm).swapaxes(1,2).ravel(order='C')
+            data = np.einsum('ijk,ijk,jk->ijk', signs, gammas, Mm).ravel(order='C')
 
         if True:
             data2 = np.zeros((len(elements), nBasis, nBasis))
@@ -683,7 +683,7 @@ def exampleMagnetInRoom():
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6192) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
 
 def exampleHMagnetCurl():
     loadMesh("examples/h_magnet.msh")
