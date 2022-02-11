@@ -96,7 +96,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     print(K[0:8,0:8].toarray())
     print("\n")
     print(K2[0:8,0:8].toarray())
-    return K2
+    return K2  # K2 gives better results!
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
@@ -698,7 +698,7 @@ def exampleHMagnetCurl():
 
     start = time.time()
     nu = Parameter()
-    nu.set(frame, 1/mu0*mur_frame)
+    nu.set(frame, 1/(mu0*mur_frame))
     nu.set([magnet, air], 1/mu0)
     #storeInVTK(mu, "mu.vtk")
     
