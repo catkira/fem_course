@@ -292,16 +292,9 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
         #TODO
         sys.exit()
     elif elementDim == 2:
-        order = 2
+        integrationOrder = 2 # should be elementOrder*2
         nBasis = 3
-        gfs,gps = gaussData(order, elementDim)
-        Mm = np.zeros((nBasis,nBasis))      
-        for i in range(nBasis):
-            for k in range(nBasis):
-                for j in range(len(gfs)):
-                    # Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j])[i],field.shapeFunctionValues(gps[j])[k])
-                    # np.matrix(Curls[:,i]).T * np.matrix(Curls[:,k]) 
-                    Mm[i,k] = Mm[i,k] + gfs[j] * np.dot(field.shapeFunctionValues(gps[j], elementDim)[:,i], field.shapeFunctionValues(gps[j], elementDim)[:,j])
+        gfs,gps = gaussData(integrationOrder, elementDim)
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
@@ -319,22 +312,29 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
         invJacs = np.linalg.inv(jacs)       
         signs = mesh()['signs2d']      
 
-        gammas = np.einsum('i,i,ijk,ikl->ilj', rhos, detJacs, invJacs, invJacs)
-        signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
-        if vectorized:
-            data = np.einsum('ijk,ijk,jk->ijk', signsMultiplied, gammas, Mm).ravel(order='C')
+        if True:
+            Mm = np.zeros((nBasis,nBasis))      
+            for i,gp in enumerate(gps):
+                for m in range(nBasis):
+                    for k in range(nBasis):
+                        Mm[m,k] = Mm[m,k] + gfs[i] * np.dot(field.shapeFunctionValues(gp, elementDim)[m,:],
+                            field.shapeFunctionValues(gp, elementDim)[k,:])
+            gammas = np.einsum('i,i,ijk,ilk->ijl', rhos, detJacs, invJacs, invJacs)
+            signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
+            if vectorized:
+                data = np.einsum('ijk,ijk,kj->ijk', signsMultiplied, gammas, Mm).ravel(order='C')
 
         if True:
             data2 = np.zeros((len(elements), nBasis, nBasis))
-            gfs,gps = gaussData(order, elementDim)            
-            for i in range(len(gfs)):
+            gfs,gps = gaussData(integrationOrder, elementDim)            
+            for i,gp in enumerate(gps):
                 for m in range(nBasis):
                     for k in range(nBasis):
                         factor1 = np.einsum('i,i,i,ijk->ij', signs[:,m], rhos, detJacs, invJacs) #TODO: ijk and not ikj?
                         factor2 = np.einsum('i,ijk->ij', signs[:,k], invJacs)                    #TODO: ijk and not ikj?
                         data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,j,ij,j->i', 
-                            factor1, field.shapeFunctionValues(gps[i], elementDim)[m,:],
-                            factor2, field.shapeFunctionValues(gps[i], elementDim)[k,:])    
+                            factor1, field.shapeFunctionValues(gp, elementDim)[m,:],
+                            factor2, field.shapeFunctionValues(gp, elementDim)[k,:])    
             datax = data2.ravel(order='C')
             M2 = csr_matrix((datax, (rows, cols)), shape=[n,n])               
 
@@ -894,7 +894,7 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if True:
+    if False:
         runAll()
     else:
         exampleHMagnetCurl()
