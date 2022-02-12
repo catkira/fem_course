@@ -52,16 +52,13 @@ class FieldHCurl:
             curls = np.zeros((m,1))
             # TODO
         elif dim == 3:
-            curls = np.zeros((mesh()['ett'].shape[0],3))
+            elements = mesh()['ett']
+            curls = np.zeros((elements.shape[0],3))
             sfCurls = self.shapeFunctionCurls(dim)
             jacs = transformationJacobians([], dim)
             detJacs = np.linalg.det(jacs)
-            invJacs = np.linalg.inv(jacs)        
             signs = mesh()['signs3d']
-            for elementIndex, element in enumerate(mesh()['ett']):    
-                #curls[elementIndex] = 1/6 * invJacs[elementIndex].T @ sfCurls.T @ u[element]           
-                curls[elementIndex] = jacs[elementIndex] @ sfCurls.T @ (signs[elementIndex] * u[element])   
-            curls2 = np.einsum('i,ijk,lk,il,il->ij',1/detJacs,jacs,sfCurls,signs,u[mesh()['ett']])   
+            curls2 = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         return curls2
 
 class FieldH1:    

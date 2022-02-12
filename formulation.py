@@ -58,8 +58,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     curls = field.shapeFunctionCurls(elementDim)
     m = len(elements)
     elementMatrixSize = nBasis**2
-    rows = np.zeros(m*elementMatrixSize)
-    cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
     jacs = transformationJacobians(elementDim=elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
@@ -69,18 +67,20 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         print("Error: hcurl elements are not possible in 2d!")
         sys.exit()
     elif elementDim == 3:
-        B = np.zeros((elementDim, elementDim, nBasis, nBasis))
-        for i in range(3):
-            for k in range(3):
-                B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
-        gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
-        if vectorized:
-            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
-
-        if True:
+        if False:
+            # this formulation might be a bit faster but only supports order 1!
+            B = np.zeros((elementDim, elementDim, nBasis, nBasis))
+            for i in range(3):
+                for k in range(3):
+                    B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
+            gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
+            if vectorized:
+                data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
+        else:
+            # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
             signs = mesh()['signs3d']
             for i in range(1):
@@ -89,13 +89,9 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
                         factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:])
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] = np.einsum('ij,ij->i', factor1, factor2)    
-            datax = data2.ravel(order='C')
-            K2 = csr_matrix((datax, (rows, cols)), shape=[n,n]) 
+            data = data2.ravel(order='C')
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    print(K[0:8,0:8].toarray())
-    print("\n")
-    print(K2[0:8,0:8].toarray())
-    return K2  # K2 gives better results!
+    return K
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
@@ -321,23 +317,21 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
         jacs = transformationJacobians(region.getElements(edges=False), elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
-        #signs = mesh()['signs2d']      
-        #data = np.einsum('ij,i,jk->ijk', signs, rhos * detJacs, Mm).ravel()  
-        
+        signs = mesh()['signs2d']      
+
         gammas = np.einsum('i,i,ijk,ikl->ilj', rhos, detJacs, invJacs, invJacs)
-        signs = np.einsum('ij,ik->ijk',mesh()['signs2d'],mesh()['signs2d']) 
+        signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
         if vectorized:
-            data = np.einsum('ijk,ijk,jk->ijk', signs, gammas, Mm).ravel(order='C')
+            data = np.einsum('ijk,ijk,jk->ijk', signsMultiplied, gammas, Mm).ravel(order='C')
 
         if True:
             data2 = np.zeros((len(elements), nBasis, nBasis))
-            signs = mesh()['signs2d']
             gfs,gps = gaussData(order, elementDim)            
             for i in range(len(gfs)):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,i,ijk->ij', signs[:,m], rhos, detJacs, invJacs) #TODO: ijk or ikj ???
-                        factor2 = np.einsum('i,ijk->ij', signs[:,k], invJacs)                    #TODO: ijk or ikj ???
+                        factor1 = np.einsum('i,i,i,ijk->ij', signs[:,m], rhos, detJacs, invJacs) #TODO: ijk and not ikj?
+                        factor2 = np.einsum('i,ijk->ij', signs[:,k], invJacs)                    #TODO: ijk and not ikj?
                         data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,j,ij,j->i', 
                             factor1, field.shapeFunctionValues(gps[i], elementDim)[m,:],
                             factor2, field.shapeFunctionValues(gps[i], elementDim)[k,:])    
@@ -348,7 +342,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
     print(M[342:350,342:350].toarray())
     print("\n")
     print(M2[342:350,342:350].toarray())    
-    return M2    
+    return M2  # TODO: make M2 works, make M same as M2 !  
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
@@ -732,7 +726,7 @@ def exampleHMagnetCurl():
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.2898) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9363) < 1e-3)
 
 def exampleHMagnet(vectorized=True, legacy=False):
     loadMesh("examples/h_magnet.msh")
