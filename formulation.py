@@ -1,4 +1,5 @@
 import mmap
+from os import killpg
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
@@ -70,7 +71,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
-        if False:
+        if True:
             # this formulation might be a bit faster but only supports order 1!
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
@@ -278,7 +279,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
+def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
     elif isinstance(region, Region):
@@ -288,10 +289,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
     else:
         print("Error: unsupported paramter!")
         sys.exit()
-    if elementDim == 1:
-        #TODO
-        sys.exit()
-    elif elementDim == 2:
+    if elementDim == 2:
         integrationOrder = 2 # should be elementOrder*2
         nBasis = 3
         gfs,gps = gaussData(integrationOrder, elementDim)
@@ -303,46 +301,45 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, vectorized=True):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     data = np.zeros(m*elementMatrixSize)    
-    n = numberOfEdges()           
-    if elementDim == 1: # TODO: why can det(..) not be used here?
-        sys.exit()
-    elif elementDim == 2:
+    n = numberOfEdges()         
+    if elementDim == 2:
         jacs = transformationJacobians(region.getElements(edges=False), elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
-        signs = mesh()['signs2d']      
-
-        if True:
-            Mm = np.zeros((nBasis,nBasis))      
+        signs = mesh()['signs2d'] 
+        calcMethod = 1
+        if calcMethod == 1 or verify:
+            nCoords = 3
+            Mm = np.zeros((nCoords, nCoords, nBasis, nBasis))
             for i,gp in enumerate(gps):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        Mm[m,k] = Mm[m,k] + gfs[i] * np.dot(field.shapeFunctionValues(gp, elementDim)[m,:],
-                            field.shapeFunctionValues(gp, elementDim)[k,:])
-            gammas = np.einsum('i,i,ijk,ilk->ijl', rhos, detJacs, invJacs, invJacs)
-            signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
-            if vectorized:
-                data = np.einsum('ijk,ijk,kj->ijk', signsMultiplied, gammas, Mm).ravel(order='C')
+                        Mm[m,k] = Mm[m,k] + gfs[i] * np.einsum('i,j->ij',
+                            field.shapeFunctionValues(gp, elementDim)[:,m], field.shapeFunctionValues(gp, elementDim)[:,k])
+            gammas = np.einsum('i,i,ikj,ikl->ijl', rhos, detJacs, invJacs, invJacs)
+            signsMultiplied = np.einsum('ij,ik->ijk', signs, signs)
+            data = np.einsum('ilm,ijk,jklm->iml', signsMultiplied, gammas, Mm).ravel()
+            M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
 
-        if True:
+        if calcMethod == 2 or verify:
             data2 = np.zeros((len(elements), nBasis, nBasis))
-            gfs,gps = gaussData(integrationOrder, elementDim)            
             for i,gp in enumerate(gps):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,i,ijk->ij', signs[:,m], rhos, detJacs, invJacs) #TODO: ijk and not ikj?
-                        factor2 = np.einsum('i,ijk->ij', signs[:,k], invJacs)                    #TODO: ijk and not ikj?
-                        data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,j,ij,j->i', 
-                            factor1, field.shapeFunctionValues(gp, elementDim)[m,:],
-                            factor2, field.shapeFunctionValues(gp, elementDim)[k,:])    
-            datax = data2.ravel(order='C')
-            M2 = csr_matrix((datax, (rows, cols)), shape=[n,n])               
+                        factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], rhos, detJacs, invJacs, field.shapeFunctionValues(gp, elementDim)[m,:])
+                        factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, field.shapeFunctionValues(gp, elementDim)[k,:])                   
+                        data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,ij->i', factor1, factor2)
+            data = data2.ravel()
+            M2 = csr_matrix((data, (rows, cols)), shape=[n,n])
 
-    M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    print(M[342:350,342:350].toarray())
-    print("\n")
-    print(M2[342:350,342:350].toarray())    
-    return M2  # TODO: make M2 works, make M same as M2 !  
+    if verify:
+        if not np.all(np.round((M[342:350,342:350].toarray()),3) == np.round((M2[342:350,342:350].toarray()),3)):
+            print("Error: methods give different results!")
+            print(M[342:350,342:350].toarray())
+            print("\n")
+            print(M2[342:350,342:350].toarray())
+            sys.exit()       
+    return M if calcMethod == 1 else M2  
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
@@ -678,7 +675,7 @@ def exampleMagnetInRoom():
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
 
-def exampleHMagnetCurl():
+def exampleHMagnetCurl(verify=False):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -714,7 +711,7 @@ def exampleHMagnetCurl():
 
     field = FieldHCurl()
     K = stiffnessMatrixCurl(field, nu, volumeRegion)
-    B = massMatrixCurl(field, alpha, boundaryRegion)
+    B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
     rhs = fluxRhsCurl(field, hr, volumeRegion)    
     A = K+B    
     stop = time.time()
@@ -726,7 +723,7 @@ def exampleHMagnetCurl():
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9363) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 1e-3)
 
 def exampleHMagnet(vectorized=True, legacy=False):
     loadMesh("examples/h_magnet.msh")
@@ -861,7 +858,7 @@ def runAll():
     exampleHMagnetOctant()
     exampleHMagnetOctant(vectorized=False)
     exampleHMagnetOctant(vectorized=False, legacy=True)
-    exampleHMagnetCurl()
+    exampleHMagnetCurl(verify=True)
     exampleHMagnet()
     exampleHMagnet(vectorized=False)
     exampleHMagnet(vectorized=False, legacy=True)
