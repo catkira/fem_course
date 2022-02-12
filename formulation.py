@@ -861,6 +861,7 @@ def runAll():
     exampleHMagnetOctant()
     exampleHMagnetOctant(vectorized=False)
     exampleHMagnetOctant(vectorized=False, legacy=True)
+    exampleHMagnetCurl()
     exampleHMagnet()
     exampleHMagnet(vectorized=False)
     exampleHMagnet(vectorized=False, legacy=True)
@@ -893,10 +894,10 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if False:
+    if True:
         runAll()
     else:
-        exampleHMagnetCurl()  # WIP
+        exampleHMagnetCurl()
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  
