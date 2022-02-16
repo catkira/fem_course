@@ -13,6 +13,7 @@ from parameter import *
 from region import Region
 from field import *
 from utils import *
+import spanningtree as st
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -709,6 +710,8 @@ def exampleHMagnetCurl(verify=False):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
+    spanningtree = st.spanningtree()
+    spanningtree.write("h_magnet_spanntree.pos")
     field = FieldHCurl()
     K = stiffnessMatrixCurl(field, nu, volumeRegion)
     B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
