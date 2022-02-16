@@ -1,9 +1,8 @@
 import mesh as m
 import numpy as np
 
-# TODO growing a separate tree for every region and connect them afterwards
-# this is needed when using tree gauge together with dirichlet BCs
-
+# TODO add parameter to start growing the tree in a specified regions first
+# so that no closed loops are created when DirichletBCs are applied in those regions
 class spanningtree:
     def __init__(self):
         m.computeEdges3d()
@@ -36,7 +35,7 @@ class spanningtree:
 
     def growTree(self):
         # add edges that dont create circles
-            # get all candidate nodes
+            # get all candidate nodesu8 mk 
             # filter out circles
             # add candidates
         newEdges2 = np.empty((0,2))
@@ -60,7 +59,7 @@ class spanningtree:
         txt = str()
         with open(filename, 'w') as file:
             txt += """View \"spantree\" {
-                    TIME{0};"""
+TIME{0};"""
             for edge in self.edges:
                 p1 = m.mesh['xp'][int(edge[0])]
                 p2 = m.mesh['xp'][int(edge[1])] #- p1
@@ -70,23 +69,23 @@ class spanningtree:
                     txt += f"SL({p1[0]},{p1[1]},{p1[2]},{p2[0]},{p2[1]},{p2[2]})"
                 txt += "{1,1};\n"
             txt += """INTERPOLATION_SCHEME
-                    {
-                    {0.5,-0.5},
-                    {0.5,0.5}
-                    }
-                    {
-                    {0,0,0},
-                    {1,0,0}
-                    }
-                    {
-                    {0.5,-0.5},
-                    {0.5,0.5}
-                    }
-                    {
-                    {0,0,0},
-                    {1,0,0}
-                    };
+{
+{0.5,-0.5},
+{0.5,0.5}
+}
+{
+{0,0,0},
+{1,0,0}
+}
+{
+{0.5,-0.5},
+{0.5,0.5}
+}
+{
+{0,0,0},
+{1,0,0}
+};
 
-                    };
-                    """
+};
+"""
             file.write(txt)

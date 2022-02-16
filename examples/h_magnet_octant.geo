@@ -4,8 +4,8 @@ DefineConstant[
   mm = 1.e-3,
   cub = {10*mm, Name "Parameters/2Magnet bottom size [m]"}
   hite = {20*mm, Name "Parameters/2Magnet hieght [m]"}
-  lc1 = {TotalMemory <= 2048 ? 5*mm : 2*mm, Name "Parameters/3Mesh size on magnets [m]"}
-  lc2 = {TotalMemory <= 2048 ? 20*mm : 10*mm, Name "Parameters/4Mesh size at infinity [m]"}
+  lc1 = {TotalMemory <= 2048 ? 5*mm : 1*mm, Name "Parameters/3Mesh size on magnets [m]"}
+  lc2 = {TotalMemory <= 2048 ? 20*mm : 2*mm, Name "Parameters/4Mesh size at infinity [m]"}
   inf = {100*mm, Name "Parameters/1Air box distance [m]"}
 ];
 
@@ -41,8 +41,8 @@ octant = BooleanDifference{Volume{mag};Volume{frame};Volume{air}; Delete;}{Volum
 // this is a dirty hack
 //airBoundary() = {Boundary{ Volume{air()}; }};
 airBoundary() = {73, 72, 70};
-innerXZBoundary() = {59,64, 71};
-innerYZBoundary() = {62,69, 75};
+innerXZBoundary() = {59, 64, 71, 76};
+innerYZBoundary() = {62, 69, 75};
 innerXYBoundary() = {66, 74};
 
 //set mesh size

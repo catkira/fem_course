@@ -449,10 +449,12 @@ def solve(A, b, method='np'):
             ksp = PETSc.KSP().create()
             ksp.setOperators(Ap)        
             ksp.setFromOptions()
+            #ksp.getPC().setFactorSolverType('mumps')
+            ksp.getPC().setFactorSolverType('petsc')
             #ksp.setType('cg')  # conjugate gradient
             #ksp.setType('gmres')
             #ksp.getPC().setType('lu')
-            #ksp.getPC().setType('cholesky') # cholesky
+            # ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
             print(f'Solving with: {ksp.getType():s}')
             ksp.solve(bp, up)
@@ -713,8 +715,8 @@ def exampleHMagnetCurl(verify=False):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    spanningtree = st.spanningtree()
-    spanningtree.write("h_magnet_spanntree.pos")
+    #spanningtree = st.spanningtree()
+    #spanningtree.write("h_magnet_spanntree.pos")
     field = FieldHCurl()
     K = stiffnessMatrixCurl(field, nu, volumeRegion)
     B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
@@ -835,7 +837,7 @@ def exampleHMagnetOctant(vectorized=True, legacy=False):
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"h_magnet_octant_b.vtk")        
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.675) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.3684) < 1e-3)
 
 def runAll():
     loadMesh("examples/air_box_2d.msh")
