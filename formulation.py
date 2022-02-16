@@ -474,159 +474,6 @@ def solve(A, b, method='np'):
     print(f"{bcolors.OKGREEN}solved in {stop - start:.2f} s{bcolors.ENDC}")    
     return u
 
-def bookExample1():
-    # example from book page 33
-    n = numberOfVertices()
-    m = numberOfTriangles()
-    r = numberOfBoundaryEdges()
-    sigmas = np.ones(m)
-    rhos = np.ones(m)
-    alphas = 1e9*np.ones(r)  # dirichlet BC
-    f = np.ones(n)
-
-    spanningtree = st.spanningtree()
-    spanningtree.write("example1_spanntree.pos")
-
-    field = FieldH1()
-    K = stiffnessMatrix(field, sigmas)
-    M = massMatrix(field, rhos, region=mesh()['pt'])
-    #B = boundaryMassMatrix(alphas) # this function is only here to illustrate the most simple way to do it
-    B = massMatrix(field, alphas, region=mesh()['pe'][mesh()['eb']], elementDim=1)
-    b = M @ f
-    A = K+B
-    u = solve(A,b)
-    print(f'u_max = {max(u):.4f}')
-    assert(abs(max(u) - 0.0732) < 1e-3)
-
-    #fig = plt.figure()
-    #ax = fig.add_subplot(1, 1, 1, projection='3d')
-    #ax.plot_trisurf(G['xp'][:,0], G['xp'][:,1], u)
-    #plt.show()
-
-    storeInVTK(u,"example1.vtk", writePointData=True)
-
-def bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
-    # example from book page 34
-    n = numberOfVertices()
-    m = numberOfTriangles()
-    r = numberOfBoundaryEdges()
-    start = time.time()    
-    if scalarSigma:
-        sigmas = np.zeros(m)
-        sigmaTensor1 = 1e-3
-        sigmaTensor2 = 1
-    else:
-        sigmas = np.zeros((m,2,2))
-        sigmaTensor2 = np.eye(2)        
-        if anisotropicInclusion:
-            sigmaTensor1 = np.array([[1.0001, 0.9999],
-                                    [0.9999, 1.0001]])
-        else:
-            sigmaTensor1 = 1e-3*np.eye(2)
-    for t in range(m):
-        cog = np.sum(mesh()['xp'][mesh()['pt'][t,:],:],0)/3
-        if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
-            sigmas[t] = sigmaTensor1
-        elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
-            sigmas[t] = sigmaTensor1
-        else:
-            sigmas[t] = sigmaTensor2
-    alphas = np.zeros(r) 
-    for e in range(r):
-        cog = np.sum(mesh()['xp'][mesh()['pe'][mesh()['eb'][e],:],:],0)/2
-        if abs(cog[0]-5) < 1e-6: 
-            alphas[e] = 1e9 # Dirichlet BC
-        elif abs(cog[0]) < 1e-6:
-            alphas[e] = 1e-9 # Neumann BC
-        else:
-            alphas[e] = 0 # natural Neumann BC
-    pd = np.zeros(n)
-    for i in range(n):
-        x = mesh()['xp'][i,:]
-        if (abs(x[0]-5) < 1e-6):
-            pd[i] = 4-x[1] # Dirichlet BC
-        elif abs(x[0] < 1e-6):
-            pd[i] = -1e9 # Neumann BC
-    stop = time.time()    
-    print(f'parameters prepared in {stop - start:.2f} s')        
-    start = time.time()
-    field = FieldH1()
-    K = stiffnessMatrix(field, sigmas)
-    B = boundaryMassMatrix(field, alphas)
-    b = B @ pd
-    A = K+B
-    stop = time.time()    
-    print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A, b, method)
-    print(f'u_max = {max(u):.4f}')    
-    assert(abs(max(u) - 4) < 1e-3)
-    if anisotropicInclusion:
-        #storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")
-        pass
-    else:
-        if scalarSigma:
-            storeInVTK(u,"example2_scalar_isotropicInclusions.vtk", writePointData=True)
-        else:
-            storeInVTK(u,"example2_tensor_isotropicInclusions.vtk", writePointData=True)
-  
-
-def bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
-    # example from book page 34
-    n = numberOfVertices()
-    # regions
-    incl1 = 0
-    incl2 = 1
-    air = 2
-    infBottom = 3
-    infLeft = 4
-    infRight = 5
-    infTop = 6
-
-    start = time.time()    
-    sigma = Parameter()
-    sigma.set([incl1, incl2], 1e-3)
-    sigma.set(air, 1)
-
-    alpha = Parameter()
-    alpha.set([infBottom, infTop], 0)
-    alpha.set(infLeft, 1e-9) # Neumann BC
-    alpha.set(infRight, 1e9) # Dirichlet BC
-
-    pd = np.zeros(n)
-    for i in range(n):
-        x = mesh()['xp'][i,:]
-        if (abs(x[0]-5) < 1e-6):
-            pd[i] = 4-x[1] # Dirichlet BC
-        elif abs(x[0] < 1e-6):
-            pd[i] = -1e9 # Neumann BC
-    stop = time.time()    
-    print(f'parameters prepared in {stop - start:.2f} s')        
-    start = time.time()
-
-    surfaceRegion = Region()
-    surfaceRegion.append([incl1, incl2, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append([infBottom, infTop, infLeft, infRight])
-
-    field = FieldH1()
-    K = stiffnessMatrix(field, sigma, surfaceRegion)    
-    B = massMatrix(field, alpha, boundaryRegion)
-    b = B @ pd
-    A = K+B
-    stop = time.time()    
-    print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A, b, method)
-    if anisotropicInclusion:
-        #storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
-        pass
-    else:
-        if scalarSigma:
-            storeInVTK(u,"example2_scalar_isotropicInclusions_p.vtk", writePointData=True)
-        else:
-            storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk", writePointData=True)
-    print(f'u_max = {max(u):.4f}')    
-    assert(abs(max(u) - 4) < 1e-3)
 
 def exampleMagnetInRoom():
     loadMesh("examples/magnet_in_room.msh")
@@ -679,58 +526,6 @@ def exampleMagnetInRoom():
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
-
-def exampleHMagnetCurl(verify=False):
-    loadMesh("examples/h_magnet.msh")
-    mu0 = 4*np.pi*1e-7
-    mur_frame = 1000
-    b_r_magnet = 1.5    
-    # regions
-    magnet = 0
-    frame = 1
-    air = 2
-    inf = 3
-
-    start = time.time()
-    nu = Parameter()
-    nu.set(frame, 1/(mu0*mur_frame))
-    nu.set([magnet, air], 1/mu0)
-    #storeInVTK(mu, "mu.vtk")
-    
-    br = Parameter(3)
-    br.set(magnet, [0, 0, b_r_magnet])
-    br.set([frame, air], [0, 0, 0])
-    hr = Parameter(3)
-    hr.set(magnet, [0, 0, b_r_magnet/mu0])
-    hr.set([frame, air], [0, 0, 0])    
-    #storeInVTK(br, "br.vtk")    
-
-    alpha = Parameter()
-    alpha.set(inf, 1e9) # Dirichlet BC
-
-    volumeRegion = Region()
-    volumeRegion.append([magnet, frame, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append(inf)
-
-    #spanningtree = st.spanningtree()
-    #spanningtree.write("h_magnet_spanntree.pos")
-    field = FieldHCurl()
-    K = stiffnessMatrixCurl(field, nu, volumeRegion)
-    B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
-    rhs = fluxRhsCurl(field, hr, volumeRegion)    
-    A = K+B    
-    stop = time.time()
-    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    print(f'max(rhs) = {max(rhs)}')
-    u = solve(A, rhs, 'petsc')    
-    print(f'max(u) = {max(u)}')
-    storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
-    b = field.curl(u, dim=3)
-    storeInVTK(b, "h_magnetCurl_b.vtk")
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 1e-3)
 
 def exampleHMagnet(vectorized=True, legacy=False):
     loadMesh("examples/h_magnet.msh")
@@ -839,33 +634,9 @@ def exampleHMagnetOctant(vectorized=True, legacy=False):
     assert(abs(max(np.linalg.norm(b,axis=1)) - 3.3684) < 1e-3)
 
 def runAll():
-    loadMesh("examples/air_box_2d.msh")
-    computeEdges2d()
-    computeBoundary()    
-    bookExample1()
-
-    rectangularCriss(50,50)
-    computeEdges2d()
-    computeBoundary()    
-    bookExample1()
-
-    loadMesh("examples/example2.msh")
-    bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
-    computeEdges2d()
-    computeBoundary()       
-    bookExample2(False, anisotropicInclusion=True, method='petsc')    
-
-    rectangularCriss(50,50)
-    computeEdges2d()
-    computeBoundary()       
-    mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-    mesh()['xp'][:,1] = mesh()['xp'][:,1]*4    
-    bookExample2(False, anisotropicInclusion=True, method='petsc')    
-
     exampleHMagnetOctant()
     exampleHMagnetOctant(vectorized=False)
     exampleHMagnetOctant(vectorized=False, legacy=True)
-    exampleHMagnetCurl(verify=True)
     exampleHMagnet()
     exampleHMagnet(vectorized=False)
     exampleHMagnet(vectorized=False, legacy=True)
@@ -898,10 +669,9 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if True:
+    if False:
         runAll()
     else:
-        exampleHMagnetCurl()
         exampleHMagnetOctant()
         exampleHMagnet()    
         exampleMagnetInRoom()  

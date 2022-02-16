@@ -10,7 +10,7 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def exampleHMagnetCurl(verify=False):
+def run_h_magnet(verify=False):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -64,4 +64,4 @@ def exampleHMagnetCurl(verify=False):
 
 
 if __name__ == "__main__":
-    exampleHMagnetCurl()
+    run_h_magnet()
