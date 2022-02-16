@@ -140,10 +140,13 @@ def computeEdges3d():
     stop = time.time()
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])
-    numTT = len(mesh['ptt'])
     numT = len(mesh['pt'])
     computeSigns()
-    print(f'calculated {numEdges:d} edges, from {numTT:d} tetraeders and {numT:d} triangles in {stop - start:.2f} s')                       
+    if mesh['problemDimension'] == 3:
+        numTT = len(mesh['ptt'])
+        print(f'calculated {numEdges:d} edges, from {numTT:d} tetraeders and {numT:d} triangles in {stop - start:.2f} s')                       
+    else:
+        print(f'calculated {numEdges:d} edges, from {numT:d} triangles in {stop - start:.2f} s')                       
 
 # this function is only used when the mesh is created with rectangularCriss
 def computeBoundary():
