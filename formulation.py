@@ -437,8 +437,7 @@ def solve(A, b, method='np'):
         opts = PETSc.Options()
         #opts.setValue("st_pc_factor_shift_type", "NONZERO")        
         n = len(b)   
-        csr_mat=csr_matrix(A)
-        Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(csr_mat.indptr, csr_mat.indices, csr_mat.data))        
+        Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(A.indptr, A.indices, A.data))        
         Ap.setUp()
         Ap.assemblyBegin()
         Ap.assemblyEnd()
@@ -899,7 +898,7 @@ def main():
     # rectangularCriss(50,50)
     # plotMesh(G)
 
-    if False:
+    if True:
         runAll()
     else:
         exampleHMagnetCurl()
