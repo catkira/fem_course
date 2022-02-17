@@ -113,6 +113,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
         dim = 3
         nBasis = 4
         area = 1/6        
+    elements = translateDofIndices(elements)    
     m = len(elements)
     Grads = field.shapeFunctionGradients(dim)
     elementMatrixSize = (getMesh()['problemDimension']+1)**2
@@ -150,10 +151,10 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
         else:
             for elementIndex, element in enumerate(elements):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
-                data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
+                data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel()
     
     else:  # LEGACY CODE       
-        if mesh()['problemDimension'] == 3:
+        if getMesh()['problemDimension'] == 3:
             # precalculate mesh independant parts of the integral
             B = np.zeros((dim, dim, nBasis, nBasis))
             for i in range(dim):
@@ -169,7 +170,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 indexRange = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)            
                 data[indexRange] = np.einsum('jk,jk...', gammas[elementIndex],B).ravel() # this is generic and faster than explicit summation like below
 
-        if mesh()['problemDimension'] == 2:
+        if getMesh()['problemDimension'] == 2:
             # area of ref triangle is 0.5, integrands are constant within integral
             B_11 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,0]) 
             B_12 = 0.5 * np.matrix(Grads[:,0]).T * np.matrix(Grads[:,1])
@@ -197,7 +198,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
                 #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
                 #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
-    n = numberOfVertices()
+    n = countFreeDofs()
     K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
     return K
 
@@ -241,7 +242,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     else:
         elements = region.getElements()
         br = br.getValues(region)
-    n = numberOfVertices()
+    n = countFreeDofs()    
     rhs = np.zeros(n)
     if getMesh()['problemDimension'] == 2:
         zero = [0, 0]
@@ -259,7 +260,8 @@ def fluxRhs(field, br, region=[], vectorized=True):
     Grads = field.shapeFunctionGradients(dim)    
     jacs = transformationJacobians(elements, elementDim = dim)
     detJacs = np.abs(np.linalg.det(jacs))    
-    invJacs = np.linalg.inv(jacs)         
+    invJacs = np.linalg.inv(jacs)    
+    elements = translateDofIndices(elements)         
     if vectorized:
         # this line has convergence issues with example magnet_in_room
         # temp2 = area * np.einsum('i,ikj,lk->ijl', detJacs, invJacs, Grads)
@@ -473,7 +475,7 @@ def solve(A, b, method='np'):
         print("unknown method")
         sys.exit()
     stop = time.time()
-    print(f"{bcolors.OKGREEN}solved in {stop - start:.2f} s{bcolors.ENDC}")    
+    print(f"{bcolors.OKGREEN}solved {len(u)} dofs in {stop - start:.2f} s{bcolors.ENDC}")    
     return u
 
 
@@ -529,120 +531,7 @@ def exampleMagnetInRoom():
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
 
-def exampleHMagnet(vectorized=True, legacy=False):
-    loadMesh("examples/h_magnet.msh")
-    mu0 = 4*np.pi*1e-7
-    mur_frame = 1000
-    b_r_magnet = 1.5    
-    # regions
-    magnet = 0
-    frame = 1
-    air = 2
-    inf = 3
-
-    start = time.time()
-    mu = Parameter()
-    mu.set(frame, mu0*mur_frame)
-    mu.set([magnet, air], mu0)
-    #storeInVTK(mu, "mu.vtk")
-    
-    br = Parameter(3)
-    br.set(magnet, [0, 0, b_r_magnet])
-    br.set([frame, air], [0, 0, 0])
-    #storeInVTK(br, "br.vtk")    
-
-    alpha = Parameter()
-    alpha.set(inf, 1e9) # Dirichlet BC
-
-    volumeRegion = Region()
-    volumeRegion.append([magnet, frame, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append(inf)
-
-    field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
-    B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
-    rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
-    b = rhs
-    A = K+B    
-    stop = time.time()
-    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    u = solve(A, b, 'petsc')    
-    storeInVTK(u, "h_magnet_u.vtk", writePointData=True)    
-    h = -field.grad(u, dim=3)
-    storeInVTK(h, "h_magnet_h.vtk")
-    mus = mu.getValues()  
-    m = numberOfTetraeders()       
-    brs = br.getValues()
-    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
-    storeInVTK(b,"h_magnet_b.vtk")    
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.863) < 1e-3)
-
-def exampleHMagnetOctant(vectorized=True, legacy=False):
-    loadMesh("examples/h_magnet_octant.msh")
-    mu0 = 4*np.pi*1e-7
-    mur_frame = 1000
-    b_r_magnet = 1.5    
-    # regions
-    magnet = 1
-    frame = 2
-    air = 3
-    inf = 4
-    innerXZBoundary = 5
-    innerYZBoundary = 6
-    innerXYBoundary = 7
-    magnetXYBoundary = 8
-
-    start = time.time()
-    mu = Parameter()
-    mu.set(frame, mu0*mur_frame)
-    mu.set([magnet, air], mu0)
-    #storeInVTK(mu, "mu.vtk")
-    
-    br = Parameter(3)
-    br.set(magnet, [0, 0, b_r_magnet])
-    br.set([frame, air], [0, 0, 0])
-    #storeInVTK(br, "br.vtk")    
-
-    alpha = Parameter()
-    alpha.set([inf, innerXYBoundary, magnetXYBoundary], 1e9) # Dirichlet BC
-
-    volumeRegion = Region()
-    volumeRegion.append([magnet, frame, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
-
-    field = FieldH1()
-    K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
-    B = massMatrix(field, alpha, boundaryRegion, vectorized=vectorized)
-    rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
-    b = rhs
-    A = K+B    
-    stop = time.time()
-    print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    u = solve(A, b, 'petsc')    
-    storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
-    h = -field.grad(u, dim=3)
-    storeInVTK(h, "h_magnet_octant_h.vtk")
-    mus = mu.getValues()  
-    m = numberOfTetraeders()       
-    brs = br.getValues()
-    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
-    storeInVTK(b,"h_magnet_octant_b.vtk")        
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.3684) < 1e-3)
-
 def runAll():
-    exampleHMagnetOctant()
-    exampleHMagnetOctant(vectorized=False)
-    exampleHMagnetOctant(vectorized=False, legacy=True)
-    exampleHMagnet()
-    exampleHMagnet(vectorized=False)
-    exampleHMagnet(vectorized=False, legacy=True)
-    
     exampleMagnetInRoom()    
 
 def main():
@@ -674,8 +563,6 @@ def main():
     if False:
         runAll()
     else:
-        exampleHMagnetOctant()
-        exampleHMagnet()    
         exampleMagnetInRoom()  
 
     print('finished')

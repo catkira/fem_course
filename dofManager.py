@@ -37,7 +37,7 @@ def resetDofManager():
 def translateDofIndices(elements, dir='forward'):
     mask = freeDofMask()
     if dir == 'forward':
-        idx = np.zeros(countAllDofs()).astype(np.int)
+        idx = np.repeat(0, countAllDofs()).astype(np.int)
         addr = 0
         for id in range(len(idx)):
             if mask[id]:

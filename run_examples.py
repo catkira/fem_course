@@ -1,6 +1,7 @@
 from examples.h_magnet import run_h_magnet
 from examples.bookExample1 import run_bookExample1
 from examples.bookExample2 import *
+from examples.h_magnet_octant import *
 from formulation import *
 
 def main():
@@ -18,6 +19,10 @@ def main():
         run_bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
         run_bookExample2(False, anisotropicInclusion=True, method='petsc')     
         run_bookExample2(False, anisotropicInclusion=True, method='petsc', mesh='criss')    
+
+        run_h_magnet_octant(dirichlet='hard')
+        run_h_magnet_octant(vectorized=False)
+        run_h_magnet_octant(vectorized=False, legacy=True)
 
         run_h_magnet(dirichlet='soft')
         run_h_magnet(dirichlet='hard')
