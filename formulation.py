@@ -9,11 +9,14 @@ import time
 import sys
 import pkg_resources
 from scipy.sparse import *
+from dofManager import freeDofMask, translateDofIndices
+
 from parameter import *
 from region import Region
 from field import *
 from utils import *
 import spanningtree as st
+from dofManager import *
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -58,12 +61,12 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         nBasis = 6
         elementArea = 1/6        
     curls = field.shapeFunctionCurls(elementDim)
-    m = len(elements)
+    m = countFreeDofs()
+    elements = translateDofIndices(elements)
     elementMatrixSize = nBasis**2
     data = np.zeros(m*elementMatrixSize)    
     jacs = transformationJacobians(elementDim=elementDim)
-    detJacs = np.abs(np.linalg.det(jacs))
-    n = numberOfEdges()      
+    detJacs = np.abs(np.linalg.det(jacs))     
 
     if elementDim == 2:
         print("Error: hcurl elements are not possible in 2d!")
@@ -71,7 +74,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     elif elementDim == 3:
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
-        signs = np.einsum('ij,ik->ijk',mesh()['signs3d'],mesh()['signs3d']) 
+        signs = np.einsum('ij,ik->ijk',getMesh()['signs3d'],getMesh()['signs3d']) 
         if True:
             # this formulation might be a bit faster but only supports order 1!
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
@@ -92,27 +95,27 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] = np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel(order='C')
-    K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
+    K = csr_matrix((data, (rows, cols)), shape=[m,m]) 
     return K
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     if region == []:
-        elements = mesh()['pt']
+        elements = getMesh()['pt']
     else:
         elements = region.getElements()
         sigmas = sigmas.getValues(region)
-    if mesh()['problemDimension'] == 2:
+    if getMesh()['problemDimension'] == 2:
         dim = 2
         nBasis = 3
         area = 1/2
-    elif mesh()['problemDimension'] == 3:
+    elif getMesh()['problemDimension'] == 3:
         dim = 3
         nBasis = 4
         area = 1/6        
     m = len(elements)
     Grads = field.shapeFunctionGradients(dim)
-    elementMatrixSize = (mesh()['problemDimension']+1)**2
+    elementMatrixSize = (getMesh()['problemDimension']+1)**2
     rows = np.zeros(m*elementMatrixSize)
     cols = np.zeros(m*elementMatrixSize)
     data = np.zeros(m*elementMatrixSize)    
@@ -201,47 +204,46 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
 # integral br * rot(tf(u))
 def fluxRhsCurl(field, br, region=[], vectorized=True):
     if region == []:
-        elements = mesh()['pt']
+        elements = getMesh()['pt']
     else:
         elements = region.getElements(edges=True)
         br = br.getValues(region)
-    if mesh()['problemDimension'] == 2:
+    if getMesh()['problemDimension'] == 2:
         area = 1/2
         nBasis = 3
         elementDim = 2
-        signs = mesh()['signs2d']
+        signs = getMesh()['signs2d']
     else:
         area = 1/6
         nBasis = 6
         elementDim = 3
-        signs = mesh()['signs3d']
+        signs = getMesh()['signs3d']
     curls = field.shapeFunctionCurls(elementDim)    
     jacs = transformationJacobians([], elementDim)
-    invJacs = transformationJacobians([], elementDim)
-    detJacs = np.abs(np.linalg.det(jacs))
 
-    #temp2 = area* np.einsum('i,i...->i...', detJacs, np.einsum('ikj,lk', invJacs, curls))    
-    # the line below seems to be right
+    numAllDofs = len(elements)
+    elements = translateDofIndices(elements)
+
     temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))  # TODO is detJac needed here??
     rows = elements.ravel(order='C')
-    rhs2 = np.zeros((len(elements),nBasis))
+    rhs2 = np.zeros((numAllDofs,nBasis))
     for basis in range(nBasis):
         rhs2[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
-    n = numberOfEdges()
-    rhs = csr_matrix((rhs2.ravel(order='C'), (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
-
+    rhs2 = rhs2.ravel(order='C')        
+    n = countFreeDofs()
+    rhs = csr_matrix((rhs2, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
     return rhs
 
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
-        elements = mesh()['pt']
+        elements = getMesh()['pt']
     else:
         elements = region.getElements()
         br = br.getValues(region)
     n = numberOfVertices()
     rhs = np.zeros(n)
-    if mesh()['problemDimension'] == 2:
+    if getMesh()['problemDimension'] == 2:
         zero = [0, 0]
         area = 1/2
         #Grads = field.shapeFunctionGradients()[:,0:2]  # discard z coordinates  
@@ -307,7 +309,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
         jacs = transformationJacobians(region.getElements(edges=False), elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
-        signs = mesh()['signs2d'] 
+        signs = getMesh()['signs2d'] 
         calcMethod = 1
         if calcMethod == 1 or verify:
             nCoords = 3
@@ -379,7 +381,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
     elementMatrixSize = nBasis**2        
     data = np.zeros(len(elements)*nBasis**2)    
     if elementDim == 1: # TODO: why can det(..) not be used here?
-        detJacs = np.abs(np.linalg.norm( mesh()['xp'][elements[:,0]] - mesh()['xp'][elements[:,1]], axis=1))
+        detJacs = np.abs(np.linalg.norm( getMesh()['xp'][elements[:,0]] - getMesh()['xp'][elements[:,1]], axis=1))
     else:
         jacs = transformationJacobians(elements, elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))        
@@ -409,12 +411,12 @@ def boundaryMassMatrix(field, alphas, region=[]):
     cols = np.zeros(r*4)
     data = np.zeros(r*4)
     if region == []:
-        elements = mesh()['pe'][mesh()['eb']]
+        elements = getMesh()['pe'][getMesh()['eb']]
     else:
         elements = region.getElements()
         alphas = alphas.getValues(region)
     for elementIndex, element in enumerate(elements):
-        detJac = np.abs(np.linalg.norm(mesh()['xp'][element[0]] - mesh()['xp'][element[1]]))
+        detJac = np.abs(np.linalg.norm(getMesh()['xp'][element[0]] - getMesh()['xp'][element[1]]))
         range = np.arange(start=elementIndex*4, stop=elementIndex*4+4)        
         rows[range] = np.tile(element[:],2).astype(np.int64)
         cols[range] = np.repeat(element[:],2).astype(np.int64)

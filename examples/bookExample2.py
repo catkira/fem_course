@@ -10,7 +10,17 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
+def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', mesh='msh'):    
+    if mesh == 'msh':
+        loadMesh("examples/example2.msh")
+        computeEdges2d()
+        computeBoundary()       
+    else:
+        rectangularCriss(50,50)
+        computeEdges2d()
+        computeBoundary()       
+        getMesh()['xp'][:,0] = getMesh()['xp'][:,0]*5
+        getMesh()['xp'][:,1] = getMesh()['xp'][:,1]*4   
     # example from book page 34
     n = numberOfVertices()
     m = numberOfTriangles()
@@ -29,7 +39,7 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
         else:
             sigmaTensor1 = 1e-3*np.eye(2)
     for t in range(m):
-        cog = np.sum(mesh()['xp'][mesh()['pt'][t,:],:],0)/3
+        cog = np.sum(getMesh()['xp'][getMesh()['pt'][t,:],:],0)/3
         if 1<cog[0] and cog[0]<2 and 1<cog[1] and cog[1]<2:
             sigmas[t] = sigmaTensor1
         elif 3<cog[0] and cog[0]<4 and 2<cog[1] and cog[1]<3:
@@ -38,7 +48,7 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
             sigmas[t] = sigmaTensor2
     alphas = np.zeros(r) 
     for e in range(r):
-        cog = np.sum(mesh()['xp'][mesh()['pe'][mesh()['eb'][e],:],:],0)/2
+        cog = np.sum(getMesh()['xp'][getMesh()['pe'][getMesh()['eb'][e],:],:],0)/2
         if abs(cog[0]-5) < 1e-6: 
             alphas[e] = 1e9 # Dirichlet BC
         elif abs(cog[0]) < 1e-6:
@@ -47,7 +57,7 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
             alphas[e] = 0 # natural Neumann BC
     pd = np.zeros(n)
     for i in range(n):
-        x = mesh()['xp'][i,:]
+        x = getMesh()['xp'][i,:]
         if (abs(x[0]-5) < 1e-6):
             pd[i] = 4-x[1] # Dirichlet BC
         elif abs(x[0] < 1e-6):
@@ -75,6 +85,7 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc'):
             storeInVTK(u,"example2_tensor_isotropicInclusions.vtk", writePointData=True)
 
 def run_bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='petsc'):
+    loadMesh("examples/example2.msh")
     # example from book page 34
     n = numberOfVertices()
     # regions
@@ -98,7 +109,7 @@ def run_bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='p
 
     pd = np.zeros(n)
     for i in range(n):
-        x = mesh()['xp'][i,:]
+        x = getMesh()['xp'][i,:]
         if (abs(x[0]-5) < 1e-6):
             pd[i] = 4-x[1] # Dirichlet BC
         elif abs(x[0] < 1e-6):
@@ -134,4 +145,4 @@ def run_bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='p
 
 
 if __name__ == "__main__":
-    run_bookExample2()
+    run_bookExample2Parameter(scalarSigma=True)

@@ -25,9 +25,9 @@ def run_bookExample1(verify=False):
 
     field = FieldH1()
     K = stiffnessMatrix(field, sigmas)
-    M = massMatrix(field, rhos, region=mesh()['pt'])
+    M = massMatrix(field, rhos, region=getMesh()['pt'])
     #B = boundaryMassMatrix(alphas) # this function is only here to illustrate the most simple way to do it
-    B = massMatrix(field, alphas, region=mesh()['pe'][mesh()['eb']], elementDim=1)
+    B = massMatrix(field, alphas, region=getMesh()['pe'][getMesh()['eb']], elementDim=1)
     b = M @ f
     A = K+B
     u = solve(A,b)

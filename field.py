@@ -2,8 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mesh import *
 
+elementType = 0
+
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl:
+    def __init__(self):
+        global elementType
+        elementType = 1
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
             return np.array([2,
@@ -24,11 +29,11 @@ class FieldHCurl:
         # shapeFunction_e1,e2 = lambda[e1]*grad(lambda[e2]) - lambda[e2]*grad(lambda[e1])
         # edges in tetraeda are ordered like (1,2), (2,0), (0,1)       
         if elementDim == 2:
-            if mesh()['problemDimension'] == 2:
+            if getMesh()['problemDimension'] == 2:
                 return np.array([[-xi[1],    xi[0]],        # edge (1,2)
                                 [-xi[1],     xi[0]],        # edge (2,0)
                                 [1-xi[1],    xi[0]]])       # edge (0,1)
-            if mesh()['problemDimension'] == 3:
+            if getMesh()['problemDimension'] == 3:
                 return np.array([[-xi[1],    xi[0],     0],
                                 [-xi[1],     xi[0]-1,   0],
                                 [1-xi[1],    xi[0],     0]])
@@ -52,23 +57,26 @@ class FieldHCurl:
             curls = np.zeros((m,1))
             # TODO
         elif dim == 3:
-            elements = mesh()['ett']
+            elements = getMesh()['ett']
             curls = np.zeros((elements.shape[0],3))
             sfCurls = self.shapeFunctionCurls(dim)
             jacs = transformationJacobians([], dim)
             detJacs = np.linalg.det(jacs)
-            signs = mesh()['signs3d']
+            signs = getMesh()['signs3d']
             curls2 = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         return curls2
 
 class FieldH1:    
+    def __init__(self):
+        global elementType
+        elementType = 0
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:
-            if mesh()['problemDimension'] == 2:
+            if getMesh()['problemDimension'] == 2:
                 return np.array([[-1, -1],
                                 [1, 0],
                                 [0, 1]])
-            elif mesh()['problemDimension'] == 3:
+            elif getMesh()['problemDimension'] == 3:
                 return np.array([[-1, -1, 0],
                                 [1, 0, 0],
                                 [0, 1, 0]])
@@ -79,9 +87,9 @@ class FieldH1:
                             [0, 0, 1]])
 
     def shapeFunctionValues(self, xi, elementDim = 2):
-        if mesh()['problemDimension'] == 2:        
+        if getMesh()['problemDimension'] == 2:        
             return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
-        elif mesh()['problemDimension'] == 3:        
+        elif getMesh()['problemDimension'] == 3:        
             if elementDim == 2:
                 return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
             elif elementDim == 3:
@@ -93,7 +101,7 @@ class FieldH1:
             m = numberOfTriangles()
             grads = np.zeros((m,3))
             sfGrads = self.shapeFunctionGradients(dim)
-            for elementIndex, element in enumerate(mesh()['pt']):    
+            for elementIndex, element in enumerate(getMesh()['pt']):    
                 jac,_ = transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = np.append(invJac.T @ sfGrads.T @ u[element], 0)
@@ -101,7 +109,7 @@ class FieldH1:
             m = numberOfTetraeders()
             grads = np.zeros((m,3))
             sfGrads = self.shapeFunctionGradients(dim)
-            for elementIndex, element in enumerate(mesh()['ptt']):    
+            for elementIndex, element in enumerate(getMesh()['ptt']):    
                 jac,_ = transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]

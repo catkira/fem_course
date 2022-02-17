@@ -10,7 +10,7 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def run_h_magnet(verify=False):
+def run_h_magnet(verify=False, dirichlet='soft'):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -35,9 +35,6 @@ def run_h_magnet(verify=False):
     hr.set([frame, air], [0, 0, 0])    
     #storeInVTK(br, "br.vtk")    
 
-    alpha = Parameter()
-    alpha.set(inf, 1e9) # Dirichlet BC
-
     volumeRegion = Region()
     volumeRegion.append([magnet, frame, air])
 
@@ -47,14 +44,24 @@ def run_h_magnet(verify=False):
     #spanningtree = st.spanningtree()
     #spanningtree.write("h_magnet_spanntree.pos")
     field = FieldHCurl()
-    K = stiffnessMatrixCurl(field, nu, volumeRegion)
-    B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
-    rhs = fluxRhsCurl(field, hr, volumeRegion)    
-    A = K+B    
+    if dirichlet == 'soft':
+        alpha = Parameter()
+        alpha.set(inf, 1e9) # Dirichlet BC
+        B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
+        K = stiffnessMatrixCurl(field, nu, volumeRegion)
+        rhs = fluxRhsCurl(field, hr, volumeRegion)    
+        A = K+B    
+    else:
+        setDirichlet([inf])
+        K = stiffnessMatrixCurl(field, nu, volumeRegion)
+        rhs = fluxRhsCurl(field, hr, volumeRegion)    
+        A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
     u = solve(A, rhs, 'petsc')    
+    if dirichlet == 'hard':
+        u = translateDofIndices(u, 'backwards')
     print(f'max(u) = {max(u)}')
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
@@ -64,4 +71,4 @@ def run_h_magnet(verify=False):
 
 
 if __name__ == "__main__":
-    run_h_magnet()
+    run_h_magnet(dirichlet='hard')  # WIP

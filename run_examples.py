@@ -15,18 +15,9 @@ def main():
         computeBoundary()        
         run_bookExample1()
 
-        loadMesh("examples/example2.msh")
         run_bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
-        computeEdges2d()
-        computeBoundary()       
-        run_bookExample2(False, anisotropicInclusion=True, method='petsc')    
-
-        rectangularCriss(50,50)
-        computeEdges2d()
-        computeBoundary()       
-        mesh()['xp'][:,0] = mesh()['xp'][:,0]*5
-        mesh()['xp'][:,1] = mesh()['xp'][:,1]*4    
-        run_bookExample2(False, anisotropicInclusion=True, method='petsc')    
+        run_bookExample2(False, anisotropicInclusion=True, method='petsc')     
+        run_bookExample2(False, anisotropicInclusion=True, method='petsc', mesh='criss')    
 
         run_h_magnet()
     print('finished')

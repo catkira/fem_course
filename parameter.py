@@ -40,14 +40,14 @@ class Parameter:
     def prepareValues(self, ids):
         self.preparedValues[str(ids)] = []        
         for setting in self.settings:
-            for i in range(len(mesh()['physical'][0])): # check lines
-                if mesh()['physical'][0][i] == setting[0]:
+            for i in range(len(getMesh()['physical'][0])): # check lines
+                if getMesh()['physical'][0][i] == setting[0]:
                     self.preparedValues[str(ids)].append(setting[1])
-            for i in range(len(mesh()['physical'][1])): # check triangles
-                if mesh()['physical'][1][i] == setting[0]:
+            for i in range(len(getMesh()['physical'][1])): # check triangles
+                if getMesh()['physical'][1][i] == setting[0]:
                     self.preparedValues[str(ids)].append(setting[1])
-            for i in range(len(mesh()['physical'][2])): # check tetraeders
-                if mesh()['physical'][2][i] == setting[0]:
+            for i in range(len(getMesh()['physical'][2])): # check tetraeders
+                if getMesh()['physical'][2][i] == setting[0]:
                     self.preparedValues[str(ids)].append(setting[1])
 
     def getValues(self, region=[]):
@@ -101,14 +101,14 @@ def storeInVTK(u, filename, writePointData = False):
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:
             u = u.getValues() 
-    if mesh()['problemDimension'] == 2:
+    if getMesh()['problemDimension'] == 2:
         m = numberOfTriangles()    
-        elementContainer = mesh()['pt']
+        elementContainer = getMesh()['pt']
         ppe = 3 # points per element
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
         m = numberOfTetraeders()    
-        elementContainer = mesh()['ptt']
+        elementContainer = getMesh()['ptt']
         ppe = 4 # points per element
         cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
@@ -118,7 +118,7 @@ def storeInVTK(u, filename, writePointData = False):
         vtktxt += f'POINTS {m*ppe:d} double\n'
         for element in elementContainer:
             for point in element:
-                coords = mesh()['xp'][point]
+                coords = getMesh()['xp'][point]
                 if len(coords) == 2:
                     vtktxt += f2s(coords[0]) + " " + f2s(coords[1]) + " 0 "
                 else:
@@ -144,7 +144,7 @@ def storeInVTK(u, filename, writePointData = False):
                     if scalarValue:
                         vtktxt += f2s(u[point]) + "\n"
                     else:
-                        if mesh()['problemDimension'] == 2:
+                        if getMesh()['problemDimension'] == 2:
                             vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1]) + " 0"
                         else:
                             vtktxt += f2s(u[point][0]) + " " + f2s(u[point][1]) + " " + f2s(u[point][2])
@@ -158,7 +158,7 @@ def storeInVTK(u, filename, writePointData = False):
                 if scalarValue:
                     vtktxt += f2s(u[elementIndex]) + "\n"
                 else:
-                    if mesh()['problemDimension'] == 2:
+                    if getMesh()['problemDimension'] == 2:
                         vtktxt += f2s(u[elementIndex][0]) + " " + f2s(u[elementIndex][1]) + " 0"
                     else:
                         vtktxt += f2s(u[elementIndex][0]) + " " + f2s(u[elementIndex][1]) + " " + f2s(u[elementIndex][2])

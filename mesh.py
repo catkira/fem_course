@@ -12,9 +12,19 @@ import region
 from utils import *
 
 mesh = dict()
+mesh['xp'] = np.empty(0)
+mesh['pt'] = np.empty(0)
+mesh['ptt'] = np.empty(0)
+mesh['eb'] = []
+mesh['ett'] = []
+mesh['pe'] = np.empty(0)
+mesh['signs2d'] = []
+mesh['signs3d'] = []
+mesh['problemDimension'] = 3
 
-def mesh():
-    return mesh
+
+def getMesh():
+    return mesh    
 
 def numberOfVertices():
     global mesh
@@ -30,7 +40,7 @@ def numberOfTetraeders():
 
 def numberOfEdges():
     global mesh
-    return mesh['ett'].shape[0]
+    return mesh['pe'].shape[0]
 
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from edges to points, every row contains two points which form an edge
@@ -277,7 +287,10 @@ def rectangularCriss(w, h):
     G['pt'] = np.array(G['pt'])
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
     G['problemDimension'] = 2    
+    G['pe'] = np.zeros(0)    
     mesh = G
+    import dofManager as dm
+    dm.resetDofManager()
     stop = time.time()
     print(f'loaded mesh in {stop - start:.2f} s')    
     printMeshInfo()
@@ -316,9 +329,12 @@ def loadMesh(filename):
     mesh['meshio'] = meshioMesh # will be removed later
     mesh['eb'] = []
     mesh['ett'] = []
-    mesh['pe'] = []
+    mesh['pe'] = np.zeros(0)
     mesh['signs2d'] = []
     mesh['signs3d'] = []
+    computeEdges3d()    
+    import dofManager as dm
+    dm.resetDofManager()
     stop = time.time()
     print(f"loaded mesh {bcolors.OKCYAN}{filename}{bcolors.ENDC} in {stop - start:.2f} s")    
     printMeshInfo()
