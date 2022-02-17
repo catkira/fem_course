@@ -19,7 +19,8 @@ def main():
         run_bookExample2(False, anisotropicInclusion=True, method='petsc')     
         run_bookExample2(False, anisotropicInclusion=True, method='petsc', mesh='criss')    
 
-        run_h_magnet()
+        run_h_magnet(dirichlet='soft')
+        run_h_magnet(dirichlet='hard')
     print('finished')
 
 if __name__ == "__main__":

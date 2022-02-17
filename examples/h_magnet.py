@@ -71,4 +71,4 @@ def run_h_magnet(verify=False, dirichlet='soft'):
 
 
 if __name__ == "__main__":
-    run_h_magnet(dirichlet='hard')  # WIP
+    run_h_magnet(dirichlet='hard')
