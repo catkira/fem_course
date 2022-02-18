@@ -29,7 +29,7 @@ def main():
         run_h_magnet(dirichlet='soft')
         run_h_magnet(dirichlet='hard')
 
-        run_magnet_in_room(dirichlet='hard')
+        run_magnet_in_room()
     print('finished')
 
 if __name__ == "__main__":
