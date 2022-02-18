@@ -58,13 +58,12 @@ class FieldHCurl:
             # TODO
         elif dim == 3:
             elements = getMesh()['ett']
-            curls = np.zeros((elements.shape[0],3))
             sfCurls = self.shapeFunctionCurls(dim)
             jacs = transformationJacobians([], dim)
             detJacs = np.linalg.det(jacs)
             signs = getMesh()['signs3d']
-            curls2 = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
-        return curls2
+            curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
+        return curls
 
 class FieldH1:    
     def __init__(self):

@@ -60,15 +60,13 @@ def run_h_magnet(verify=False, dirichlet='soft'):
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
     u = solve(A, rhs, 'petsc')    
-    if dirichlet == 'hard':
-        u = translateDofIndices(u, 'backwards')
     print(f'max(u) = {max(u)}')
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
 
 
 if __name__ == "__main__":
-    run_h_magnet(dirichlet='soft')
+    run_h_magnet(dirichlet='hard')

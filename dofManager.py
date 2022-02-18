@@ -14,9 +14,9 @@ dofManagerData = DofManagerData()
 
 def countAllDofs():
     if field.elementType == 0:
-        return len(m.getMesh()['xp'])
+        return m.numberOfVertices()
     elif field.elementType == 1:
-        return len(m.getMesh()['pe'])
+        return m.numberOfEdges()
 
 def countFreeDofs():
     if field.elementType == 0:
@@ -37,13 +37,13 @@ def resetDofManager():
 def translateDofIndices(elements, dir='forward'):
     mask = freeDofMask()
     if dir == 'forward':
-        idx = np.repeat(0, countAllDofs()).astype(np.int)
+        idx = np.repeat(-1, countAllDofs()).astype(np.int)
         addr = 0
         for id in range(len(idx)):
             if mask[id]:
                 idx[id] = addr
                 addr += 1
-        elements = np.take(idx, elements.ravel()).reshape(elements.shape)
+        elements2 = np.take(idx, elements.ravel()).reshape(elements.shape)
     else:
         elements2 = np.zeros(countAllDofs())
         id = 0
@@ -53,8 +53,7 @@ def translateDofIndices(elements, dir='forward'):
                 id += 1
             else:
                 pass  # TODO implement inhomogeneous Dirichlet BCs
-        elements = elements2
-    return elements
+    return elements2
 
 # TODO implement inhomogeneous Dirichlet BCs
 def setDirichlet(regions, value = []):
@@ -68,11 +67,9 @@ def setDirichlet(regions, value = []):
     elementType = field.elementType
     if meshDim == 3:
         if elementType == 0:
-            boundaryElements = m.getMesh()['pt']
-            dofManagerData.freeNodesMask[np.unique(boundaryElements.ravel())] = False
+            dofManagerData.freeNodesMask[np.unique(m.getMesh()['pt'][dofManagerData.dirichletMask].ravel())] = False
         elif elementType == 1:
-            boundaryElements = m.getMesh()['et']
-            dofManagerData.freeEdgesMask[np.unique(boundaryElements.ravel())] = False
+            dofManagerData.freeEdgesMask[np.unique(m.getMesh()['et'][dofManagerData.dirichletMask].ravel())] = False
     else:
         print("Error: not implemented!")
         sys.exit()

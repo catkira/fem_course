@@ -58,8 +58,6 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     u = solve(A, rhs, 'petsc')    
-    if dirichlet == 'hard':
-        u = translateDofIndices(u, 'backwards')    
     storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)
     storeInVTK(h, "h_magnet_octant_h.vtk")
