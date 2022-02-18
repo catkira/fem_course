@@ -33,6 +33,13 @@ Planned features:
     pip install mpi4py 
     pip install  -v petsc
     pip install  -v petsc4py
+    
+# Examples
+examples/h_magnet.py
+![h_magnet](https://github.com/catkira/fem_course/blob/master/examples/h_magnet.png?raw=true)
+examples/magnet_in_room.py
+![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magnet_in_room.png?raw=true)
+
 
 # Recommended literature/papers
 - Inside Finite Elements by Martin Weiser
