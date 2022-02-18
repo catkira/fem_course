@@ -30,7 +30,7 @@ Planned features:
     pip install  -v petsc
     pip install  -v petsc4py
 
-# Used and recommended literature/papers
+# Recommended literature/papers
 - Inside Finite Elements by Martin Weiser
 - Finite-Elemente-Methode by Jörg Frochte
 - [A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
