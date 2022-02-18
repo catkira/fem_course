@@ -1,3 +1,21 @@
+# What is this?
+This is a minimal FEM implementation entirely in Python. It is only an educational project with the goal to better understand FEM in the context of electromagnetic fields. Even though it is not particularly speed optimized, vectorized assembly with numpy and petsc4py for solving is used so that the speed is reasonable fast (I have used up to 200k elements, but 1M elements should also work).
+This is not intended to be used for real applications, there are plenty of open source FEM tools with much more features available - I think the best one is sparselizard.
+Features implemented so far are:
+- phi-formulation for magnetostatics
+- A-formulation for magnetostatics
+- 1st order node and edge elements
+- homogeneous Dirichlet boundary conditions
+- mesh import from GMSH including use of physical regions
+- solution export as vtk-file for ParaView
+
+Planned features:
+- tree-cotree gauge
+- higher order elements
+- eddy current example in A-phi-formulation
+- pos-file export for GMSH
+- inhomogeneous Dirichlet boundary conditions
+
 # Install on Ubuntu 18
     sudo apt update
     sudo apt install -y software-properties-common lsb-release
@@ -15,3 +33,9 @@
     pip install mpi4py 
     pip install  -v petsc
     pip install  -v petsc4py
+
+# Recommended literature/papers
+- Inside Finite Elements by Martin Weiser
+- Finite-Elemente-Methode by Jörg Frochte
+- [A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
+- [Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements](https://arxiv.org/abs/1409.4618)
