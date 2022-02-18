@@ -44,5 +44,7 @@ examples/magnet_in_room.py
 # Recommended literature/papers
 - Inside Finite Elements by Martin Weiser
 - Finite-Elemente-Methode by Jörg Frochte
+- Numerische Methoden in der Berechnung elektromagnetischer Felder by Arnulf Kost
+- Die Finite-Elemente Methode für Anfänger by Goering, Roos, Lutz
 - [A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
 - [Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements](https://arxiv.org/abs/1409.4618)
