@@ -14,6 +14,7 @@ Planned features:
 - higher order elements
 - eddy current example in A-phi-formulation
 - pos-file export for GMSH
+- inhomogeneous Dirichlet boundary conditions
 
 # Install on Ubuntu 18
     sudo apt update
