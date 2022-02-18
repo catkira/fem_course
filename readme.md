@@ -5,7 +5,12 @@ Features implemented so far are:
 - phi-formulation for magnetostatics
 - A-formulation for magnetostatics
 - 1st order node and edge elements
-- Homogeneous Dirichlet boundary conditions
+- homogeneous Dirichlet boundary conditions
+
+Planned features:
+- tree-cotree gauge
+- higher order elements
+- eddy current example in A-phi-formulation
 
 # Install on Ubuntu 18
     sudo apt update
@@ -24,3 +29,9 @@ Features implemented so far are:
     pip install mpi4py 
     pip install  -v petsc
     pip install  -v petsc4py
+
+# Used and recommended literature/papers
+- Inside Finite Elements by Martin Weiser
+- Finite-Elemente-Methode by Jörg Frochte
+- [A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
+- [Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements](https://arxiv.org/abs/1409.4618)
