@@ -1,3 +1,11 @@
+# What is this?
+This is a minimal FEM implementation entirely in Python. It is only an educational project with the goal to understand better FEM in the context of electromagnetic fields. This is not intended to be used for real application, there are plenty of open source FEM tools with much more features available - I think the best one is sparselizard.
+Features implemented so far are:
+- phi-formulation for magnetostatics
+- A-formulation for magnetostatics
+- 1st order node and edge elements
+- Homogeneous Dirichlet boundary conditions
+
 # Install on Ubuntu 18
     sudo apt update
     sudo apt install -y software-properties-common lsb-release
