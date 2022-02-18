@@ -9,7 +9,7 @@ import time
 import sys
 import pkg_resources
 from scipy.sparse import *
-from dofManager import freeDofMask, translateDofIndices
+from dofManager import countFreeDofs, freeDofMask, translateDofIndices
 
 from parameter import *
 from region import Region
@@ -504,6 +504,7 @@ def solve(A, b, method='np'):
         print("unknown method")
         sys.exit()
     numDofs = len(u)
+    assert numDofs == countFreeDofs()
     #        
     u = translateDofIndices(u, 'backwards')   
     #
