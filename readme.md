@@ -6,11 +6,14 @@ Features implemented so far are:
 - A-formulation for magnetostatics
 - 1st order node and edge elements
 - homogeneous Dirichlet boundary conditions
+- mesh import from GMSH including use of physical regions
+- solution export as vtk-file for ParaView
 
 Planned features:
 - tree-cotree gauge
 - higher order elements
 - eddy current example in A-phi-formulation
+- pos-file export for GMSH
 
 # Install on Ubuntu 18
     sudo apt update
