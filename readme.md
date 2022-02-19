@@ -8,9 +8,9 @@ Features implemented so far are:
 - homogeneous Dirichlet boundary conditions
 - mesh import from GMSH including use of physical regions
 - solution export as vtk-file for ParaView
+- tree-cotree gauge
 
 Planned features:
-- tree-cotree gauge
 - higher order elements
 - eddy current example in A-phi-formulation
 - pos-file export for GMSH
