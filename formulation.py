@@ -251,7 +251,7 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     return rhs
 
 # integral j * tf(u)
-def currentRhsCurl(field, j, region=[], vectorized=True):
+def rhsCurl(field, j, region=[], vectorized=True):
     if region == []:
         elements = getMesh()['pt']
     else:
@@ -267,19 +267,16 @@ def currentRhsCurl(field, j, region=[], vectorized=True):
         nBasis = 6
         elementDim = 3
         signs = getMesh()['signs3d']
-    vals = field.shapeFunctionValues(elementDim)    
     jacs = transformationJacobians([], elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
+    vals = field.shapeFunctionValues(elementDim)    
 
     numAllDofs = len(elements)
     elements = translateDofIndices(elements)
 
-    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, vals))
-    rows = elements.ravel(order='C')
-    data = np.zeros((numAllDofs,nBasis))
-    for basis in range(nBasis):
-        data[:,basis] = np.einsum('ij,ij->i', j, temp[:,:,basis])
-    data = data.ravel(order='C')        
+    # TODO
+    #   
+
     n = countFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]

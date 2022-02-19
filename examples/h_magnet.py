@@ -10,7 +10,7 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def run_h_magnet(verify=False, dirichlet='soft'):
+def run_h_magnet(verify=False, dirichlet='soft', gauge=True):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -41,9 +41,11 @@ def run_h_magnet(verify=False, dirichlet='soft'):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    #spanningtree = st.spanningtree()
-    #spanningtree.write("h_magnet_spanntree.pos")
     field = FieldHCurl()
+    if gauge:
+        spanningtree = st.spanningtree(excludedRegions=[inf]) # regions with Dirichlet BCs need to be excluded!
+        spanningtree.write("h_magnet_spanntree.pos")
+        setGauge(spanningtree)
     if dirichlet == 'soft':
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
@@ -65,7 +67,10 @@ def run_h_magnet(verify=False, dirichlet='soft'):
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
+    if isGauged():
+        assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1931) < 2e-3)
+    else:
+        assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
 
 
 if __name__ == "__main__":

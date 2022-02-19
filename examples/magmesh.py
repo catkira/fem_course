@@ -43,12 +43,12 @@ def run_maggmesh(verify=False, dirichlet='soft'):
         alpha.set(inf, 1e9) # Dirichlet BC
         B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
         K = stiffnessMatrixCurl(field, nu, volumeRegion)
-        rhs = currentRhsCurl(field, currentDensity, volumeRegion)    
+        rhs = rhsCurl(field, currentDensity, volumeRegion)    
         A = K+B    
     else:
         setDirichlet([inf])
         K = stiffnessMatrixCurl(field, nu, volumeRegion)
-        rhs = currentRhsCurl(field, currentDensity, volumeRegion)    
+        rhs = rhsCurl(field, currentDensity, volumeRegion)    
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       

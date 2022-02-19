@@ -9,6 +9,7 @@ class DofManagerData:
         self.freeEdgesMask = np.repeat(True, m.numberOfEdges())
         if m.getMesh()['problemDimension'] == 3:
             self.dirichletMask = np.repeat(False, m.numberOfTriangles()) # assume dirichlet BCs are always on problemDimension -1
+        self.isGauged = False
 
 dofManagerData = DofManagerData()
 
@@ -76,5 +77,9 @@ def setDirichlet(regions, value = []):
     
 
 def setGauge(tree):
-    print("Error: not implemented!")
-    sys.exit()
+    global dofManagerData
+    dofManagerData.freeEdgesMask[tree.branches] = False
+    dofManagerData.isGauged = True
+
+def isGauged():
+    return dofManagerData.isGauged

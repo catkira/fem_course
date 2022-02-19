@@ -27,6 +27,7 @@ def main():
         run_h_magnet_octant(vectorized=False, legacy=True)
 
         run_h_magnet(dirichlet='soft')
+        run_h_magnet(dirichlet='soft', gauge=False)
         run_h_magnet(dirichlet='hard')
 
         run_magnet_in_room()
