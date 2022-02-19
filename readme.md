@@ -33,9 +33,20 @@ Planned features:
     pip install mpi4py 
     pip install  -v petsc
     pip install  -v petsc4py
+    
+# Examples
+examples/h_magnet.py
+![h_magnet](https://github.com/catkira/fem_course/blob/master/examples/h_magnet.png?raw=true)
+examples/magnet_in_room.py
+![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magnet_in_room.png?raw=true)
+
 
 # Recommended literature/papers
 - Inside Finite Elements by Martin Weiser
 - Finite-Elemente-Methode by Jörg Frochte
-- [A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
-- [Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements](https://arxiv.org/abs/1409.4618)
+- Numerische Methoden in der Berechnung elektromagnetischer Felder by Arnulf Kost
+- Die Finite-Elemente Methode für Anfänger by Goering, Roos, Lutz
+- [Manges et al., A generalized tree-cotree gauge for magnetic field computation, 1995](https://ieeexplore.ieee.org/document/376275)
+- [Anjam et al., Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements, 2014](https://arxiv.org/abs/1409.4618)
+- [Cendes, Vector finite elements for electromagnetic field computation, 1991](https://ieeexplore.ieee.org/document/104970)
+- [Bossavit, A rationale for 'edge-elements' in 3-D fields computations, 1988](https://ieeexplore.ieee.org/document/43860)
