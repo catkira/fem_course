@@ -93,7 +93,7 @@ def computeEdges3d():
     start = time.time()
     # compute tetraeder-to-edges list
     if mesh['problemDimension'] == 3:
-        if True:
+        if 'ptt' in mesh:
             vertices3d = np.zeros((mesh['ptt'].shape[0]*6,2))
             vertices3d[0::6] = mesh['ptt'][:,[0,1]]            
             vertices3d[1::6] = mesh['ptt'][:,[0,2]]            
@@ -105,25 +105,8 @@ def computeEdges3d():
             _,J,I = np.unique(vertices3d, return_index=True, return_inverse=True, axis=0)
             mesh['ett'] = I.reshape(mesh['ptt'].shape[0],6)
             mesh['pe'] = vertices3d[J,:]
-        if False:
-            mesh['ett'] = np.zeros((numberOfTetraeders(), 6))
-            mesh['pe'] = []
-            E = dok_matrix((len(mesh['xp']),len(mesh['xp'])),dtype=np.int64)    # dok_matrix is faster here than lil_matrix
-            edgePoints = np.array([[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]])
-            allEdges = mesh['ptt'][:,edgePoints]        
-            allEdges.sort(axis=2)    # make sure lowest edge index is in front        
-            for tetraederIndex, edges in enumerate(allEdges):
-                for edgeIndex, edge in enumerate(edges):
-                    storedIndex = E[edge[0],edge[1]]
-                    if storedIndex == 0:
-                        globalEdgeIndex = len(mesh['pe']) 
-                        mesh['ett'][tetraederIndex][edgeIndex] = globalEdgeIndex
-                        mesh['pe'].append(edge)
-                        E[edge[0],edge[1]] = globalEdgeIndex + 1
-                    else:
-                        mesh['ett'][tetraederIndex][edgeIndex] = storedIndex - 1
-     # compute triangle-to-edges list
-        if True:
+        # compute triangle-to-edges list
+        if 'pt' in mesh:
             vertices2d = np.zeros((mesh['pt'].shape[0]*3,2))
             vertices2d[0::3] = mesh['pt'][:,[1,2]]            
             vertices2d[1::3] = mesh['pt'][:,[2,0]]            
@@ -133,20 +116,6 @@ def computeEdges3d():
             _,J,I = np.unique(verticesMixed, return_index=True, return_inverse=True, axis=0)
             mesh['et'] = I[mesh['ett'].shape[0]*6:].reshape(mesh['pt'].shape[0],3)
             mesh['pe'] = verticesMixed[J,:]  # there should not be much new edges from surface elements, but it can happen
-        if False:      
-            for triangleIndex, triangle in enumerate(mesh['pt']):
-                mesh['et'] = np.zeros((numberOfTriangles(), 3))  
-                for edgeIndex in range(3):
-                    lowIndex = triangle[edgeIndex]
-                    edgeIndex = edgeIndex + 1 if edgeIndex < 2 else 0
-                    highIndex = triangle[edgeIndex]
-                    if lowIndex > highIndex:
-                        lowIndex, highIndex = highIndex, lowIndex
-                    if E[lowIndex, highIndex] == 0:
-                        print("Error: all edges should be contained in volume elements!")
-                        sys.abort()
-                    else:
-                        mesh['et'][triangleIndex][edgeIndex] = E[highIndex, lowIndex] - 1
     stop = time.time()
     mesh['pe'] = np.array(mesh['pe'])
     numEdges = len(mesh['pe'])
@@ -304,18 +273,16 @@ def loadMesh(filename):
         problemDimension = 3
     else:
         problemDimension = 2
-    if problemDimension == 2 or problemDimension == 3:
-        G['xp'] = meshioMesh.points[:,0:2] # take only x,y coordinates
-        if 'line' in meshioMesh.cells_dict:
-            G['pl'] = meshioMesh.cells_dict['line']
+    if 'line' in meshioMesh.cells_dict:
+        G['pl'] = meshioMesh.cells_dict['line']
+    if 'triangle' in meshioMesh.cells_dict:
         G['pt'] = meshioMesh.cells_dict['triangle']
-    if problemDimension == 3:
-        G['xp'] = meshioMesh.points
-        if 'line' in meshioMesh.cells_dict:
-            G['pl'] = meshioMesh.cells_dict['line']
-        if 'triangle' in meshioMesh.cells_dict:
-           G['pt'] = meshioMesh.cells_dict['triangle']
+    if 'tetra' in meshioMesh.cells_dict:
         G['ptt'] = meshioMesh.cells_dict['tetra']
+    if problemDimension == 2:
+        G['xp'] = meshioMesh.points[:,0:2] # take only x,y coordinates
+    elif problemDimension == 3:
+        G['xp'] = meshioMesh.points
     #G['physical'] = meshioMesh.cell_data['gmsh:physical']
     G['physical'] = [np.empty(0), np.empty(0), np.empty(0)]
     if 'line' in meshioMesh.cell_data_dict['gmsh:physical']:

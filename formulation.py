@@ -250,6 +250,45 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
     return rhs
 
+# integral j * tf(u)
+def currentRhsCurl(field, j, region=[], vectorized=True):
+    if region == []:
+        elements = getMesh()['pt']
+    else:
+        elements = region.getElements(edges=True)
+        j = j.getValues(region)
+    if getMesh()['problemDimension'] == 2:
+        area = 1/2
+        nBasis = 3
+        elementDim = 2
+        signs = getMesh()['signs2d']
+    else:
+        area = 1/6
+        nBasis = 6
+        elementDim = 3
+        signs = getMesh()['signs3d']
+    vals = field.shapeFunctionValues(elementDim)    
+    jacs = transformationJacobians([], elementDim)
+    detJacs = np.abs(np.linalg.det(jacs))
+
+    numAllDofs = len(elements)
+    elements = translateDofIndices(elements)
+
+    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, vals))
+    rows = elements.ravel(order='C')
+    data = np.zeros((numAllDofs,nBasis))
+    for basis in range(nBasis):
+        data[:,basis] = np.einsum('ij,ij->i', j, temp[:,:,basis])
+    data = data.ravel(order='C')        
+    n = countFreeDofs()
+    # delete all rows and cols with index -1
+    idx = np.where(rows == -1)[0]
+    rows = np.delete(rows, idx)
+    data = np.delete(data, idx)
+    #
+    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    return rhs    
+
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
