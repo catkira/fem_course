@@ -46,6 +46,7 @@ examples/magnet_in_room.py
 - Finite-Elemente-Methode by Jörg Frochte
 - Numerische Methoden in der Berechnung elektromagnetischer Felder by Arnulf Kost
 - Die Finite-Elemente Methode für Anfänger by Goering, Roos, Lutz
-- [Manges et al., A generalized tree-cotree gauge for magnetic field computation](https://ieeexplore.ieee.org/document/376275)
-- [Anjam et al., Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements](https://arxiv.org/abs/1409.4618)
-- [Cendes, Vector finite elements for electromagnetic field computation](https://ieeexplore.ieee.org/document/104970)
+- [Manges et al., A generalized tree-cotree gauge for magnetic field computation, 1995](https://ieeexplore.ieee.org/document/376275)
+- [Anjam et al., Fast MATLAB assembly of FEM matrices in 2D and 3D: Edge elements, 2014](https://arxiv.org/abs/1409.4618)
+- [Cendes, Vector finite elements for electromagnetic field computation, 1991](https://ieeexplore.ieee.org/document/104970)
+- [Bossavit, A rationale for 'edge-elements' in 3-D fields computations, 1988](https://ieeexplore.ieee.org/document/43860)
