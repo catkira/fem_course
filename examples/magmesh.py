@@ -40,7 +40,7 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
 
     if gauge:
         spanningtree = st.spanningtree([inf])
-        #spanningtree.write("magmesh_spanntree.pos")
+        spanningtree.write("magmesh_spanntree.pos")
         setGauge(spanningtree)
     field = FieldHCurl()
     if dirichlet == 'soft':
@@ -68,4 +68,4 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
 
 
 if __name__ == "__main__":
-    run_maggmesh(dirichlet='hard', gauge=False, coarse=False)
+    run_maggmesh(dirichlet='hard', gauge=True, coarse=False)
