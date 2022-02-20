@@ -10,8 +10,11 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def run_maggmesh(verify=False, dirichlet='soft'):
-    loadMesh("examples/magmesh.msh")
+def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
+    if coarse:
+        loadMesh("examples/magmesh_coarse.msh")
+    else:
+        loadMesh("examples/magmesh_coarse.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
     # regions
@@ -35,8 +38,10 @@ def run_maggmesh(verify=False, dirichlet='soft'):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    #spanningtree = st.spanningtree()
-    #spanningtree.write("magmesh_spanntree.pos")
+    if gauge:
+        spanningtree = st.spanningtree([inf])
+        #spanningtree.write("magmesh_spanntree.pos")
+        setGauge(spanningtree)
     field = FieldHCurl()
     if dirichlet == 'soft':
         alpha = Parameter()
