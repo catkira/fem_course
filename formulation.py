@@ -258,27 +258,31 @@ def rhsCurl(field, j, region=[], vectorized=True):
         elements = region.getElements(edges=True)
         j = j.getValues(region)
     if getMesh()['problemDimension'] == 2:
-        area = 1/2
         nBasis = 3
         elementDim = 2
         signs = getMesh()['signs2d']
     else:
-        area = 1/6
         nBasis = 6
         elementDim = 3
         signs = getMesh()['signs3d']
     integrationOrder = 1
     gfs,gps = gaussData(integrationOrder, elementDim)        
     jacs = transformationJacobians([], elementDim)
+    invJacs = np.linalg.inv(jacs)     
     detJacs = np.abs(np.linalg.det(jacs))
 
-    numAllDofs = len(elements)
     elements = translateDofIndices(elements)
+    data = np.zeros((len(elements),nBasis))
+    rows = elements.ravel(order='C')
+    
+    # here only the rotation part of the affine transformation need to be considered for j
+    # because j is already given for every element
+    jTransformed = np.einsum('ikj,ik->ij',invJacs,j)
 
-    for i,gp in enumerate(gps):
+    for i, gp in enumerate(gps):
         for m in range(nBasis):
-            gfs[i] * np.einsum('i,j->ij', j, field.shapeFunctionValues(gp, elementDim)[:,m])
-
+            data[:,m] += gfs[i] * np.einsum('i,ij,i,j->i', detJacs, jTransformed, signs[:,m], field.shapeFunctionValues(gp, elementDim)[m,:])
+    data = data.ravel(order='C')
     n = countFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]
