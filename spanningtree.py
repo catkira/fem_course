@@ -1,5 +1,6 @@
 import mesh as m
 import numpy as np
+import sys
 
 # TODO add parameter to start growing the tree in a specified regions first
 # so that no closed loops are created when DirichletBCs are applied in those regions

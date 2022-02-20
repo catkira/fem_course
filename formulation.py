@@ -267,15 +267,17 @@ def rhsCurl(field, j, region=[], vectorized=True):
         nBasis = 6
         elementDim = 3
         signs = getMesh()['signs3d']
+    integrationOrder = 1
+    gfs,gps = gaussData(integrationOrder, elementDim)        
     jacs = transformationJacobians([], elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
-    vals = field.shapeFunctionValues(elementDim)    
 
     numAllDofs = len(elements)
     elements = translateDofIndices(elements)
 
-    # TODO
-    #   
+    for i,gp in enumerate(gps):
+        for m in range(nBasis):
+            gfs[i] * np.einsum('i,j->ij', j, field.shapeFunctionValues(gp, elementDim)[:,m])
 
     n = countFreeDofs()
     # delete all rows and cols with index -1
