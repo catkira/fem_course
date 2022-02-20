@@ -277,7 +277,7 @@ def rhsCurl(field, j, region=[], vectorized=True):
     
     # here only the rotation part of the affine transformation need to be considered for j
     # because j is already given for every element
-    jTransformed = np.einsum('ikj,ik->ij',invJacs,j)
+    jTransformed = np.einsum('ijk,ik->ij',invJacs,j)
 
     for i, gp in enumerate(gps):
         for m in range(nBasis):

@@ -14,7 +14,7 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     if coarse:
         loadMesh("examples/magmesh_coarse.msh")
     else:
-        loadMesh("examples/magmesh_coarse.msh")
+        loadMesh("examples/magmesh.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
     # regions
@@ -63,9 +63,9 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "magmesh_b.vtk")
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
+    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.8f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
 
 
 if __name__ == "__main__":
-    run_maggmesh(dirichlet='hard')
+    run_maggmesh(dirichlet='hard', gauge=False, coarse=False)
