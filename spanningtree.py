@@ -12,6 +12,7 @@ class spanningtree:
         self.graph = np.copy(m.mesh['pe'])
         self.graphSorted2 = np.column_stack([m.mesh['pe'], np.arange(m.mesh['pe'].shape[0])])[m.mesh['pe'][:, 1].argsort()]
         self.isNodeInTree = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
+        self.idx = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
 
         # exclude excluded Regions by setting the nodes of those regions in isNodeInTree to true
         for region in excludedRegions:
@@ -35,71 +36,92 @@ class spanningtree:
         if self.edges == []:
             print('Error: no start edge for tree found!')
             sys.exit()
-        
-        self.newEdges = self.edges
+
         self.branches = np.empty(0, dtype=np.int)
-        generation = 0
-        while len(self.newEdges) != 0:
-            self.growTree()
-            print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
-            generation = generation + 1
+
+        if False: # the recursive version is about 2x slower than the iterative version
+            sys.setrecursionlimit(1000000)
+            self.growTreeRecursive(edge)
+        else:
+            self.newEdges = self.edges
+            generation = 0
+            while len(self.newEdges) != 0:
+                self.growTree()
+                print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
+                generation = generation + 1
         numNodes = len(np.unique(self.edges.ravel()))
         duration = time.time() - start
         print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
         #print(f"len(edges) + len(branches) = {len(self.branches)+len(self.edges)}")
 
     def getConnectedNodes(self, node):
-        idx = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
+        self.idx[:] = False
         if False:
-            idx[self.graph[self.graph[:,0] == node][:,1]] = True
-            idx[self.graph[self.graph[:,1] == node][:,0]] = True
+            self.idx[self.graph[self.graph[:,0] == node][:,1]] = True
+            self.idx[self.graph[self.graph[:,1] == node][:,0]] = True
         if False: # this is a bit faster
-            idx[self.graph[np.where(self.graph[:,0] == node)][:,1]] = True
-            idx[self.graph[np.where(self.graph[:,1] == node)][:,0]] = True
+            self.idx[self.graph[np.where(self.graph[:,0] == node)][:,1]] = True
+            self.idx[self.graph[np.where(self.graph[:,1] == node)][:,0]] = True
         if True: # this is a bit more faster
             firstMatch = np.searchsorted(self.graph[:,0], node)
             while ((firstMatch < self.graph.shape[0]) and self.graph[firstMatch,0] == node):
-                idx[self.graph[firstMatch,1]] = True
+                self.idx[self.graph[firstMatch,1]] = True
                 firstMatch += 1
             firstMatch = np.searchsorted(self.graphSorted2[:,1], node)
             while ((firstMatch < self.graph.shape[0]) and self.graphSorted2[firstMatch,1] == node):
-                idx[self.graph[self.graphSorted2[firstMatch,2],0]] = True
+                self.idx[self.graph[self.graphSorted2[firstMatch,2],0]] = True
                 firstMatch += 1
-        return idx
+        if False: # this is slower than above
+            left = np.searchsorted(self.graph[:,0], node, 'left')
+            right = np.searchsorted(self.graph[:,0], node, 'right')
+            self.idx[self.graph[left:right,1]] = True
+            left = np.searchsorted(self.graphSorted2[:,1], node, 'left')
+            right = np.searchsorted(self.graphSorted2[:,1], node, 'right')
+            self.idx[self.graph[self.graphSorted2[left:right,2],0]] = True
+        return self.idx
 
-    def addBranch(self, nodes):
-        if nodes[0] > nodes[1]:
-            nodes[0],nodes[1] = nodes[1], nodes[0]
-        self.branches = np.append(self.branches, np.where((m.mesh['pe'] == [nodes]).all(axis=1)))
+    def addBranch(self, edge):
+        if edge[0] > edge[1]:
+            edge[0],edge[1] = edge[1], edge[0]
+        self.branches = np.append(self.branches, np.where((m.mesh['pe'] == [edge]).all(axis=1)))
 
     def growTree(self):
         # add edges that dont create circles
-            # get all candidate nodesu8 mk 
+            # get all candidate nodes
             # filter out circles
             # add candidates
         newEdges2 = np.empty((0,2))
-        a = 0
-        b = 0
-        for node in self.newEdges:
-            start = time.time()
-            indices = self.getConnectedNodes(node[1]) # this function needs to be optimized
-            a += time.time() - start
-            start = time.time()
-            if np.count_nonzero(indices) == 0:
-                self.addBranch(node)
+        for edge in self.newEdges:
+            self.getConnectedNodes(edge[1]) # this function needs to be optimized
+            if np.count_nonzero(self.idx) == 0:
+                self.addBranch(edge)
                 continue
-            filteredCands = indices & np.invert(self.isNodeInTree)
+            filteredCands = self.idx & np.invert(self.isNodeInTree)
             if np.count_nonzero(filteredCands) == 0:
-                self.addBranch(node)
+                self.addBranch(edge)
                 continue
             self.isNodeInTree[filteredCands] = True
             newEdges2 = np.row_stack((newEdges2, 
-                np.column_stack([np.ones(np.count_nonzero(filteredCands))*node[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])))
-            b += time.time() - start
-        print(f"a={a:.4f} b={b:.4f}")
+                np.column_stack([np.ones(np.count_nonzero(filteredCands))*edge[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])))
         self.newEdges = newEdges2
         self.edges = np.row_stack((self.edges, self.newEdges))
 
+    # recursive version of growTree()
+    def growTreeRecursive(self, edge):
+        self.getConnectedNodes(edge[1]) # this function needs to be optimized
+        if np.count_nonzero(self.idx) == 0:
+            self.addBranch(edge)
+            return
+        filteredCands = self.idx & np.invert(self.isNodeInTree)
+        if np.count_nonzero(filteredCands) == 0:
+            self.addBranch(edge)
+            return
+        self.isNodeInTree[filteredCands] = True
+        newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands))*edge[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])
+        self.edges = np.row_stack((self.edges, newEdges))        
+        for newEdge in newEdges:
+            self.growTreeRecursive(newEdge)
+    
     def write(self, filename):
         if self.edges == []:
             print("Warning: tree has no edges!")
