@@ -108,15 +108,17 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     if region == []:
         elements = getMesh()['pt']
+        elementDim = 2
+        jacs = transformationJacobians(elementDim=elementDim)
     else:
         elements = region.getElements()
+        elementDim = region.regionDimension
         sigmas = sigmas.getValues(region)
-    if getMesh()['problemDimension'] == 2:
-        elementDim = 2
+        jacs = transformationJacobians(region, elementDim=elementDim)
+    if elementDim == 2:
         nBasis = 3
         area = 1/2
-    elif getMesh()['problemDimension'] == 3:
-        elementDim = 3
+    elif elementDim == 3:
         nBasis = 4
         area = 1/6        
     # constrained elements will get index -1
@@ -129,7 +131,6 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     data = np.zeros(numElements*elementMatrixSize)    
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()       
-    jacs = transformationJacobians(elementDim=elementDim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
 
@@ -303,10 +304,12 @@ def loadRhs(field, j, region=[], vectorized=True):
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
         elements = getMesh()['pt']
+        elementDim = 2
     else:
         elements = region.getElements()
+        elementDim = region.regionDimension                 
         br = br.getValues(region)
-    if getMesh()['problemDimension'] == 2:
+    if elementDim == 2:
         zero = [0, 0]
         area = 1/2
         nBasis = 3
@@ -357,10 +360,13 @@ def fluxRhs(field, br, region=[], vectorized=True):
 def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
+        elementDim = getMesh['problemDimension']
+        jacs = transformationJacobians(elementDim=elementDim)
     elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
+        jacs = transformationJacobians(region, elementDim=elementDim)
     else:
         print("Error: unsupported paramter!")
         sys.exit()
@@ -381,7 +387,6 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     #
     n = countFreeDofs()        
     if elementDim == 2:
-        jacs = transformationJacobians(region, elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
         signs = getMesh()['signs2d'] 
@@ -431,14 +436,15 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
-    Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = np.array(region)
+        jacs = transformationJacobians(elements, elementDim=elementDim)        
     elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
+        jacs = transformationJacobians(region, elementDim=elementDim)        
     else:
         print("Error: unsupported paramter!")
         sys.exit()
@@ -465,11 +471,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
         sys.exit()
     elementMatrixSize = nBasis**2        
     data = np.zeros(len(elements)*nBasis**2)    
-    if elementDim == 1: # TODO: why can det(..) not be used here?
-        detJacs = np.abs(np.linalg.norm( getMesh()['xp'][elements[:,0]] - getMesh()['xp'][elements[:,1]], axis=1))
-    else:
-        jacs = transformationJacobians(elements, elementDim=elementDim)
-        detJacs = np.abs(np.linalg.det(jacs))        
+    detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     if vectorized:
