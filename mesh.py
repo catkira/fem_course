@@ -21,7 +21,7 @@ mesh['pe'] = np.empty(0)
 mesh['signs2d'] = []
 mesh['signs3d'] = []
 mesh['problemDimension'] = 3
-
+mesh['allPhysicalIds'] = np.empty((3,1),dtype=object)
 
 def getMesh():
     return mesh    
@@ -157,7 +157,6 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
-#TODO reg parameter does not work with edge elements
 def transformationJacobians(reg = [], elementDim=3):
     global mesh
     if reg == []:
@@ -166,9 +165,9 @@ def transformationJacobians(reg = [], elementDim=3):
         elif mesh['problemDimension'] == 3:
             ps = mesh['ptt']
     elif isinstance(reg, region.Region):
-        ps = reg.getElements()
+        ps = reg.getElements(nodesOnly=True)  # always take node elements, even if edge elements are used in the field!
     else:
-        ps = reg
+        ps = reg # reg has to be a list of node elements
     if elementDim == 2:
         x1 = mesh['xp'][ps[:,0],:]
         if mesh['problemDimension'] == 2:
@@ -257,6 +256,7 @@ def rectangularCriss(w, h):
     G['xp'] = G['xp']*1/np.max([G['xp'][:,0], G['xp'][:,1]]) # scale max dimension of grid to 1
     G['problemDimension'] = 2    
     G['pe'] = np.zeros(0)    
+    G['allPhysicalIds'] = np.empty((3,0))    
     mesh = G
     import dofManager as dm
     dm.resetDofManager()
@@ -285,12 +285,16 @@ def loadMesh(filename):
         G['xp'] = meshioMesh.points
     #G['physical'] = meshioMesh.cell_data['gmsh:physical']
     G['physical'] = [np.empty(0), np.empty(0), np.empty(0)]
+    mesh['allPhysicalIds'] = np.empty((3,1),dtype=object)
     if 'line' in meshioMesh.cell_data_dict['gmsh:physical']:
         G['physical'][0] = meshioMesh.cell_data_dict['gmsh:physical']['line']
+        mesh['allPhysicalIds'][0] = [np.unique(G['physical'][0])]
     if 'triangle' in meshioMesh.cell_data_dict['gmsh:physical']:
         G['physical'][1] = meshioMesh.cell_data_dict['gmsh:physical']['triangle']
+        mesh['allPhysicalIds'][1] = [np.unique(G['physical'][1])]
     if 'tetra' in meshioMesh.cell_data_dict['gmsh:physical']:
         G['physical'][2] = meshioMesh.cell_data_dict['gmsh:physical']['tetra']
+        mesh['allPhysicalIds'][1] = [np.unique(G['physical'][1])]
     G['problemDimension'] = problemDimension
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later

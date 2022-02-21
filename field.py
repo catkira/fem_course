@@ -1,8 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mesh import *
+import mesh as m
 
 elementType = 0
+
+def isEdgeField():
+    return elementType == 1
+
+def isNodeField():
+    return elementType == 0
+
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl:
@@ -29,11 +36,11 @@ class FieldHCurl:
         # shapeFunction_e1,e2 = lambda[e1]*grad(lambda[e2]) - lambda[e2]*grad(lambda[e1])
         # edges in tetraeda are ordered like (1,2), (2,0), (0,1)       
         if elementDim == 2:
-            if getMesh()['problemDimension'] == 2:
+            if m.getMesh()['problemDimension'] == 2:
                 return np.array([[-xi[1],    xi[0]],        # edge (1,2)
                                 [-xi[1],     xi[0]],        # edge (2,0)
                                 [1-xi[1],    xi[0]]])       # edge (0,1)
-            if getMesh()['problemDimension'] == 3:
+            if m.getMesh()['problemDimension'] == 3:
                 return np.array([[-xi[1],    xi[0],     0],
                                 [-xi[1],     xi[0]-1,   0],
                                 [1-xi[1],    xi[0],     0]])
@@ -53,15 +60,15 @@ class FieldHCurl:
 
     def curl(self, u, dim=3):
         if dim == 2:
-            m = numberOfEdges()
-            curls = np.zeros((m,1))
+            numEdges = m.numberOfEdges()
+            curls = np.zeros((numEdges,1))
             # TODO
         elif dim == 3:
-            elements = getMesh()['ett']
+            elements = m.getMesh()['ett']
             sfCurls = self.shapeFunctionCurls(dim)
-            jacs = transformationJacobians([], dim)
+            jacs = m.transformationJacobians([], dim)
             detJacs = np.linalg.det(jacs)
-            signs = getMesh()['signs3d']
+            signs = m.getMesh()['signs3d']
             curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         return curls
 
@@ -71,11 +78,11 @@ class FieldH1:
         elementType = 0
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:
-            if getMesh()['problemDimension'] == 2:
+            if m.getMesh()['problemDimension'] == 2:
                 return np.array([[-1, -1],
                                 [1, 0],
                                 [0, 1]])
-            elif getMesh()['problemDimension'] == 3:
+            elif m.getMesh()['problemDimension'] == 3:
                 return np.array([[-1, -1, 0],
                                 [1, 0, 0],
                                 [0, 1, 0]])
@@ -86,9 +93,9 @@ class FieldH1:
                             [0, 0, 1]])
 
     def shapeFunctionValues(self, xi, elementDim = 2):
-        if getMesh()['problemDimension'] == 2:        
+        if m.getMesh()['problemDimension'] == 2:        
             return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
-        elif getMesh()['problemDimension'] == 3:        
+        elif m.getMesh()['problemDimension'] == 3:        
             if elementDim == 2:
                 return [1, 0, 0] + self.shapeFunctionGradients(elementDim) @ xi
             elif elementDim == 3:
@@ -97,19 +104,17 @@ class FieldH1:
     # calculates gradient for each element
     def grad(self, u, dim=2):
         if dim == 2:
-            m = numberOfTriangles()
-            grads = np.zeros((m,3))
+            grads = np.zeros((m.numberOfTriangles(),3))
             sfGrads = self.shapeFunctionGradients(dim)
-            for elementIndex, element in enumerate(getMesh()['pt']):    
-                jac,_ = transformationJacobian(elementIndex)        
+            for elementIndex, element in enumerate(m.getMesh()['pt']):    
+                jac,_ = m.transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = np.append(invJac.T @ sfGrads.T @ u[element], 0)
         else:
-            m = numberOfTetraeders()
-            grads = np.zeros((m,3))
+            grads = np.zeros((m.numberOfTetraeders(),3))
             sfGrads = self.shapeFunctionGradients(dim)
-            for elementIndex, element in enumerate(getMesh()['ptt']):    
-                jac,_ = transformationJacobian(elementIndex)        
+            for elementIndex, element in enumerate(m.getMesh()['ptt']):    
+                jac,_ = m.transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
         return grads

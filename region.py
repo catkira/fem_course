@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import mesh as m
+import field
 
 regionList = []
 
@@ -20,14 +21,19 @@ class Region:
         else:
             self.ids.append(ids)
 
-    def getElements(self, edges=False):
+    # if elementType is not specified, take elementType of Field
+    def getElements(self, nodesOnly=False):
+        if nodesOnly == True:
+            edges = False
+        else:
+            edges = field.isEdgeField()
         if edges:
             if self.edgeElements == []:
-                self.calculateElements(edges)
+                self.calculateElements(edges=True)
             return np.array(self.edgeElements)
         else:
             if self.elements == []:
-                self.calculateElements(edges)
+                self.calculateElements()
             return np.array(self.elements)
 
     def calculateElements(self, edges=False):

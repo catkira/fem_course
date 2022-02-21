@@ -3,6 +3,7 @@ from examples.bookExample1 import run_bookExample1
 from examples.bookExample2 import *
 from examples.h_magnet_octant import *
 from examples.magnet_in_room import *
+from examples.magmesh import *
 from formulation import *
 
 def main():
@@ -26,11 +27,13 @@ def main():
         run_h_magnet_octant(vectorized=False)
         run_h_magnet_octant(vectorized=False, legacy=True)
 
-        run_h_magnet(dirichlet='soft')
-        run_h_magnet(dirichlet='soft', gauge=False)
-        run_h_magnet(dirichlet='hard')
+        #run_h_magnet(dirichlet='soft', gauge=True)  # this gives wrong result
+        run_h_magnet(dirichlet='soft', gauge=False, verify=True)
+        run_h_magnet(dirichlet='hard', gauge=True, verify=True)
 
         run_magnet_in_room()
+
+        run_magmesh(dirichlet='hard', gauge=True, coarse=False)
     print('finished')
 
 if __name__ == "__main__":

@@ -9,8 +9,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
 
-
-def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
+def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     if coarse:
         loadMesh("examples/magmesh_coarse.msh")
     else:
@@ -48,12 +47,12 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
         alpha.set(inf, 1e9) # Dirichlet BC
         B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
         K = stiffnessMatrixCurl(field, nu, volumeRegion)
-        rhs = rhsCurl(field, currentDensity, volumeRegion)    
+        rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K+B    
     else:
         setDirichlet([inf])
         K = stiffnessMatrixCurl(field, nu, volumeRegion)
-        rhs = rhsCurl(field, currentDensity, volumeRegion)    
+        rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
@@ -68,4 +67,4 @@ def run_maggmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
 
 
 if __name__ == "__main__":
-    run_maggmesh(dirichlet='hard', gauge=True, coarse=False)
+    run_magmesh(dirichlet='hard', gauge=True, coarse=False)

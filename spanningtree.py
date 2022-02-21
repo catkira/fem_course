@@ -39,7 +39,8 @@ class spanningtree:
 
         self.branches = np.empty(0, dtype=np.int)
 
-        if False: # the recursive version is about 2x slower than the iterative version
+        if False: 
+            # the recursive version is about 2x slower than the iterative version
             sys.setrecursionlimit(1000000)
             self.growTreeRecursive(edge)
         else:
