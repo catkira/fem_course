@@ -94,7 +94,7 @@ def computeEdges3d():
     # compute tetraeder-to-edges list
     if mesh['problemDimension'] == 3:
         if 'ptt' in mesh:
-            vertices3d = np.zeros((mesh['ptt'].shape[0]*6,2))
+            vertices3d = np.zeros((mesh['ptt'].shape[0]*6,2), dtype=np.int64)
             vertices3d[0::6] = mesh['ptt'][:,[0,1]]            
             vertices3d[1::6] = mesh['ptt'][:,[0,2]]            
             vertices3d[2::6] = mesh['ptt'][:,[0,3]]            
@@ -107,7 +107,7 @@ def computeEdges3d():
             mesh['pe'] = vertices3d[J,:]
         # compute triangle-to-edges list
         if 'pt' in mesh:
-            vertices2d = np.zeros((mesh['pt'].shape[0]*3,2))
+            vertices2d = np.zeros((mesh['pt'].shape[0]*3,2), dtype=np.int64)
             vertices2d[0::3] = mesh['pt'][:,[1,2]]            
             vertices2d[1::3] = mesh['pt'][:,[2,0]]            
             vertices2d[2::3] = mesh['pt'][:,[0,1]]            
@@ -296,7 +296,7 @@ def loadMesh(filename):
     mesh['meshio'] = meshioMesh # will be removed later
     mesh['eb'] = []
     mesh['ett'] = []
-    mesh['pe'] = np.zeros(0)
+    mesh['pe'] = np.zeros(0, dtype=np.int64)
     mesh['signs2d'] = []
     mesh['signs3d'] = []
     computeEdges3d()    

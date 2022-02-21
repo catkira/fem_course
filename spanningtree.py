@@ -1,13 +1,16 @@
 import mesh as m
 import numpy as np
 import sys
+import time
 
 # TODO add parameter to start growing the tree in a specified regions first
 # so that no closed loops are created when DirichletBCs are applied in those regions
 class spanningtree:
     def __init__(self, excludedRegions=[]):
         m.computeEdges3d()
-        self.graph = np.copy(m.mesh['pe']).astype(np.int)
+        start = time.time()
+        self.graph = np.copy(m.mesh['pe'])
+        self.graphSorted2 = np.column_stack([m.mesh['pe'], np.arange(m.mesh['pe'].shape[0])])[m.mesh['pe'][:, 1].argsort()]
         self.isNodeInTree = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
 
         # exclude excluded Regions by setting the nodes of those regions in isNodeInTree to true
@@ -41,14 +44,27 @@ class spanningtree:
             print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
             generation = generation + 1
         numNodes = len(np.unique(self.edges.ravel()))
-        print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed")
-        print(f"len(edges) + len(branches) = {len(self.branches)+len(self.edges)}")
+        duration = time.time() - start
+        print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
+        #print(f"len(edges) + len(branches) = {len(self.branches)+len(self.edges)}")
 
     def getConnectedNodes(self, node):
-        indices1 = m.mesh['pe'][m.mesh['pe'][:,0] == node][:,1]
-        indices2 = m.mesh['pe'][m.mesh['pe'][:,1] == node][:,0]
         idx = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
-        idx[np.append(indices1, indices2).astype(np.int)] = True
+        if False:
+            idx[self.graph[self.graph[:,0] == node][:,1]] = True
+            idx[self.graph[self.graph[:,1] == node][:,0]] = True
+        if False: # this is a bit faster
+            idx[self.graph[np.where(self.graph[:,0] == node)][:,1]] = True
+            idx[self.graph[np.where(self.graph[:,1] == node)][:,0]] = True
+        if True: # this is a bit more faster
+            firstMatch = np.searchsorted(self.graph[:,0], node)
+            while ((firstMatch < self.graph.shape[0]) and self.graph[firstMatch,0] == node):
+                idx[self.graph[firstMatch,1]] = True
+                firstMatch += 1
+            firstMatch = np.searchsorted(self.graphSorted2[:,1], node)
+            while ((firstMatch < self.graph.shape[0]) and self.graphSorted2[firstMatch,1] == node):
+                idx[self.graph[self.graphSorted2[firstMatch,2],0]] = True
+                firstMatch += 1
         return idx
 
     def addBranch(self, nodes):
@@ -56,26 +72,31 @@ class spanningtree:
             nodes[0],nodes[1] = nodes[1], nodes[0]
         self.branches = np.append(self.branches, np.where((m.mesh['pe'] == [nodes]).all(axis=1)))
 
-
     def growTree(self):
         # add edges that dont create circles
             # get all candidate nodesu8 mk 
             # filter out circles
             # add candidates
         newEdges2 = np.empty((0,2))
+        a = 0
+        b = 0
         for node in self.newEdges:
-            indices = self.getConnectedNodes(node[1])
+            start = time.time()
+            indices = self.getConnectedNodes(node[1]) # this function needs to be optimized
+            a += time.time() - start
+            start = time.time()
             if np.count_nonzero(indices) == 0:
-                #self.branches = np.row_stack((self.branches, node))
                 self.addBranch(node)
                 continue
-            filteredCands = (indices & np.invert(self.isNodeInTree)).astype(np.bool)
+            filteredCands = indices & np.invert(self.isNodeInTree)
             if np.count_nonzero(filteredCands) == 0:
                 self.addBranch(node)
-                #self.branches = np.row_stack((self.branches, node))
+                continue
             self.isNodeInTree[filteredCands] = True
             newEdges2 = np.row_stack((newEdges2, 
-                np.column_stack([np.ones(np.count_nonzero(filteredCands))*node[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]]))).astype(np.int)
+                np.column_stack([np.ones(np.count_nonzero(filteredCands))*node[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])))
+            b += time.time() - start
+        print(f"a={a:.4f} b={b:.4f}")
         self.newEdges = newEdges2
         self.edges = np.row_stack((self.edges, self.newEdges))
 
