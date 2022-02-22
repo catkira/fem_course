@@ -51,7 +51,7 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
         rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
         A = K+B    
     elif dirichlet == 'hard':
-        setDirichlet([inf, innerXYBoundary, magnetXYBoundary])        
+        field.setDirichlet([inf, innerXYBoundary, magnetXYBoundary])        
         K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
         rhs = fluxRhs(field, br, volumeRegion, vectorized=vectorized)    
         A = K
@@ -62,7 +62,6 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     h = -field.grad(u, dim=3)
     storeInVTK(h, "h_magnet_octant_h.vtk")
     mus = mu.getValues()  
-    m = numberOfTetraeders()       
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"h_magnet_octant_b.vtk")        
@@ -71,4 +70,4 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
 
 
 if __name__ == "__main__":
-    run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=False)
+    run_h_magnet_octant(dirichlet='hard', vectorized=True, legacy=False)

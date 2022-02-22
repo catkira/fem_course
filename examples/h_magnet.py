@@ -45,7 +45,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     if gauge:
         spanningtree = st.spanningtree(excludedRegions=[inf]) # regions with Dirichlet BCs need to be excluded!
         spanningtree.write("h_magnet_spanntree.pos")
-        setGauge(spanningtree)
+        field.setGauge(spanningtree)
     if dirichlet == 'soft':
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
@@ -54,7 +54,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         rhs = fluxRhsCurl(field, hr, volumeRegion)    
         A = K+B    
     else:
-        setDirichlet([inf])  # this has to come before any assembly!!!
+        field.setDirichlet([inf])  # this has to come before any assembly!!!
         K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
         rhs = fluxRhsCurl(field, hr, volumeRegion)    
         A = K

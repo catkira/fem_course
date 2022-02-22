@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mesh as m
+import dofManager as dm
 
 elementType = 0
 
@@ -10,12 +11,22 @@ def isEdgeField():
 def isNodeField():
     return elementType == 0
 
+class Field:
+    def __init__(self):
+        pass
+
+    def setDirichlet(self, regions):
+        dm.setDirichlet(regions)
+
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
-class FieldHCurl:
+class FieldHCurl(Field):
     def __init__(self):
+        super().__init__()
         global elementType
         elementType = 1
+    def setGauge(self, tree):
+        dm.setGauge(tree)        
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
             return np.array([2,
@@ -72,8 +83,9 @@ class FieldHCurl:
             curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         return curls
 
-class FieldH1:    
+class FieldH1(Field):    
     def __init__(self):
+        super().__init__()        
         global elementType
         elementType = 0
     def shapeFunctionGradients(self, elementDim = 2):

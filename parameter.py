@@ -123,7 +123,7 @@ def storeInVTK(u, filename, writePointData = False):
                     vtktxt += f2s(coords[0]) + " " + f2s(coords[1]) + " 0 "
                 else:
                     vtktxt += f2s(coords[0]) + " " + f2s(coords[1]) + " " + f2s(coords[2]) + " "
-            vtktxt += '\n'
+            vtktxt += '\n'             
         vtktxt += f'\nCELLS {m:d} {m*(ppe+1):d}\n'
         if ppe == 3:
             for elementIndex, element in enumerate(elementContainer):
@@ -178,9 +178,9 @@ def storeInVTKpv(u, filename, writePointData = False):
     #celltypes[:] = vtk.VTK_TRIANGLE    
     celltypes[:] = vtk.VTK_LAGRANGE_TRIANGLE    
     grid = pv.UnstructuredGrid(cells, celltypes, points)
-    if not isinstance(u, parameter):
+    if not isinstance(u, Parameter):
         grid.point_data["u"] = u
-    elif isinstance(u, parameter):
+    elif isinstance(u, Parameter):
         if writePointData:
             grid.point_data["u"] = u.getVertexValues()
         grid.cell_data["u"] = u.getValues()
@@ -192,8 +192,8 @@ def storeInVTKpv(u, filename, writePointData = False):
 def storeFluxInVTK(field, u, sigmas, filename):
     n = numberOfVertices()    
     m = numberOfTriangles()    
-    v = grad(field, u)   
-    if isinstance(sigmas, parameter):
+    v = field.grad(u)   
+    if isinstance(sigmas, Parameter):
         sigmaValues = sigmas.getValues()
     else:
         sigmaValues = sigmas
