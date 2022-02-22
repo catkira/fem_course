@@ -1,22 +1,26 @@
+import this
 import numpy as np
 import matplotlib.pyplot as plt
 import mesh as m
 import dofManager as dm
+import sys
 
+### these global variables should be eliminated
 elementType = 0
 
 def isEdgeField():
     return elementType == 1
-
-def isNodeField():
-    return elementType == 0
+###
 
 class Field:
     def __init__(self):
-        pass
+        self.elementType = 0
 
     def setDirichlet(self, regions):
         dm.setDirichlet(regions)
+
+    def isEdgeField(self):
+        return self.elementType 
 
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
@@ -25,8 +29,23 @@ class FieldHCurl(Field):
         super().__init__()
         global elementType
         elementType = 1
+        self.elementType = 1
+
     def setGauge(self, tree):
-        dm.setGauge(tree)        
+        dm.setGauge(tree)    
+
+    def getElements(self, dim : int = -1, region = -1):    
+        if region != -1:
+            if dim != -1:
+                print("Error: cannot set dim and region at the same time!")
+                sys.exit()
+            return region.getElements(field=self)
+        else:
+            if dim == 2:
+                return m.getMesh()['et']
+            elif dim == 3:
+                return m.getMesh()['ett']
+
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
             return np.array([2,
@@ -88,6 +107,20 @@ class FieldH1(Field):
         super().__init__()        
         global elementType
         elementType = 0
+        self.elementType = 0
+
+    def getElements(self, dim : int = -1, region = -1):    
+        if region != -1:
+            if dim != -1:
+                print("Error: cannot set dim and region at the same time!")
+                sys.exit()
+            return region.getElements(field=self)
+        else:
+            if dim == 2:
+                return m.getMesh()['pt']
+            elif dim == 3:
+                return m.getMesh()['ptt']
+
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:
             if m.getMesh()['problemDimension'] == 2:

@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import mesh as m
-import field
+import field as fd
 
 regionList = []
 
@@ -20,13 +20,17 @@ class Region:
                 self.ids.append(id)
         else:
             self.ids.append(ids)
+        self.updateRegionDimension()
 
     # if elementType is not specified, take elementType of Field
-    def getElements(self, nodesOnly=False):
+    def getElements(self, nodesOnly=False, field=-1):
         if nodesOnly == True:
             edges = False
         else:
-            edges = field.isEdgeField()
+            if field == -1: # this is used if only one global field is defined
+                edges = fd.isEdgeField()
+            else:
+                edges = field.isEdgeField()
         if edges:
             if self.edgeElements == []:
                 self.calculateElements(edges=True)
@@ -35,6 +39,15 @@ class Region:
             if self.elements == []:
                 self.calculateElements()
             return np.array(self.elements)
+
+    def updateRegionDimension(self):
+        for id in self.ids:
+            for dim in np.arange(start=1,stop=4):
+                if id in m.mesh['physical'][dim-1]:
+                    if self.regionDimension != 0 and self.regionDimension != dim:
+                        print("cannot mix dimensions in single region!")
+                        sys.exit()
+                    self.regionDimension = dim                    
 
     def calculateElements(self, edges=False):
         if edges:

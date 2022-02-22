@@ -46,11 +46,11 @@ def localCoordinate(G, t, x):
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     if region == []:
-        elements = getMesh()['ett']
         elementDim = getMesh()['problemDimension'] 
+        elements = field.getElements(dim = elementDim)
         jacs = transformationJacobians(elementDim=elementDim)
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         sigmas = sigmas.getValues(region)
         elementDim = region.regionDimension
         jacs = transformationJacobians(region, elementDim=elementDim)
@@ -104,11 +104,11 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     if region == []:
-        elements = getMesh()['pt']
         elementDim = 2
+        elements = field.getElements(dim = elementDim)
         jacs = transformationJacobians(elementDim=elementDim)
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         elementDim = region.regionDimension
         sigmas = sigmas.getValues(region)
         jacs = transformationJacobians(region, elementDim=elementDim)
@@ -214,9 +214,10 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     if region == []:
         elements = getMesh()['pt']
         elementDim = getMesh()['problemDimension']         
+        elements = field.getElements(dim = elementDim)        
         jacs = transformationJacobians([], elementDim)
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)        
         elementDim = region.regionDimension        
         jacs = transformationJacobians(region, elementDim)
         br = br.getValues(region)
@@ -252,11 +253,11 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
 # j contains a constant value for each element
 def loadRhs(field, j, region=[], vectorized=True):
     if region == []:
-        elements = getMesh()['pt']
         elementDim = getMesh()['problemDimension']             
+        elements = field.getElements(dim = elementDim)        
         jacs = transformationJacobians([], elementDim)
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)        
         elementDim = region.regionDimension           
         jacs = transformationJacobians(region, elementDim)
         j = j.getValues(region)
@@ -300,10 +301,10 @@ def loadRhs(field, j, region=[], vectorized=True):
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
-        elements = getMesh()['pt']
         elementDim = 2
+        elements = field.getElements(dim = elementDim)
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         elementDim = region.regionDimension                 
         br = br.getValues(region)
     if elementDim == 2:
@@ -360,7 +361,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
         elementDim = getMesh['problemDimension']
         jacs = transformationJacobians(elementDim=elementDim)
     elif isinstance(region, Region):
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
         jacs = transformationJacobians(region, elementDim=elementDim)
@@ -438,7 +439,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
         elements = np.array(region)
         jacs = transformationJacobians(elements, elementDim=elementDim)        
     elif isinstance(region, Region):
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
         jacs = transformationJacobians(region, elementDim=elementDim)        
@@ -502,7 +503,7 @@ def boundaryMassMatrix(field, alphas, region=[]):
     if region == []:
         elements = getMesh()['pe'][getMesh()['eb']]
     else:
-        elements = region.getElements()
+        elements = field.getElements(region = region)
         alphas = alphas.getValues(region)
     for elementIndex, element in enumerate(elements):
         detJac = np.abs(np.linalg.norm(getMesh()['xp'][element[0]] - getMesh()['xp'][element[1]]))
