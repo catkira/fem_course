@@ -71,4 +71,4 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
 
 
 if __name__ == "__main__":
-    run_h_magnet_octant(dirichlet='hard', vectorized=True, legacy=False)
+    run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=False)

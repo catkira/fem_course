@@ -349,8 +349,8 @@ def fluxRhs(field, br, region=[], vectorized=True):
                 continue
             temp = area * invJacs[elementIndex].T @ Grads.T * detJacs[elementIndex]
             for basis in range(nBasis):
-                rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
-        # TODO: make this work with constraints
+                if element[basis] != -1:
+                    rhs[element[basis]] = rhs[element[basis]] + np.dot(br[elementIndex], temp.T[basis])
     return rhs
 
 # integral rho * u * tf(u)
