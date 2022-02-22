@@ -44,7 +44,7 @@ def localCoordinate(G, t, x):
 
 
 # integral curl(u) * sigma * curl(tf(u)) 
-def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
+def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     if region == []:
         elements = getMesh()['ett']
         elementDim = getMesh()['problemDimension'] 
@@ -61,9 +61,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         nBasis = 6
         elementArea = 1/6        
     curls = field.shapeFunctionCurls(elementDim)
-    m = countFreeDofs()
-    elementMatrixSize = nBasis**2
-    data = np.zeros(m*elementMatrixSize)    
     detJacs = np.abs(np.linalg.det(jacs))
     #     
     elements = translateDofIndices(elements)
@@ -75,15 +72,14 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
-        if True:
+        if legacy:
             # this formulation might be a bit faster but only supports order 1!
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
                     B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
             gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
-            if vectorized:
-                data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
+            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
         else:
             # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
@@ -101,22 +97,25 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     rows = np.delete(rows, idx)
     cols = np.delete(cols, idx)
     #
-    K = csr_matrix((data, (rows, cols)), shape=[m,m]) 
+    numFreeDofs = countFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs,numFreeDofs]) 
     return K
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     if region == []:
         elements = getMesh()['pt']
+        elementDim = 2
+        jacs = transformationJacobians(elementDim=elementDim)
     else:
         elements = region.getElements()
+        elementDim = region.regionDimension
         sigmas = sigmas.getValues(region)
-    if getMesh()['problemDimension'] == 2:
-        elementDim = 2
+        jacs = transformationJacobians(region, elementDim=elementDim)
+    if elementDim == 2:
         nBasis = 3
         area = 1/2
-    elif getMesh()['problemDimension'] == 3:
-        elementDim = 3
+    elif elementDim == 3:
         nBasis = 4
         area = 1/6        
     # constrained elements will get index -1
@@ -129,7 +128,6 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     data = np.zeros(numElements*elementMatrixSize)    
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()       
-    jacs = transformationJacobians(elementDim=elementDim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs)       
 
@@ -303,10 +301,12 @@ def loadRhs(field, j, region=[], vectorized=True):
 def fluxRhs(field, br, region=[], vectorized=True):
     if region == []:
         elements = getMesh()['pt']
+        elementDim = 2
     else:
         elements = region.getElements()
+        elementDim = region.regionDimension                 
         br = br.getValues(region)
-    if getMesh()['problemDimension'] == 2:
+    if elementDim == 2:
         zero = [0, 0]
         area = 1/2
         nBasis = 3
@@ -357,10 +357,13 @@ def fluxRhs(field, br, region=[], vectorized=True):
 def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = region
+        elementDim = getMesh['problemDimension']
+        jacs = transformationJacobians(elementDim=elementDim)
     elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
+        jacs = transformationJacobians(region, elementDim=elementDim)
     else:
         print("Error: unsupported paramter!")
         sys.exit()
@@ -381,7 +384,6 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     #
     n = countFreeDofs()        
     if elementDim == 2:
-        jacs = transformationJacobians(region, elementDim=elementDim)
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
         signs = getMesh()['signs2d'] 
@@ -431,14 +433,15 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
-    Grads = field.shapeFunctionGradients()
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = np.array(region)
+        jacs = transformationJacobians(elements, elementDim=elementDim)        
     elif isinstance(region, Region):
         elements = region.getElements()
         rhos = rhos.getValues(region)
         elementDim = region.regionDimension
+        jacs = transformationJacobians(region, elementDim=elementDim)        
     else:
         print("Error: unsupported paramter!")
         sys.exit()
@@ -465,11 +468,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
         sys.exit()
     elementMatrixSize = nBasis**2        
     data = np.zeros(len(elements)*nBasis**2)    
-    if elementDim == 1: # TODO: why can det(..) not be used here?
-        detJacs = np.abs(np.linalg.norm( getMesh()['xp'][elements[:,0]] - getMesh()['xp'][elements[:,1]], axis=1))
-    else:
-        jacs = transformationJacobians(elements, elementDim=elementDim)
-        detJacs = np.abs(np.linalg.det(jacs))        
+    detJacs = np.abs(np.linalg.det(jacs))        
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     if vectorized:
@@ -570,32 +569,3 @@ def solve(A, b, method='np'):
     stop = time.time()
     print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")    
     return u
-
-def main():
-    if False:
-        G = {}
-        # store point coordinates 'xp'
-        G['xp'] = np.array([
-            [0, 0],
-            [1, 0],
-            [1, 1],
-            [0, 1]])
-        # store the points which make up an element in 'pt'
-        G['pt'] = np.array([
-            [0, 1, 2],
-            [0, 2, 3]])        
-        print("number of Vertices(G) = " + str(numberOfVertices(G)))
-        print("number of Triangles(G) = " + str(numberOfTriangles(G)))
-        xi = np.array([0, 1])
-        p = globalCoordinate(G, 0, xi)
-        print(f'point ({xi[0]:d}, {xi[1]:d}) of ref triangle transformed to global triangle = ({p[0]:d}, {p[1]:d})')
-        xi = localCoordinate(G, 0, p)
-        print(f'point ({p[0]:d}, {p[1]:d}) of global triangle transformed to ref triangle = ({xi[0]:f}, {xi[1]:f})')
-    
-    #plotShapeFunctions()
-    #loadMesh("examples/air_box_2d.msh")
-    # rectangularCriss(50,50)
-    # plotMesh(G)
-
-if __name__ == "__main__":
-    main()

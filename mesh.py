@@ -160,14 +160,25 @@ def dimensionOfRegion(id):
 def transformationJacobians(reg = [], elementDim=3):
     global mesh
     if reg == []:
-        if mesh['problemDimension'] == 2:
+        if elementDim == 2:
             ps = mesh['pt']
-        elif mesh['problemDimension'] == 3:
+        elif elementDim == 3:
             ps = mesh['ptt']
     elif isinstance(reg, region.Region):
         ps = reg.getElements(nodesOnly=True)  # always take node elements, even if edge elements are used in the field!
     else:
         ps = reg # reg has to be a list of node elements
+    
+    if elementDim == 1:
+        # norm(det(jac))  needs to give distance between points
+        problemDimension = mesh['problemDimension']
+        if problemDimension == 2:
+            ones = np.ones((ps.shape[0], problemDimension))
+            B = np.column_stack([getMesh()['xp'][ps[:,0]] - getMesh()['xp'][ps[:,1]], ones]).reshape((ps.shape[0],2,2))
+        elif problemDimension == 3:
+            print("Error: not yet implemented")
+            sys.exit()
+    
     if elementDim == 2:
         x1 = mesh['xp'][ps[:,0],:]
         if mesh['problemDimension'] == 2:
