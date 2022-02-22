@@ -44,7 +44,7 @@ def localCoordinate(G, t, x):
 
 
 # integral curl(u) * sigma * curl(tf(u)) 
-def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
+def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     if region == []:
         elements = getMesh()['ett']
         elementDim = getMesh()['problemDimension'] 
@@ -61,9 +61,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         nBasis = 6
         elementArea = 1/6        
     curls = field.shapeFunctionCurls(elementDim)
-    m = countFreeDofs()
-    elementMatrixSize = nBasis**2
-    data = np.zeros(m*elementMatrixSize)    
     detJacs = np.abs(np.linalg.det(jacs))
     #     
     elements = translateDofIndices(elements)
@@ -75,15 +72,14 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
-        if True:
+        if legacy:
             # this formulation might be a bit faster but only supports order 1!
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
                     B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
             gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
-            if vectorized:
-                data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
+            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
         else:
             # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
@@ -101,7 +97,8 @@ def stiffnessMatrixCurl(field, sigmas, region=[], vectorized=True):
     rows = np.delete(rows, idx)
     cols = np.delete(cols, idx)
     #
-    K = csr_matrix((data, (rows, cols)), shape=[m,m]) 
+    numFreeDofs = countFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs,numFreeDofs]) 
     return K
 
 # integral grad(u) * sigma * grad(tf(u)) 

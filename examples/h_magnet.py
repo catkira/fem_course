@@ -10,7 +10,7 @@ sys.path.insert(0, parentdir)
 from formulation import *
 
 
-def run_h_magnet(verify=False, dirichlet='soft', gauge=True):
+def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     loadMesh("examples/h_magnet.msh")
     mu0 = 4*np.pi*1e-7
     mur_frame = 1000
@@ -49,13 +49,13 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True):
     if dirichlet == 'soft':
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
-        K = stiffnessMatrixCurl(field, nu, volumeRegion)
+        K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
         B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
         rhs = fluxRhsCurl(field, hr, volumeRegion)    
         A = K+B    
     else:
-        setDirichlet([inf])
-        K = stiffnessMatrixCurl(field, nu, volumeRegion)
+        setDirichlet([inf])  # this has to come before any assembly!!!
+        K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
         rhs = fluxRhsCurl(field, hr, volumeRegion)    
         A = K
     stop = time.time()

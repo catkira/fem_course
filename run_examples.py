@@ -30,10 +30,13 @@ def main():
         #run_h_magnet(dirichlet='soft', gauge=True)  # this gives wrong result
         run_h_magnet(dirichlet='soft', gauge=False, verify=True)
         run_h_magnet(dirichlet='hard', gauge=True, verify=True)
+        run_h_magnet(dirichlet='hard', gauge=True, verify=True, legacy=True)
 
         run_magnet_in_room()
 
         run_magmesh(dirichlet='hard', gauge=True, coarse=False)
+        run_magmesh(dirichlet='hard', gauge=False, coarse=False)
+        run_magmesh(dirichlet='soft', gauge=False, coarse=False)
     print('finished')
 
 if __name__ == "__main__":
