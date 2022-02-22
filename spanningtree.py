@@ -6,7 +6,7 @@ import time
 # TODO add parameter to start growing the tree in a specified regions first
 # so that no closed loops are created when DirichletBCs are applied in those regions
 class spanningtree:
-    def __init__(self, excludedRegions=[]):
+    def __init__(self, excludedRegions=[], verbose=False):
         m.computeEdges3d()
         start = time.time()
         self.graph = np.copy(m.mesh['pe'])
@@ -53,7 +53,8 @@ class spanningtree:
             generation = 0
             while len(self.newEdges) != 0:
                 self.growTree()
-                print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
+                if verbose:
+                    print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
                 generation = generation + 1
         numNodes = len(np.unique(self.edges.ravel()))
         duration = time.time() - start
@@ -77,7 +78,7 @@ class spanningtree:
             while ((firstMatch < self.graph.shape[0]) and self.graphSorted2[firstMatch,1] == node):
                 self.idx[self.graph[self.graphSorted2[firstMatch,2],0]] = True
                 firstMatch += 1
-        if True: # this is slower than above
+        if True: # this is a bit more faster
             left = np.searchsorted(self.graph[:,0], node, 'left')
             right = np.searchsorted(self.graph[:,0], node, 'right')
             self.idx[self.graph[left:right,1]] = True
