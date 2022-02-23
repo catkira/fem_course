@@ -62,9 +62,9 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     elif elementDim == 3:
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
-        signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
+            signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
             curls = field.shapeFunctionCurls(elementDim)
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
@@ -82,7 +82,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
                 curls = field.shapeFunctionCurls(elementDim)
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:])
+                        factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, 1/detJacs, jacs, curls[m,:])
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel(order='C')
