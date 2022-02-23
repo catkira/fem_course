@@ -37,7 +37,7 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
-    field = FieldHCurl()
+    field = FieldHCurl([conductor, shield, air, inf])
     if gauge:
         spanningtree = st.spanningtree([inf])
         spanningtree.write("magmesh_spanntree.pos")
@@ -46,7 +46,7 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
         B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
-        K = stiffnessMatrixCurl(field, nu, volumeRegion)
+        K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy = False)
         rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K+B    
     else:

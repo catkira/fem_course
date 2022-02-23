@@ -169,6 +169,13 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
+def getAllRegions():
+    regions = np.empty(0, dtype = np.int)
+    for dim in range(mesh['problemDimension']):
+        if not mesh['physical'][dim] is None:
+            regions = np.append(regions, np.unique(mesh['physical'][dim]))
+    return regions
+
 def transformationJacobians(reg = [], elementDim=3):
     global mesh
     if reg == []:

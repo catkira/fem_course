@@ -55,7 +55,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     elif elementDim == 3:
         nBasis = 6
         elementArea = 1/6        
-    curls = field.shapeFunctionCurls(elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
     if elementDim == 2:
         print("Error: hcurl elements are not possible in 2d!")
@@ -66,6 +65,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
         signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
+            curls = field.shapeFunctionCurls(elementDim)
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
@@ -76,12 +76,15 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
             # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
             signs = getMesh()['signs3d']
-            for i in range(1):
+            integrationOrder = 2
+            gfs,gps = gaussData(integrationOrder, elementDim)              
+            for i in range(len(gfs)):
+                curls = field.shapeFunctionCurls(elementDim)
                 for m in range(nBasis):
                     for k in range(nBasis):
                         factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, elementArea * 1/detJacs, jacs, curls[m,:])
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
-                        data2[:,m,k] = np.einsum('ij,ij->i', factor1, factor2)    
+                        data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel(order='C')
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
@@ -256,7 +259,7 @@ def loadRhs(field, j, region=[], vectorized=True):
         nBasis = 6
         if field.isEdgeField():
             signs = getMesh()['signs3d']
-    integrationOrder = 1
+    integrationOrder = 2
     gfs,gps = gaussData(integrationOrder, elementDim)        
     invJacs = np.linalg.inv(jacs)     
     detJacs = np.abs(np.linalg.det(jacs))
@@ -525,7 +528,7 @@ def solve(A, b, method='np'):
             #ksp.setType('cg')  # conjugate gradient
             #ksp.setType('gmres')
             #ksp.getPC().setType('lu')
-            # ksp.getPC().setType('cholesky') # cholesky
+            #ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
             print(f'Solving {n} dofs with: {ksp.getType():s}')
             ksp.solve(bp, up)

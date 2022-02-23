@@ -7,13 +7,15 @@ import sys
 globalField = []
 
 class Field:
-    def __init__(self):
+    def __init__(self, regionIDs):
         global globalField
         globalField = self
-        self.elementType = 0
         self.id = dm.registerField(self)
         self.solution = np.empty(0)
-        self.regions = np.empty(0)   # physical region ids     
+        if regionIDs == []:
+            regionIDs = m.getAllRegions()
+        self.regions = regionIDs
+        dm.updateFieldRegions(self)                  
 
     def setDirichlet(self, regions):
         dm.setDirichlet(self, regions)
@@ -31,10 +33,10 @@ class Field:
             if dim != -1:
                 print("Error: cannot call with dim and region set at the same time!")
                 sys.exit()
-            oldRegions = self.regions
-            self.regions = np.unique(np.append(self.regions, region.ids)).astype(np.int)
-            if np.any(oldRegions != self.regions):
-                dm.updateFieldRegions(self)
+            #oldRegions = self.regions
+            #self.regions = np.unique(np.append(self.regions, region.ids)).astype(np.int)
+            #if np.any(oldRegions != self.regions) or len(oldRegions) == 0:
+            #    dm.updateFieldRegions(self)
             elements =  region.getElements(field=self, nodesOnly = nodesOnly)
         else:
             assert dim != -1
@@ -43,9 +45,9 @@ class Field:
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl(Field):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, regionIDs=[]):
         self.elementType = 1
+        super().__init__(regionIDs)
 
     def setGauge(self, tree):
         dm.setGauge(self, tree)    
@@ -64,7 +66,7 @@ class FieldHCurl(Field):
                 elements =  m.getMesh()['ptt']
             else:
                 elements =  m.getMesh()['ett']
-        dm.updateFieldRegions(self)                
+        #dm.updateFieldRegions(self)                
         return dm.translateDofIndices(self, elements)
 
     def shapeFunctionCurls(self, elementDim = 2):
@@ -124,18 +126,18 @@ class FieldHCurl(Field):
         return curls
 
 class FieldH1(Field):    
-    def __init__(self):
-        super().__init__()        
+    def __init__(self, regionIDs=[]):
         self.elementType = 0
+        super().__init__(regionIDs)        
 
     def getAllElements(self, dim, nodesOnly):    
         if dim == 2:
-            self.regions = np.unique(m.getMesh()['physical'][1])                
+        #    self.regions = np.unique(m.getMesh()['physical'][1])                
             elements = m.getMesh()['pt']
         elif dim == 3:
-            self.regions = np.unique(m.getMesh()['physical'][2])                
+        #    self.regions = np.unique(m.getMesh()['physical'][2])                
             elements = m.getMesh()['ptt']
-        dm.updateFieldRegions(self)                
+        #dm.updateFieldRegions(self)                
         return dm.translateDofIndices(self, elements)                
 
     def shapeFunctionGradients(self, elementDim = 2):

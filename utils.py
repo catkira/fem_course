@@ -20,7 +20,7 @@ def gaussData(order, elementDim):
                 gps = np.array([[1/3, 1/3]])        
             elif m.mesh['problemDimension'] == 3:
                 gps = np.array([[1/3, 1/3, 0]])        
-        if elementDim == 3: # tetraeder
+        elif elementDim == 3: # tetraeder
             gfs = np.array([1/6])
             gps = np.array([[1/4, 1/4, 1/4]])        
     elif order == 2:
@@ -34,4 +34,13 @@ def gaussData(order, elementDim):
                 gps = np.array([[1/6, 1/6, 0],
                                 [2/3, 1/6, 0],
                                 [1/6, 2/3, 0]])     
+        elif elementDim == 3: # tetrahedron
+            gfs = np.array([0.041666666666666699, 0.041666666666666699, 0.041666666666666699, 0.041666666666666699])            
+            if m.mesh['problemDimension'] == 2:
+                assert True # this should never happen
+            elif m.mesh['problemDimension'] == 3:
+                gps = np.array([[0.13819660112500001, 0.13819660112500001, 0.13819660112500001],
+                                [0.58541019662500005, 0.13819660112500001, 0.13819660112500001],
+                                [0.13819660112500001, 0.58541019662500005, 0.13819660112500001],
+                                [0.58541019662500005, 0.13819660112500001, 0.13819660112500001]])     
     return gfs,gps
