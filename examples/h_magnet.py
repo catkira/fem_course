@@ -68,7 +68,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    if isGauged():
+    if field.isGauged():
         assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1931) < 2e-3)
     else:
         assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)

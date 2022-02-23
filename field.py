@@ -3,25 +3,26 @@ import mesh as m
 import dofManager as dm
 import sys
 
-### these global variables should be eliminated
-elementType = 0
-
-def isEdgeField():
-    return elementType == 1
-###
+# this is only a hack to allow simpler function calls when only one field is defined
+globalField = []
 
 class Field:
     def __init__(self):
+        global globalField
+        globalField = self
         self.elementType = 0
-        self.fieldId = dm.registerField(self)
+        self.id = dm.registerField(self)
         self.solution = np.empty(0)
-        self.regions = np.empty(0)
+        self.regions = np.empty(0)        
 
     def setDirichlet(self, regions):
         dm.setDirichlet(self, regions)
 
     def isEdgeField(self):
         return self.elementType 
+
+    def isGauged(self):
+        return dm.isGauged(self)
 
     # Call to this function implicitely defines the regions where this field has dofs
     # TODO: consider whether this is good
@@ -41,8 +42,6 @@ class Field:
 class FieldHCurl(Field):
     def __init__(self):
         super().__init__()
-        global elementType
-        elementType = 1
         self.elementType = 1
 
     def setGauge(self, tree):
@@ -123,8 +122,6 @@ class FieldHCurl(Field):
 class FieldH1(Field):    
     def __init__(self):
         super().__init__()        
-        global elementType
-        elementType = 0
         self.elementType = 0
 
     def getAllElements(self, dim, nodesOnly):    

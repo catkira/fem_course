@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import sys
-from field import isEdgeField
+import field as fd
 from parameter import Parameter
 from mesh import *
 
@@ -10,22 +10,24 @@ def f2s(inputValue):
     return ('%.15f' % inputValue).rstrip('0').rstrip('.')
 
 # u can be of type parameter or a list
-def storeInVTK(u, filename, writePointData : np.bool8 = False):
+def storeInVTK(u, filename, writePointData : np.bool8 = False, field = []):
+    if field == []:
+        field = fd.globalField  # TODO: this only works if only one field is defined !
     if isinstance(u, Parameter):
         if writePointData:
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:
             u = u.getValues() 
-    storeInVTK2(u, filename, writePointData)
+    storeInVTK2(u, filename, writePointData, field)
 
-def storeInVTK2(u, filename, writePointData : np.bool8 = False):
+def storeInVTK2(u, filename, writePointData, field):
     start = time.time()    
     if getMesh()['problemDimension'] == 2:
         ppe = 3 # points per element
         elementContainer = getMesh()['pt']
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
-        if isEdgeField():
+        if field.isEdgeField():
             ppe = 6 # points per element
             elementContainer = getMesh()['ett']
             # TODO: calculate barycenter of each edge
@@ -39,7 +41,7 @@ def storeInVTK2(u, filename, writePointData : np.bool8 = False):
     m = len(elementContainer)
 
     if writePointData:
-        if isEdgeField():
+        if field.isEdgeField():
             assert len(u) >= np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
         else:
             assert len(u) == np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
