@@ -13,7 +13,7 @@ class Field:
         self.elementType = 0
         self.id = dm.registerField(self)
         self.solution = np.empty(0)
-        self.regions = np.empty(0)        
+        self.regions = np.empty(0)   # physical region ids     
 
     def setDirichlet(self, regions):
         dm.setDirichlet(self, regions)
@@ -31,7 +31,10 @@ class Field:
             if dim != -1:
                 print("Error: cannot call with dim and region set at the same time!")
                 sys.exit()
-            self.regions = np.append(self.regions, region.ids)
+            oldRegions = self.regions
+            self.regions = np.unique(np.append(self.regions, region.ids)).astype(np.int)
+            if np.any(oldRegions != self.regions):
+                dm.updateFieldRegions(self)
             elements =  region.getElements(field=self, nodesOnly = nodesOnly)
         else:
             assert dim != -1
@@ -61,6 +64,7 @@ class FieldHCurl(Field):
                 elements =  m.getMesh()['ptt']
             else:
                 elements =  m.getMesh()['ett']
+        dm.updateFieldRegions(self)                
         return dm.translateDofIndices(self, elements)
 
     def shapeFunctionCurls(self, elementDim = 2):
@@ -131,6 +135,7 @@ class FieldH1(Field):
         elif dim == 3:
             self.regions = np.unique(m.getMesh()['physical'][2])                
             elements = m.getMesh()['ptt']
+        dm.updateFieldRegions(self)                
         return dm.translateDofIndices(self, elements)                
 
     def shapeFunctionGradients(self, elementDim = 2):

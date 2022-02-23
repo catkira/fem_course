@@ -74,4 +74,4 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
 
 if __name__ == "__main__":
-    run_h_magnet(dirichlet='hard', gauge=True)
+    run_h_magnet(dirichlet='soft', gauge=True)

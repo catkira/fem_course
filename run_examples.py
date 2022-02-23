@@ -28,7 +28,7 @@ def main():
         run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=True)
         run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=False)        
 
-        #run_h_magnet(dirichlet='soft', gauge=True)  # this gives wrong result
+        run_h_magnet(dirichlet='soft', gauge=True)
         run_h_magnet(dirichlet='soft', gauge=False, verify=True)
         run_h_magnet(dirichlet='hard', gauge=True, verify=True)
         run_h_magnet(dirichlet='hard', gauge=True, verify=True, legacy=True)

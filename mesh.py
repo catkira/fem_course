@@ -42,6 +42,18 @@ def numberOfEdges():
     global mesh
     return mesh['pe'].shape[0]
 
+def getElements(elementType, elementDim):
+    if elementType == 0:  # nodes
+        if elementDim == 1:
+            return mesh['pt']
+        elif elementDim == 2:
+            return mesh['ptt']
+    elif elementType == 1:  # edges
+        if elementDim == 1:
+            return mesh['et']
+        elif elementDim == 2:
+            return mesh['ett']
+
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from edges to points, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs
