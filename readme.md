@@ -39,6 +39,8 @@ examples/h_magnet.py
 ![h_magnet](https://github.com/catkira/fem_course/blob/master/examples/h_magnet.png?raw=true)
 examples/magnet_in_room.py
 ![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magnet_in_room.png?raw=true)
+examples/magmesh.py
+![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magmesh.png?raw=true)
 
 
 # Recommended literature/papers
