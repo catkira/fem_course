@@ -29,7 +29,8 @@ def run_bookExample1(verify=False):
     B = massMatrix(field, alphas, region=getMesh()['pe'][getMesh()['eb']], elementDim=1)
     b = M @ f
     A = K+B
-    u = solve(A,b)
+    solve(A,b)
+    u = field.solution
     print(f'u_max = {max(u):.4f}')
     assert(abs(max(u) - 0.0732) < 1e-3)
 
@@ -39,7 +40,6 @@ def run_bookExample1(verify=False):
     #plt.show()
 
     storeInVTK(u,"example1.vtk", writePointData=True)
-
 
 if __name__ == "__main__":
     run_bookExample1()

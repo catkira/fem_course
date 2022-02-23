@@ -37,11 +37,11 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     boundaryRegion = Region()
     boundaryRegion.append(inf)
 
+    field = FieldHCurl()
     if gauge:
         spanningtree = st.spanningtree([inf])
         spanningtree.write("magmesh_spanntree.pos")
-        setGauge(spanningtree)
-    field = FieldHCurl()
+        field.setGauge(spanningtree)
     if dirichlet == 'soft':
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
@@ -50,14 +50,15 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
         rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K+B    
     else:
-        setDirichlet([inf])
+        field.setDirichlet([inf])
         K = stiffnessMatrixCurl(field, nu, volumeRegion)
         rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
-    u = solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'petsc')    
+    u = field.solution
     print(f'max(u) = {max(u)}')
     storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)

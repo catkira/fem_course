@@ -15,13 +15,28 @@ def isEdgeField():
 class Field:
     def __init__(self):
         self.elementType = 0
+        self.fieldId = dm.registerField(self)
+        self.solution = np.empty(0)
+        self.regions = np.empty(0)
 
     def setDirichlet(self, regions):
-        dm.setDirichlet(regions)
+        dm.setDirichlet(self, regions)
 
     def isEdgeField(self):
         return self.elementType 
 
+    # Call to this function implicitely defines the regions where this field has dofs
+    # TODO: consider whether this is good
+    def getElements(self, dim : int = -1, region = -1):    
+        if region != -1:
+            if dim != -1:
+                print("Error: cannot call with dim and region set at the same time!")
+                sys.exit()
+            self.regions = np.append(self.regions, region.ids)
+            elements =  region.getElements(field=self)
+        else:
+            elements = self.getAllElements(dim) # LEGACY
+        return dm.translateDofIndices(self, elements)        
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl(Field):
@@ -32,19 +47,17 @@ class FieldHCurl(Field):
         self.elementType = 1
 
     def setGauge(self, tree):
-        dm.setGauge(tree)    
+        dm.setGauge(self, tree)    
 
-    def getElements(self, dim : int = -1, region = -1):    
-        if region != -1:
-            if dim != -1:
-                print("Error: cannot set dim and region at the same time!")
-                sys.exit()
-            return region.getElements(field=self)
-        else:
-            if dim == 2:
-                return m.getMesh()['et']
-            elif dim == 3:
-                return m.getMesh()['ett']
+    def getAllElements(self, dim):    
+        print("*legacy warning*")
+        if dim == 2:
+            self.regions = np.unique(m.getMesh()['physical'][1])
+            elements =  m.getMesh()['et']
+        elif dim == 3:
+            self.regions = np.unique(m.getMesh()['physical'][2])
+            elements =  m.getMesh()['ett']
+        return dm.translateDofIndices(self, elements)
 
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -109,17 +122,14 @@ class FieldH1(Field):
         elementType = 0
         self.elementType = 0
 
-    def getElements(self, dim : int = -1, region = -1):    
-        if region != -1:
-            if dim != -1:
-                print("Error: cannot set dim and region at the same time!")
-                sys.exit()
-            return region.getElements(field=self)
-        else:
-            if dim == 2:
-                return m.getMesh()['pt']
-            elif dim == 3:
-                return m.getMesh()['ptt']
+    def getAllElements(self, dim):    
+        if dim == 2:
+            self.regions = np.unique(m.getMesh()['physical'][1])                
+            elements = m.getMesh()['pt']
+        elif dim == 3:
+            self.regions = np.unique(m.getMesh()['physical'][2])                
+            elements = m.getMesh()['ptt']
+        return dm.translateDofIndices(self, elements)                
 
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:

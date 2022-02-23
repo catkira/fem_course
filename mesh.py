@@ -268,6 +268,9 @@ def rectangularCriss(w, h):
     G['problemDimension'] = 2    
     G['pe'] = np.zeros(0)    
     G['allPhysicalIds'] = np.empty((3,0))    
+    G['physical'] = np.empty(3, object)
+    G['physical'][1] = np.ones(G['pt'].shape[0], dtype=np.int)
+    G['allPhysicalIds'][1] = [1]
     mesh = G
     import dofManager as dm
     dm.resetDofManager()

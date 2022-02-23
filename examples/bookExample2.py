@@ -9,7 +9,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
 
-
 def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', mesh='msh'):    
     if mesh == 'msh':
         loadMesh("examples/example2.msh")
@@ -72,7 +71,8 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', me
     A = K+B
     stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A, b, method)
+    solve(A, b, method)
+    u = field.solution
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
@@ -131,7 +131,8 @@ def run_bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='p
     A = K+B
     stop = time.time()    
     print(f'assembled in {stop - start:.2f} s')        
-    u = solve(A, b, method)
+    solve(A, b, method)
+    u = field.solution
     if anisotropicInclusion:
         #storeFluxInVTK(u,sigma.triangleValues,"example2_anisotropicInclusions_p.vtk")
         pass
@@ -142,7 +143,6 @@ def run_bookExample2Parameter(scalarSigma, anisotropicInclusion=False, method='p
             storeInVTK(u,"example2_tensor_isotropicInclusions_p.vtk", writePointData=True)
     print(f'u_max = {max(u):.4f}')    
     assert(abs(max(u) - 4) < 1e-3)            
-
 
 if __name__ == "__main__":
     run_bookExample2Parameter(scalarSigma=True)

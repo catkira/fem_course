@@ -57,7 +57,8 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    u = solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'petsc')    
+    u = field.solution
     storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)
     storeInVTK(h, "h_magnet_octant_h.vtk")
@@ -67,7 +68,6 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     storeInVTK(b,"h_magnet_octant_b.vtk")        
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 3.3684) < 1e-3)
-
 
 if __name__ == "__main__":
     run_h_magnet_octant(dirichlet='hard', vectorized=True, legacy=False)

@@ -10,8 +10,13 @@ class DofManagerData:
         if m.getMesh()['problemDimension'] == 3:
             self.dirichletMask = np.repeat(False, m.numberOfTriangles()) # assume dirichlet BCs are always on problemDimension -1
         self.isGauged = False
+        self.fields = np.empty(0, dtype=object)
 
 dofManagerData = DofManagerData()
+
+def registerField(field):
+    dofManagerData.fields = np.append(dofManagerData.fields, field)
+    return dofManagerData.fields.shape[0] - 1
 
 def countAllDofs():
     if field.elementType == 0:
@@ -35,29 +40,32 @@ def resetDofManager():
     global dofManagerData
     dofManagerData = DofManagerData()
 
-def translateDofIndices(elements, dir='forward'):
+def translateDofIndices(field, elements):
     mask = freeDofMask()
-    if dir == 'forward':
-        idx = np.repeat(-1, countAllDofs()).astype(np.int)
-        addr = 0
-        for id in range(len(idx)):
-            if mask[id]:
-                idx[id] = addr
-                addr += 1
-        elements2 = np.take(idx, elements.ravel()).reshape(elements.shape)
-    else:
-        elements2 = np.zeros(countAllDofs())
+    idx = np.repeat(-1, countAllDofs()).astype(np.int)
+    addr = 0
+    for id in range(len(idx)):
+        if mask[id]:
+            idx[id] = addr
+            addr += 1
+    elements2 = np.take(idx, elements.ravel()).reshape(elements.shape)
+    return elements2
+
+def putSolutionIntoFields(u):
+    for field in dofManagerData.fields:
+        mask = freeDofMask()
+        solution = np.zeros(countAllDofs())
         id = 0
         for id2 in range(countAllDofs()):
             if mask[id2]:
-                elements2[id2] = elements[id]
+                solution[id2] = u[id]
                 id += 1
             else:
                 pass  # TODO implement inhomogeneous Dirichlet BCs
-    return elements2
+        field.solution = solution
 
 # TODO implement inhomogeneous Dirichlet BCs
-def setDirichlet(regions, value = []):
+def setDirichlet(field, regions, value = []):
     global dofManagerData
     meshDim = m.getMesh()['problemDimension']
     dim = meshDim - 2  # assume dirichlet BCs are always on problemDimension -1
@@ -75,8 +83,7 @@ def setDirichlet(regions, value = []):
         print("Error: not implemented!")
         sys.exit()
     
-
-def setGauge(tree):
+def setGauge(field, tree):
     global dofManagerData
     dofManagerData.freeEdgesMask[tree.branches] = False
     dofManagerData.isGauged = True

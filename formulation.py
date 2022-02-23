@@ -16,6 +16,7 @@ from region import Region
 from field import *
 from utils import *
 from dofManager import *
+from ioHelper import *
 
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
@@ -62,9 +63,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
         elementArea = 1/6        
     curls = field.shapeFunctionCurls(elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
-    #     
-    elements = translateDofIndices(elements)
-    #
     if elementDim == 2:
         print("Error: hcurl elements are not possible in 2d!")
         sys.exit()
@@ -118,9 +116,6 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     elif elementDim == 3:
         nBasis = 4
         area = 1/6        
-    # constrained elements will get index -1
-    elements = translateDofIndices(elements)    
-    #
     numElements = len(elements)
     Grads = field.shapeFunctionGradients(elementDim)
     elementMatrixSize = (getMesh()['problemDimension']+1)**2
@@ -232,8 +227,6 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     curls = field.shapeFunctionCurls(elementDim)    
 
     numAllDofs = len(elements)
-    elements = translateDofIndices(elements)
-
     temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))  # TODO is detJac needed here??
     rows = elements.ravel(order='C')
     data = np.zeros((numAllDofs,nBasis))
@@ -274,7 +267,6 @@ def loadRhs(field, j, region=[], vectorized=True):
     invJacs = np.linalg.inv(jacs)     
     detJacs = np.abs(np.linalg.det(jacs))
 
-    elements = translateDofIndices(elements)
     data = np.zeros((len(elements),nBasis))
     rows = elements.ravel(order='C')
     
@@ -321,9 +313,6 @@ def fluxRhs(field, br, region=[], vectorized=True):
     jacs = transformationJacobians(region, elementDim = dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs) 
-    #       
-    elements = translateDofIndices(elements)         
-    #
     n = countFreeDofs()    
     if vectorized:
         # this line has convergence issues with example magnet_in_room
@@ -357,7 +346,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
 # integral rho * u * tf(u)
 def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
-        elements = region
+        elements = region  # TODO: Dangerous! this does not work with constraints or multiple fields!
         elementDim = getMesh['problemDimension']
         jacs = transformationJacobians(elementDim=elementDim)
     elif isinstance(region, Region):
@@ -380,9 +369,6 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     data = np.zeros(m*elementMatrixSize)    
-    #       
-    elements = translateDofIndices(elements)         
-    #
     n = countFreeDofs()        
     if elementDim == 2:
         detJacs = np.abs(np.linalg.det(jacs))    
@@ -436,7 +422,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
     n = numberOfVertices()
     if isinstance(region, list) or type(region) is np.ndarray:
-        elements = np.array(region)
+        elements = np.array(region) # TODO: Dangerous! this does not work with constraints or multiple fields!
         jacs = transformationJacobians(elements, elementDim=elementDim)        
     elif isinstance(region, Region):
         elements = field.getElements(region = region)
@@ -564,9 +550,6 @@ def solve(A, b, method='np'):
         sys.exit()
     numDofs = len(u)
     assert numDofs == countFreeDofs()
-    #        
-    u = translateDofIndices(u, 'backwards')   
-    #
+    putSolutionIntoFields(u)
     stop = time.time()
     print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")    
-    return u

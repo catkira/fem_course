@@ -61,7 +61,8 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
-    u = solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'petsc')    
+    u = field.solution
     print(f'max(u) = {max(u)}')
     storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
@@ -71,7 +72,6 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1931) < 2e-3)
     else:
         assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
-
 
 if __name__ == "__main__":
     run_h_magnet(dirichlet='hard', gauge=True)

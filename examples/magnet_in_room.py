@@ -9,7 +9,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
 
-
 def run_magnet_in_room():
     loadMesh("examples/magnet_in_room.msh")
     mu0 = 4*np.pi*1e-7
@@ -50,7 +49,8 @@ def run_magnet_in_room():
     A = K+B
     stop = time.time()    
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")        
-    u = solve(A, b, 'petsc')
+    solve(A, b, 'petsc')
+    u = field.solution
     storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
     h = -field.grad(u)
@@ -61,7 +61,6 @@ def run_magnet_in_room():
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
-
 
 if __name__ == "__main__":
     run_magnet_in_room()
