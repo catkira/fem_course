@@ -65,9 +65,9 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     mus = mu.getValues()  
     brs = br.getValues()
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
-    storeInVTK(b,"h_magnet_octant_b.vtk")        
-    print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 3.3684) < 1e-3)
+    storeInVTK(b, "h_magnet_octant_b.vtk")        
+    print(f'b_max = {max(np.linalg.norm(b, axis=1)):.4f}')    
+    assert(abs(max(np.linalg.norm(b, axis=1)) - 3.3684) < 1e-3)
 
 if __name__ == "__main__":
     run_h_magnet_octant(dirichlet='hard', vectorized=True, legacy=False)

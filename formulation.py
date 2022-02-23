@@ -1,10 +1,4 @@
-import mmap
-from os import killpg
 import numpy as np
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-import pyvista as pv
-import vtk
 import time
 import sys
 import pkg_resources
@@ -36,7 +30,7 @@ import spanningtree as st
 
 def globalCoordinate(G, t, xi):
     B, x1 = transformationJacobian(G, t)
-    return x1 + B @ xi    
+    return x1 + B @ xi
 
 def localCoordinate(G, t, x):
     B, x1 = transformationJacobian(G, t)

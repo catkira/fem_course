@@ -9,23 +9,31 @@ def f2s(inputValue):
     return ('%.15f' % inputValue).rstrip('0').rstrip('.')
 
 # u can be of type parameter or a list
-def storeInVTK(u, filename, writePointData = False):
-    start = time.time()    
+def storeInVTK(u, filename, writePointData : np.bool8 = False):
     if isinstance(u, Parameter):
         if writePointData:
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:
             u = u.getValues() 
+    storeInVTK2(u, filename, writePointData)
+
+def storeInVTK2(u, filename, writePointData : np.bool8 = False):
+    start = time.time()    
     if getMesh()['problemDimension'] == 2:
-        m = numberOfTriangles()    
-        elementContainer = getMesh()['pt']
         ppe = 3 # points per element
+        elementContainer = getMesh()['pt']
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
-        m = numberOfTetraeders()    
-        elementContainer = getMesh()['ptt']
         ppe = 4 # points per element
+        elementContainer = getMesh()['ptt']
         cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
+    m = len(elementContainer)
+
+    if writePointData:
+        assert len(u) == np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
+    else:
+        assert len(u) == m, "u has to be defined for all elements in the mesh"
+
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
     with open(filename, 'w') as file:
         vtktxt = str()
@@ -85,6 +93,8 @@ def storeInVTK(u, filename, writePointData = False):
 # using pyvista save writes vtk files in version 5, which generates wrong gradients
 # when using the gradient filter in paraview
 def storeInVTKpv(u, filename, writePointData = False):
+    import pyvista as pv
+    import vtk    
     n = numberOfVertices()    
     m = numberOfTriangles()    
     points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate

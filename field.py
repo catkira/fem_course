@@ -1,6 +1,4 @@
-import this
 import numpy as np
-import matplotlib.pyplot as plt
 import mesh as m
 import dofManager as dm
 import sys
@@ -27,15 +25,16 @@ class Field:
 
     # Call to this function implicitely defines the regions where this field has dofs
     # TODO: consider whether this is good
-    def getElements(self, dim : int = -1, region = -1):    
+    def getElements(self, dim : int = -1, region = -1, nodesOnly = False):    
         if region != -1:
             if dim != -1:
                 print("Error: cannot call with dim and region set at the same time!")
                 sys.exit()
             self.regions = np.append(self.regions, region.ids)
-            elements =  region.getElements(field=self)
+            elements =  region.getElements(field=self, nodesOnly = nodesOnly)
         else:
-            elements = self.getAllElements(dim) # LEGACY
+            assert dim != -1
+            elements = self.getAllElements(dim, nodesOnly = nodesOnly)
         return dm.translateDofIndices(self, elements)        
 
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
@@ -49,14 +48,20 @@ class FieldHCurl(Field):
     def setGauge(self, tree):
         dm.setGauge(self, tree)    
 
-    def getAllElements(self, dim):    
+    def getAllElements(self, dim, nodesOnly):    
         print("*legacy warning*")
         if dim == 2:
             self.regions = np.unique(m.getMesh()['physical'][1])
-            elements =  m.getMesh()['et']
+            if nodesOnly:
+                elements =  m.getMesh()['pt']
+            else:
+                elements =  m.getMesh()['et']
         elif dim == 3:
             self.regions = np.unique(m.getMesh()['physical'][2])
-            elements =  m.getMesh()['ett']
+            if nodesOnly:
+                elements =  m.getMesh()['ptt']
+            else:
+                elements =  m.getMesh()['ett']
         return dm.translateDofIndices(self, elements)
 
     def shapeFunctionCurls(self, elementDim = 2):
@@ -122,7 +127,7 @@ class FieldH1(Field):
         elementType = 0
         self.elementType = 0
 
-    def getAllElements(self, dim):    
+    def getAllElements(self, dim, nodesOnly):    
         if dim == 2:
             self.regions = np.unique(m.getMesh()['physical'][1])                
             elements = m.getMesh()['pt']
@@ -183,6 +188,8 @@ class FieldH1(Field):
         # return grid.get_array('velocity')             
 
     def plotShapeFunctions(self):
+        import matplotlib.pyplot as plt
+        import plotly.graph_objects as go        
         x = np.linspace(0,1,100)
         y = np.linspace(0,1,100)
         grid = np.meshgrid(x,y)
