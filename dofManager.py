@@ -75,7 +75,8 @@ def updateFieldRegions(field):
                 else:
                     dofManagerData.fields[field.id].freeNodesMask[elements[region == m.getMesh()['physical'][dim]]] = True
     dofManagerData.fields[field.id].applyDirichletMask()
-    dofManagerData.fields[field.id].applyGaugeMask()    
+    dofManagerData.fields[field.id].applyGaugeMask()
+    dofManagerData.updateStartIndices()        
 
 def countAllDofs():
     dofs = 0

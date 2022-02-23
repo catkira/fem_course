@@ -527,7 +527,7 @@ def solve(A, b, method='np'):
             #ksp.getPC().setType('lu')
             # ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
-            print(f'Solving with: {ksp.getType():s}')
+            print(f'Solving {n} dofs with: {ksp.getType():s}')
             ksp.solve(bp, up)
         else:
             snes = PETSc.SNES() 

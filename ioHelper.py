@@ -27,21 +27,20 @@ def storeInVTK2(u, filename, writePointData, field):
         elementContainer = getMesh()['pt']
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
-        if field.isEdgeField():
-            ppe = 6 # points per element
-            elementContainer = getMesh()['ett']
-            # TODO: calculate barycenter of each edge
-            # but its not so easy, because the barycenter point is not in mesh['xp']
-            # so for now, just take one point of the edge
-            elementContainer = ((getMesh()['pe'][elementContainer.ravel()])[:,0]).reshape((len(elementContainer),ppe))
-        else:
-            ppe = 4 # points per element
-            elementContainer = getMesh()['ptt']
+        elementContainer = getMesh()['ptt']
+        ppe = 4 # points per element
         cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
     m = len(elementContainer)
 
     if writePointData:
         if field.isEdgeField():
+            if getMesh()['problemDimension'] == 3:
+                ppe = 6
+            # TODO: calculate barycenter of each edge
+            # but its not so easy, because the barycenter point is not in mesh['xp']
+            # so for now, just take one point of the edge
+            elementContainer = getMesh()['ett']
+            elementContainer = ((getMesh()['pe'][elementContainer.ravel()])[:,0]).reshape((len(elementContainer),ppe))
             assert len(u) >= np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
         else:
             assert len(u) == np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
@@ -72,6 +71,7 @@ def storeInVTK2(u, filename, writePointData, field):
         for element in elementContainer:
             vtktxt += f"{cellType:d}\n"
         if writePointData:
+            # TODO implement write edge data
             if scalarValue:
                 vtktxt += f'\nPOINT_DATA {m*ppe:d}\nSCALARS u double\nLOOKUP_TABLE default\n'
             else:
