@@ -80,7 +80,7 @@ class FieldHCurl(Field):
                             [-2, 2, 0],
                             [0, 0, 2],
                             [2, 0, 0],
-                            [0, 2, 0]])
+                            [0, 2, 0]], dtype=np.float64)
 
     def shapeFunctionValues(self, xi, elementDim = 3):
         # lambda[0] = 1 - xi[0] - xi[1] 
@@ -109,8 +109,8 @@ class FieldHCurl(Field):
                             [xi[2],         xi[2],          1-xi[1]-xi[0]],     # edge (0,3)
                             [-xi[1],        xi[0],          0],                 # edge (1,2)
                             [0,             -xi[2],         xi[1]],             # edge (2,3)
-                            [xi[2],         0,              -xi[0]]])           # edge (3,1)
-
+                            [xi[2],         0,              -xi[0]]],           # edge (3,1)
+                            dtype=np.float64)
     def curl(self, u, dim=3):
         if dim == 2:
             numEdges = m.numberOfEdges()

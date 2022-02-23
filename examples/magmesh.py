@@ -26,18 +26,16 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     nu = Parameter()
     nu.set(shield, 1/(mu0*mur_frame))
     nu.set([conductor, air], 1/mu0)
+    #storeInVTK(nu,"nu.vtk")
     
     currentDensity = Parameter(3)
     currentDensity.set(conductor, [0, 0, 1])
     currentDensity.set([shield, air], [0, 0, 0])
 
-    volumeRegion = Region()
-    volumeRegion.append([conductor, shield, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append(inf)
-
-    field = FieldHCurl([conductor, shield, air, inf])
+    volumeRegion = Region([conductor, shield, air])
+    boundaryRegion = Region([inf])
+    
+    field = FieldHCurl([conductor, shield, air])
     if gauge:
         spanningtree = st.spanningtree([inf])
         spanningtree.write("magmesh_spanntree.pos")

@@ -169,11 +169,15 @@ def dimensionOfRegion(id):
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
 
-def getAllRegions():
+def getAllRegions(dim = -1):
     regions = np.empty(0, dtype = np.int)
-    for dim in range(mesh['problemDimension']):
-        if not mesh['physical'][dim] is None:
-            regions = np.append(regions, np.unique(mesh['physical'][dim]))
+    if dim == -1:
+        for dim in range(mesh['problemDimension']):
+            if not mesh['physical'][dim] is None:
+                regions = np.append(regions, np.unique(mesh['physical'][dim]))
+    else:
+        if not mesh['physical'][dim-1] is None:
+            regions = np.append(regions, np.unique(mesh['physical'][dim-1]))
     return regions
 
 def transformationJacobians(reg = [], elementDim=3):
@@ -306,12 +310,7 @@ def loadMesh(filename):
         problemDimension = 3
     else:
         problemDimension = 2
-    if 'line' in meshioMesh.cells_dict:
-        G['pl'] = meshioMesh.cells_dict['line']
-    if 'triangle' in meshioMesh.cells_dict:
-        G['pt'] = meshioMesh.cells_dict['triangle']
-    if 'tetra' in meshioMesh.cells_dict:
-        G['ptt'] = meshioMesh.cells_dict['tetra']
+
     if problemDimension == 2:
         G['xp'] = meshioMesh.points[:,0:2] # take only x,y coordinates
     elif problemDimension == 3:
@@ -320,14 +319,26 @@ def loadMesh(filename):
     G['physical'] = [np.empty(0), np.empty(0), np.empty(0)]
     mesh['allPhysicalIds'] = np.empty((3,1),dtype=object)
     if 'line' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['pl'] = meshioMesh.cells_dict['line']
         G['physical'][0] = meshioMesh.cell_data_dict['gmsh:physical']['line']
+        sortIndices = np.argsort(G['physical'][0])
+        G['physical'][0] = G['physical'][0][sortIndices]
+        G['pl'] = G['pl'][sortIndices]
         mesh['allPhysicalIds'][0] = [np.unique(G['physical'][0])]
     if 'triangle' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['pt'] = meshioMesh.cells_dict['triangle']
         G['physical'][1] = meshioMesh.cell_data_dict['gmsh:physical']['triangle']
+        sortIndices = np.argsort(G['physical'][1])
+        G['physical'][1] = G['physical'][1][sortIndices]
+        G['pt'] = G['pt'][sortIndices]
         mesh['allPhysicalIds'][1] = [np.unique(G['physical'][1])]
     if 'tetra' in meshioMesh.cell_data_dict['gmsh:physical']:
+        G['ptt'] = meshioMesh.cells_dict['tetra']
         G['physical'][2] = meshioMesh.cell_data_dict['gmsh:physical']['tetra']
-        mesh['allPhysicalIds'][1] = [np.unique(G['physical'][1])]
+        sortIndices = np.argsort(G['physical'][2])
+        G['physical'][2] = G['physical'][2][sortIndices]
+        G['ptt'] = G['ptt'][sortIndices]
+        mesh['allPhysicalIds'][2] = [np.unique(G['physical'][2])]
     G['problemDimension'] = problemDimension
     mesh = G
     mesh['meshio'] = meshioMesh # will be removed later

@@ -4,12 +4,15 @@ import sys
 import field as fd
 from parameter import Parameter
 from mesh import *
+from region import Region
 
 # double values have around 16 decimals
 def f2s(inputValue):
     return ('%.15f' % inputValue).rstrip('0').rstrip('.')
 
 # u can be of type parameter or a list
+# if its a parameter, it has to be defined for all regions in its dimension
+# parameter can only be plotted if its on the highest dimension of the mesh
 def storeInVTK(u, filename, writePointData : np.bool8 = False, field = []):
     if field == []:
         field = fd.globalField  # TODO: this only works if only one field is defined !
@@ -39,7 +42,7 @@ def storeInVTK2(u, filename, writePointData, field):
             # TODO: calculate barycenter of each edge
             # but its not so easy, because the barycenter point is not in mesh['xp']
             # so for now, just take one point of the edge
-            elementContainer = getMesh()['ett']
+            elementContainer = getMesh()['ett'] 
             elementContainer = ((getMesh()['pe'][elementContainer.ravel()])[:,0]).reshape((len(elementContainer),ppe))
             assert len(u) >= np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
         else:

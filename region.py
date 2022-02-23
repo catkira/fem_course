@@ -6,16 +6,18 @@ import field as fd
 regionList = []
 
 class Region:
-    def __init__(self):
+    def __init__(self, ids=[]):
         global regionList
         self.ids = []
         self.elements = []
         self.edgeElements = []
         self.regionDimension = 0
+        if ids != []:
+            self.append(ids)
         regionList.append(self)
 
     def append(self, ids):
-        if isinstance(ids, list):
+        if isinstance(ids, list) or type(ids) is np.ndarray:
             for id in ids:
                 self.ids.append(id)
         else:

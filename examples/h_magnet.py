@@ -35,11 +35,8 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     hr.set([frame, air], [0, 0, 0])    
     #storeInVTK(br, "br.vtk")    
 
-    volumeRegion = Region()
-    volumeRegion.append([magnet, frame, air])
-
-    boundaryRegion = Region()
-    boundaryRegion.append(inf)
+    volumeRegion = Region([magnet, frame, air])
+    boundaryRegion = Region([inf])
 
     field = FieldHCurl([magnet, frame, air, inf])
     if gauge:
@@ -74,4 +71,4 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9374) < 2e-3)
 
 if __name__ == "__main__":
-    run_h_magnet(dirichlet='soft', gauge=True)
+    run_h_magnet(dirichlet='hard', gauge=True)
