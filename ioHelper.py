@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import sys
+from field import isEdgeField
 from parameter import Parameter
 from mesh import *
 
@@ -24,13 +25,24 @@ def storeInVTK2(u, filename, writePointData : np.bool8 = False):
         elementContainer = getMesh()['pt']
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
-        ppe = 4 # points per element
-        elementContainer = getMesh()['ptt']
+        if isEdgeField():
+            ppe = 6 # points per element
+            elementContainer = getMesh()['ett']
+            # TODO: calculate barycenter of each edge
+            # but its not so easy, because the barycenter point is not in mesh['xp']
+            # so for now, just take one point of the edge
+            elementContainer = ((getMesh()['pe'][elementContainer.ravel()])[:,0]).reshape((len(elementContainer),ppe))
+        else:
+            ppe = 4 # points per element
+            elementContainer = getMesh()['ptt']
         cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
     m = len(elementContainer)
 
     if writePointData:
-        assert len(u) == np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
+        if isEdgeField():
+            assert len(u) >= np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
+        else:
+            assert len(u) == np.max(elementContainer) + 1, "u has to be defined for all elements in the mesh"
     else:
         assert len(u) == m, "u has to be defined for all elements in the mesh"
 
