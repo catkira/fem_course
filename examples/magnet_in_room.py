@@ -60,7 +60,7 @@ def run_magnet_in_room():
     b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6104) < 1e-3)
+    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.6330) < 1e-3)
 
 if __name__ == "__main__":
     run_magnet_in_room()
