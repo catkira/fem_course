@@ -44,12 +44,16 @@ def numberOfEdges():
 
 def getElements(elementType, elementDim):
     if elementType == 0:  # nodes
-        if elementDim == 1:
+        if elementDim == 0:
+            return mesh['pl']
+        elif elementDim == 1:
             return mesh['pt']
         elif elementDim == 2:
             return mesh['ptt']
     elif elementType == 1:  # edges
-        if elementDim == 1:
+        if elementDim == 0:
+            return []
+        elif elementDim == 1:
             return mesh['et']
         elif elementDim == 2:
             return mesh['ett']
