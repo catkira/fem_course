@@ -36,11 +36,11 @@ class Region:
         if edges:
             if self.edgeElements == []:
                 self.calculateElements(edges=True)
-            return np.array(self.edgeElements)
+            return self.edgeElements
         else:
             if self.elements == []:
                 self.calculateElements()
-            return np.array(self.elements)
+            return self.elements
 
     def updateRegionDimension(self):
         for id in self.ids:
@@ -74,47 +74,3 @@ class Region:
                             self.elements = m.getElements(edges, dim-1)[matches]
                         else:
                             self.elements = np.row_stack((self.elements, m.getElements(edges, dim-1)[matches]))
-
-
-                    # if dim == 1:
-                    #     if self.elements == []:
-                    #         self.elements = m.mesh['pl'][matches]
-                    #     else:
-                    #         self.elements = np.row_stack((self.elements, m.mesh['pl'][matches]))
-                    # elif dim==2:
-                    #     if edges:
-                    #         if self.edgeElements == []:
-                    #             self.edgeElements = m.mesh['et'][matches]
-                    #         else:
-                    #             self.edgeElements = np.row_stack((self.edgeElements, m.mesh['et'][matches]))
-                    #     else:
-                    #         if self.elements == []:
-                    #             self.elements = m.mesh['pt'][matches]
-                    #         else:
-                    #             self.elements = np.row_stack((self.elements, m.mesh['pt'][matches]))
-                    # elif dim==3:
-                    #     if edges:
-                    #         if self.edgeElements == []:
-                    #             self.edgeElements = m.mesh['ett'][matches]
-                    #         else:
-                    #             self.edgeElements = np.row_stack((self.edgeElements, m.mesh['ett'][matches]))
-                    #     else:
-                    #         if self.elements == []:
-                    #             self.elements = m.mesh['ptt'][matches]
-                    #         else:
-                    #             self.elements = np.row_stack((self.elements, m.mesh['ptt'][matches]))
-
-                    # for i in range(len(m.mesh['physical'][dim-1])):
-                    #     if m.mesh['physical'][dim-1][i] == id:
-                    #         if dim == 1:
-                    #             self.elements.append(m.mesh['pl'][i])
-                    #         elif dim==2:
-                    #             if edges:
-                    #                 self.edgeElements.append(m.mesh['et'][i])
-                    #             else:
-                    #                 self.elements.append(m.mesh['pt'][i])
-                    #         elif dim==3:
-                    #             if edges:
-                    #                 self.edgeElements.append(m.mesh['ett'][i])
-                    #             else:
-                    #                 self.elements.append(m.mesh['ptt'][i])
