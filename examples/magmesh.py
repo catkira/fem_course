@@ -58,7 +58,7 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     solve(A, rhs, 'petsc')    
     u = field.solution
     print(f'max(u) = {max(u)}')
-    storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
+    #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "magmesh_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.8f}')    

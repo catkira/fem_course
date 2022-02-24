@@ -38,17 +38,24 @@ class Parameter:
         self.checkDimensions()
 
     def prepareValues(self, ids):
-        self.preparedValues[str(ids)] = []        
+        self.preparedValues[str(ids)] = np.empty((0,self.rows))    
+        preparedValues2 = dict()    
+        preparedValues2[str(ids)] = []        
         for setting in self.settings:
-            for i in range(len(getMesh()['physical'][0])): # check lines
-                if getMesh()['physical'][0][i] == setting[0]:
-                    self.preparedValues[str(ids)].append(setting[1])
-            for i in range(len(getMesh()['physical'][1])): # check triangles
-                if getMesh()['physical'][1][i] == setting[0]:
-                    self.preparedValues[str(ids)].append(setting[1])
-            for i in range(len(getMesh()['physical'][2])): # check tetraeders
-                if getMesh()['physical'][2][i] == setting[0]:
-                    self.preparedValues[str(ids)].append(setting[1])
+            if self.rows == 1: # there is probably also a way to do it without this if-else
+                self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
+                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][0] == setting[0])))
+                self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
+                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][1] == setting[0])))
+                self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
+                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][2] == setting[0])))
+            else:
+                self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
+                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][0] == setting[0]),1))))
+                self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
+                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][1] == setting[0]),1))))
+                self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
+                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][2] == setting[0]),1))))
 
     def getValues(self, region=[]):
         ids = []
@@ -69,7 +76,7 @@ class Parameter:
         if not str(regionIds) in self.preparedValues:
             self.prepareValues(regionIds)
 
-        return np.array(self.preparedValues[str(regionIds)])
+        return self.preparedValues[str(regionIds)]
     
     # this function is quite inefficient, but its only for debug purpose anyway
     # Problem: vertexValues at the border of a region get overwritten by neighbouring region

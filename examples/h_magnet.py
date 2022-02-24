@@ -61,7 +61,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     solve(A, rhs, 'petsc')    
     u = field.solution
     print(f'max(u) = {max(u)}')
-    storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
+    #storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "h_magnetCurl_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
