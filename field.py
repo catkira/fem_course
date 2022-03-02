@@ -28,7 +28,7 @@ class Field:
 
     # Call to this function implicitely defines the regions where this field has dofs
     # TODO: consider whether this is good
-    def getElements(self, dim : int = -1, region = -1, nodesOnly = False):    
+    def getElements(self, dim : int = -1, region = -1, nodesOnly = False, translate = True):    
         if region != -1:
             if dim != -1:
                 print("Error: cannot call with dim and region set at the same time!")
@@ -41,7 +41,10 @@ class Field:
         else:
             assert dim != -1
             elements = self.getAllElements(dim, nodesOnly = nodesOnly)
-        return dm.translateDofIndices(self, elements)        
+        if translate:
+            return dm.translateDofIndices(self, elements)        
+        else:
+            return elements
 
     def getNumberOfElements(self, region):
         elements = region.getElements(field=self)

@@ -96,6 +96,9 @@ def countAllFreeDofs():
 def countFreeDofs(field):
     return dofManagerData.fields[field.id].countFreeDofs()
 
+def getStartIndex(field):
+    return dofManagerData.fields[field.id].startIndex
+
 def resetDofManager():
     global dofManagerData
     dofManagerData = DofManagerData()

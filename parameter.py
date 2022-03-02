@@ -42,6 +42,8 @@ class Parameter:
         preparedValues2 = dict()    
         preparedValues2[str(ids)] = []        
         for setting in self.settings:
+            if not setting[0] in ids:
+                continue
             if self.rows == 1: # there is probably also a way to do it without this if-else
                 self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
                     np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][0] == setting[0])))
