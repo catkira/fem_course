@@ -43,6 +43,10 @@ class Field:
             elements = self.getAllElements(dim, nodesOnly = nodesOnly)
         return dm.translateDofIndices(self, elements)        
 
+    def getNumberOfElements(self, region):
+        elements = region.getElements(field=self)
+        return len(elements)
+
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl(Field):
     def __init__(self, regionIDs=[]):

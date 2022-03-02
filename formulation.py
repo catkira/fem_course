@@ -417,7 +417,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
 
 # integral rho * u * tf(u)
 def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
-    n = numberOfVertices()
+    n = countAllFreeDofs()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = np.array(region) # TODO: Dangerous! this does not work with constraints or multiple fields!
         jacs = transformationJacobians(elements, elementDim=elementDim)        
