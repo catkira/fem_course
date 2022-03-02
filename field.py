@@ -17,8 +17,8 @@ class Field:
         self.regions = regionIDs
         dm.updateFieldRegions(self)                  
 
-    def setDirichlet(self, regions):
-        dm.setDirichlet(self, regions)
+    def setDirichlet(self, regions, value = []):
+        dm.setDirichlet(self, regions, value)
 
     def isEdgeField(self):
         return self.elementType 

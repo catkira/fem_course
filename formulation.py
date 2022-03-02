@@ -92,7 +92,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     rows = np.delete(rows, idx)
     cols = np.delete(cols, idx)
     #
-    numFreeDofs = countFreeDofs(field)
+    numFreeDofs = countAllFreeDofs()
     K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs,numFreeDofs]) 
     return K
 
@@ -191,7 +191,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
                 #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
                 #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
-    n = countFreeDofs(field)
+    n = countAllFreeDofs()
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
     data = np.delete(data, idx)
@@ -230,7 +230,7 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     for basis in range(nBasis):
         data[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
     data = data.ravel(order='C')        
-    n = countFreeDofs(field)
+    n = countAllFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]
     rows = np.delete(rows, idx)
@@ -278,7 +278,7 @@ def loadRhs(field, j, region=[], vectorized=True):
             else:
                 data[:,m] += gfs[i] * np.einsum('i,ij,j->i', detJacs, jTransformed, field.shapeFunctionValues(gp, elementDim)[m,:])
     data = data.ravel(order='C')
-    n = countFreeDofs(field)
+    n = countAllFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]
     rows = np.delete(rows, idx)
@@ -310,7 +310,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     jacs = transformationJacobians(region, elementDim = dim)
     detJacs = np.abs(np.linalg.det(jacs))    
     invJacs = np.linalg.inv(jacs) 
-    n = countFreeDofs(field)    
+    n = countAllFreeDofs()    
     if vectorized:
         # this line has convergence issues with example magnet_in_room
         # temp2 = area * np.einsum('i,ikj,lk->ijl', detJacs, invJacs, Grads)
@@ -366,7 +366,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     data = np.zeros(m*elementMatrixSize)    
-    n = countFreeDofs(field)        
+    n = countAllFreeDofs()        
     if elementDim == 2:
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       

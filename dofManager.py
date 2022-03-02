@@ -102,7 +102,7 @@ def resetDofManager():
 
 def translateDofIndices(field, elements):
     mask = dofManagerData.fields[field.id].freeDofMask()
-    idx = np.repeat(-1, countAllDofs()).astype(np.int)
+    idx = np.repeat(-1, len(mask)).astype(np.int)
     addr = dofManagerData.fields[field.id].startIndex
     for id in range(len(idx)):
         if mask[id]:
