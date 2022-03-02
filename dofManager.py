@@ -115,9 +115,9 @@ def putSolutionIntoFields(u):
     global dofManagerData
     for fieldData in dofManagerData.fields:
         mask = fieldData.freeDofMask()
-        solution = np.zeros(countAllDofs())
+        solution = np.zeros(len(mask))
         id = fieldData.startIndex
-        for id2 in range(countAllDofs()):
+        for id2 in range(len(mask)):
             if mask[id2]:
                 solution[id2] = u[id]
                 id += 1
