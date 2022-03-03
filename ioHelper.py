@@ -27,10 +27,12 @@ def storeInVTK2(u, filename, writePointData, field):
     start = time.time()    
     if getMesh()['problemDimension'] == 2:
         ppe = 3 # points per element
-        elementContainer = getMesh()['pt']
+        #elementContainer = getMesh()['pt']
+        elementContainer = field.getElements(dim=2, nodesOnly=True, translate=False)
         cellType = vtk.VTK_LAGRANGE_TRIANGLE
     else:
-        elementContainer = getMesh()['ptt']
+        #elementContainer = getMesh()['ptt']
+        elementContainer = field.getElements(dim=3, nodesOnly=True, translate=False)
         ppe = 4 # points per element
         cellType = vtk.VTK_LAGRANGE_TETRAHEDRON
     m = len(elementContainer)

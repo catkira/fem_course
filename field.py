@@ -41,7 +41,7 @@ class Field:
             elements =  region.getElements(field=self, nodesOnly = nodesOnly)
         else:
             assert dim != -1
-            elements = self.getAllElements(dim, nodesOnly = nodesOnly)
+            elements = self.getAllElements(dim, nodesOnly = nodesOnly, translate=False)
         if translate:
             return dm.translateDofIndices(self, elements)        
         else:
@@ -60,7 +60,7 @@ class FieldHCurl(Field):
     def setGauge(self, tree):
         dm.setGauge(self, tree)    
 
-    def getAllElements(self, dim, nodesOnly):    
+    def getAllElements(self, dim, nodesOnly, translate=False):    
         print("*legacy warning*")
         if dim == 2:
             self.regions = np.unique(m.getMesh()['physical'][1])
@@ -75,7 +75,10 @@ class FieldHCurl(Field):
             else:
                 elements =  m.getMesh()['ett']
         #dm.updateFieldRegions(self)                
-        return dm.translateDofIndices(self, elements)
+        if translate:            
+            return dm.translateDofIndices(self, elements)                
+        else:
+            return elements        
 
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -138,15 +141,18 @@ class FieldH1(Field):
         self.elementType = 0
         super().__init__(regionIDs)        
 
-    def getAllElements(self, dim, nodesOnly):    
+    def getAllElements(self, dim, nodesOnly, translate=False):    
         if dim == 2:
         #    self.regions = np.unique(m.getMesh()['physical'][1])                
             elements = m.getMesh()['pt']
         elif dim == 3:
         #    self.regions = np.unique(m.getMesh()['physical'][2])                
             elements = m.getMesh()['ptt']
-        #dm.updateFieldRegions(self)                
-        return dm.translateDofIndices(self, elements)                
+        #dm.updateFieldRegions(self)    
+        if translate:            
+            return dm.translateDofIndices(self, elements)                
+        else:
+            return elements
 
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:
