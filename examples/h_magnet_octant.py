@@ -42,7 +42,7 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     boundaryRegion = Region()
     boundaryRegion.append([inf, innerXYBoundary, magnetXYBoundary])
 
-    field = FieldH1([magnet, frame, air, inf])
+    field = FieldH1([magnet, frame, air])
     if dirichlet == 'soft':
         K = stiffnessMatrix(field, mu, volumeRegion, vectorized=vectorized, legacy=legacy)
         alpha = Parameter()
