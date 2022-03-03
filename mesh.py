@@ -172,6 +172,15 @@ def dimensionOfRegion(id):
     else:
         print(f'Error: region with id {id:d} not found!')
         sys.exit()
+    
+def dimensionOfMesh():
+    if len(mesh['physical'][2]) != 0:
+        return 3
+    elif len(mesh['physical'][1]) != 0:
+        return 2
+    elif len(mesh['physical'][0]) != 0:
+        return 1
+    return 0
 
 def getAllRegions(dim = -1):
     regions = np.empty(0, dtype = np.int)
@@ -296,8 +305,12 @@ def rectangularCriss(w, h):
     G['pe'] = np.zeros(0)    
     G['allPhysicalIds'] = np.empty((3,0))    
     G['physical'] = np.empty(3, object)
+    G['physical'][0] = []
     G['physical'][1] = np.ones(G['pt'].shape[0], dtype=np.int)
+    G['physical'][2] = []
+    G['allPhysicalIds'][0] = []
     G['allPhysicalIds'][1] = [1]
+    G['allPhysicalIds'][2] = []
     mesh = G
     import dofManager as dm
     dm.resetDofManager()

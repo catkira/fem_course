@@ -7,6 +7,9 @@ import region as rg
 # this is only a hack to allow simpler function calls when only one field is defined
 globalField = []
 
+#
+# if no regions are given, field is defined on all regions with the highest dimension of the current mesh
+#
 class Field:
     def __init__(self, regionIDs):
         global globalField
@@ -14,7 +17,7 @@ class Field:
         self.id = dm.registerField(self)
         self.solution = np.empty(0)
         if regionIDs == []:
-            regionIDs = m.getAllRegions()
+            regionIDs = m.getAllRegions(dim=m.dimensionOfMesh())
         self.regions = regionIDs
         dm.updateFieldRegions(self)                  
 
@@ -47,6 +50,18 @@ class Field:
         else:
             return elements
 
+    def getAllElements(self, dim, nodesOnly, translate=False):    
+        if dim == 2:
+            region = rg.Region(self.regions)   
+            elements = region.getElements(field=self, nodesOnly=nodesOnly)             
+        elif dim == 3:
+            region = rg.Region(self.regions)   
+            elements = region.getElements(field=self, nodesOnly=nodesOnly)             
+        if translate:            
+            return dm.translateDofIndices(self, elements)                
+        else:
+            return elements            
+
     def getNumberOfElements(self, region):
         elements = region.getElements(field=self)
         return len(elements)
@@ -60,25 +75,24 @@ class FieldHCurl(Field):
     def setGauge(self, tree):
         dm.setGauge(self, tree)    
 
-    def getAllElements(self, dim, nodesOnly, translate=False):    
-        print("*legacy warning*")
-        if dim == 2:
-            self.regions = np.unique(m.getMesh()['physical'][1])
-            if nodesOnly:
-                elements =  m.getMesh()['pt']
-            else:
-                elements =  m.getMesh()['et']
-        elif dim == 3:
-            self.regions = np.unique(m.getMesh()['physical'][2])
-            if nodesOnly:
-                elements =  m.getMesh()['ptt']
-            else:
-                elements =  m.getMesh()['ett']
-        #dm.updateFieldRegions(self)                
-        if translate:            
-            return dm.translateDofIndices(self, elements)                
-        else:
-            return elements        
+    # def getAllElements(self, dim, nodesOnly, translate=False):    
+    #     print("*legacy warning*")
+    #     if dim == 2:
+    #         self.regions = np.unique(m.getMesh()['physical'][1])
+    #         if nodesOnly:
+    #             elements =  m.getMesh()['pt']
+    #         else:
+    #             elements =  m.getMesh()['et']
+    #     elif dim == 3:
+    #         self.regions = np.unique(m.getMesh()['physical'][2])
+    #         if nodesOnly:
+    #             elements =  m.getMesh()['ptt']
+    #         else:
+    #             elements =  m.getMesh()['ett']
+    #     if translate:            
+    #         return dm.translateDofIndices(self, elements)                
+    #     else:
+            # return elements        
 
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -141,18 +155,17 @@ class FieldH1(Field):
         self.elementType = 0
         super().__init__(regionIDs)        
 
-    def getAllElements(self, dim, nodesOnly, translate=False):    
-        if dim == 2:
-        #    self.regions = np.unique(m.getMesh()['physical'][1])                
-            elements = m.getMesh()['pt']
-        elif dim == 3:
-        #    self.regions = np.unique(m.getMesh()['physical'][2])                
-            elements = m.getMesh()['ptt']
-        #dm.updateFieldRegions(self)    
-        if translate:            
-            return dm.translateDofIndices(self, elements)                
-        else:
-            return elements
+    # def getAllElements(self, dim, nodesOnly, translate=False):    
+    #     if dim == 2:
+    #         region = rg.Region(self.regions)   
+    #         elements = region.getElements(field=self)             
+    #     elif dim == 3:
+    #         region = rg.Region(self.regions)   
+    #         elements = region.getElements(field=self)             
+    #     if translate:            
+    #         return dm.translateDofIndices(self, elements)                
+    #     else:
+    #         return elements
 
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:

@@ -12,8 +12,8 @@ class Region:
         self.elements = []
         self.edgeElements = []
         self.regionDimension = 0
-        if ids != []:
-            self.append(ids)
+        if ids is not  []:
+            self.ids = list(ids)
         regionList.append(self)
 
     def append(self, ids):

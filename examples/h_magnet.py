@@ -38,7 +38,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     volumeRegion = Region([magnet, frame, air])
     boundaryRegion = Region([inf])
 
-    field = FieldHCurl([magnet, frame, air, inf])
+    field = FieldHCurl([magnet, frame, air])
     if gauge:
         spanningtree = st.spanningtree(excludedRegions=[inf]) # regions with Dirichlet BCs need to be excluded!
         spanningtree.write("h_magnet_spanntree.pos")
