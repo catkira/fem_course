@@ -2,6 +2,7 @@ import numpy as np
 import mesh as m
 import dofManager as dm
 import sys
+import region as rg
 
 # this is only a hack to allow simpler function calls when only one field is defined
 globalField = []
@@ -182,9 +183,11 @@ class FieldH1(Field):
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = np.append(invJac.T @ sfGrads.T @ u[element], 0)
         else:
-            grads = np.zeros((m.numberOfTetraeders(),3))
+            region = rg.Region(self.regions)
+            elements = self.getElements(region=region, translate=False)
+            grads = np.zeros((len(elements),3))
             sfGrads = self.shapeFunctionGradients(dim)
-            for elementIndex, element in enumerate(m.getMesh()['ptt']):    
+            for elementIndex, element in enumerate(elements):    
                 jac,_ = m.transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
