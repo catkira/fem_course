@@ -13,6 +13,7 @@ Features implemented so far are:
 Planned features:
 - higher order elements
 - eddy current example in A-phi-formulation
+- harmonics
 - pos-file export for GMSH
 - inhomogeneous Dirichlet boundary conditions
 
