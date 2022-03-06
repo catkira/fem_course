@@ -51,6 +51,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     fieldA2.setDirichlet([domainboundary])
     fieldV1.setDirichlet([vout])
     fieldV2.setDirichlet([vout])
+    fieldV2.setDirichlet([vin])
     
     if True:
         alpha = Parameter()
