@@ -58,6 +58,18 @@ def getElements(elementType, elementDim):
         elif elementDim == 2:
             return mesh['ett']
 
+def getSigns(region):
+    if region.regionDimension == 2:
+        index = np.repeat(False, len(mesh['physical'][1]))
+        for id in region.ids:
+            index |= mesh['physical'][1] == id
+        return mesh['signs2d'][index]
+    elif region.regionDimension == 3:
+        index = np.repeat(False, len(mesh['physical'][2]))
+        for id in region.ids:
+            index |= mesh['physical'][2] == id
+        return mesh['signs3d'][index]
+
 # triangleIndices start with 1, because 0 is used for 'no triangle'
 # G['pe'] translates from edges to points, every row contains two points which form an edge
 # G['te'] translates from edges to triangles, every row contains the triangles to which the edge belongs

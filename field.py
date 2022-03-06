@@ -73,26 +73,7 @@ class FieldHCurl(Field):
         super().__init__(regionIDs)
 
     def setGauge(self, tree):
-        dm.setGauge(self, tree)    
-
-    # def getAllElements(self, dim, nodesOnly, translate=False):    
-    #     print("*legacy warning*")
-    #     if dim == 2:
-    #         self.regions = np.unique(m.getMesh()['physical'][1])
-    #         if nodesOnly:
-    #             elements =  m.getMesh()['pt']
-    #         else:
-    #             elements =  m.getMesh()['et']
-    #     elif dim == 3:
-    #         self.regions = np.unique(m.getMesh()['physical'][2])
-    #         if nodesOnly:
-    #             elements =  m.getMesh()['ptt']
-    #         else:
-    #             elements =  m.getMesh()['ett']
-    #     if translate:            
-    #         return dm.translateDofIndices(self, elements)                
-    #     else:
-            # return elements        
+        dm.setGauge(self, tree)       
 
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -154,18 +135,6 @@ class FieldH1(Field):
     def __init__(self, regionIDs=[]):
         self.elementType = 0
         super().__init__(regionIDs)        
-
-    # def getAllElements(self, dim, nodesOnly, translate=False):    
-    #     if dim == 2:
-    #         region = rg.Region(self.regions)   
-    #         elements = region.getElements(field=self)             
-    #     elif dim == 3:
-    #         region = rg.Region(self.regions)   
-    #         elements = region.getElements(field=self)             
-    #     if translate:            
-    #         return dm.translateDofIndices(self, elements)                
-    #     else:
-    #         return elements
 
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:

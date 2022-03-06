@@ -37,6 +37,48 @@ def localCoordinate(G, t, x):
     xi,_,_,_ = np.linalg.lstsq(B, x-x1, rcond=None)
     return xi
 
+# magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
+def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
+    elements1 = field1.getElements(region = region)
+    elements2 = field2.getElements(region = region)
+    sigmas = sigmas.getValues(region)
+    elementDim = region.regionDimension
+    jacs = transformationJacobians(region, elementDim=elementDim)    
+    detJacs = np.abs(np.linalg.det(jacs))
+    invJacs = np.linalg.inv(jacs)
+    signs = getSigns(region)
+    if elementDim == 2:    
+        nBasis = 3
+    elif elementDim == 3:
+        nBasis = 6
+    if elementDim == 2:
+        print("Error: hcurl elements are not possible in 2d!")
+        sys.exit()
+    elif elementDim == 3:
+        rows = np.tile(elements1, nBasis).astype(np.int64).ravel()
+        cols = np.repeat(elements2, nBasis).astype(np.int64).ravel()  
+        # this formulation is more generic, because it supports higher orders
+        data2 = np.zeros((len(elements1), nBasis, nBasis))
+        integrationOrder = 2
+        gfs, gps = gaussData(integrationOrder, elementDim)
+        dt = 2*np.pi*frequency              
+        for i in range(len(gfs)):
+            values = field1.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
+            for m in range(nBasis):
+                for k in range(nBasis):
+                    factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
+                    factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, values[k,:])
+                    data2[:,m,k] += dt * gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+        data = data2.ravel(order='C')
+    # delete all rows and cols with index -1
+    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    data = np.delete(data, idx)
+    rows = np.delete(rows, idx)
+    cols = np.delete(cols, idx)
+    #
+    numFreeDofs = countAllFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
+    return K        
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
@@ -44,11 +86,13 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
         elementDim = getMesh()['problemDimension'] 
         elements = field.getElements(dim = elementDim)
         jacs = transformationJacobians(elementDim=elementDim)
+        signs = getMesh()['signs3d']
     else:
         elements = field.getElements(region = region)
         sigmas = sigmas.getValues(region)
         elementDim = region.regionDimension
         jacs = transformationJacobians(region, elementDim=elementDim)
+        signs = getSigns(region)
     if elementDim == 2:    
         nBasis = 3
         elementArea = 1/2
@@ -64,18 +108,17 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
-            signs = np.einsum('ij,ik->ijk', getMesh()['signs3d'], getMesh()['signs3d']) 
+            signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
             curls = field.shapeFunctionCurls(elementDim)
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
                     B[i,k] = elementArea * np.matrix(curls[:,i]).T * np.matrix(curls[:,k]) 
             gammas = np.einsum('i,i,ikj,ikl->ijl', sigmas, 1/detJacs, jacs, jacs)
-            data = np.einsum('ilm,ijk,jklm->ilm', signs, gammas, B).ravel(order='C')
+            data = np.einsum('ilm,ijk,jklm->ilm', signsMultiplied, gammas, B).ravel(order='C')
         else:
             # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
-            signs = getMesh()['signs3d']
             integrationOrder = 2
             gfs,gps = gaussData(integrationOrder, elementDim)              
             for i in range(len(gfs)):

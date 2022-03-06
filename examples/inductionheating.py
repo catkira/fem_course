@@ -12,7 +12,7 @@ from formulation import *
 def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     loadMesh("examples/inductionheating.msh")
     mu0 = 4*np.pi*1e-7
-    mur_frame = 1000
+
     # regions
     coil = 1
     tube = 2
@@ -22,10 +22,6 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     vin = 6
     vout = 7
     domainboundary = 8
-
-    #conductor = selectunion([coil,tube])
-    #wholedomain = selectunion([coil, tube, air, coilskin, tubeskin, vin, vout, domainboundary])
-    #domainboundary = selectunion([domainboundary, vin, vout])
 
     start = time.time()
     nu = Parameter()
@@ -41,22 +37,27 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     volumeRegion = Region([coil, tube, air])
     conductorRegion = Region([coil, tube])
 
-    fieldA = FieldHCurl([coil, tube, air, coilskin, tubeskin, vin, vout, domainboundary])
-    fieldV = FieldH1([coil, tube])
+    fieldA1 = FieldHCurl([coil, tube, air])  # 1st harmonic inphase component
+    fieldA2 = FieldHCurl([coil, tube, air])  # 1st harmonic quadrature component
+    fieldV1 = FieldH1([coil, tube])
+    fieldV2 = FieldH1([coil, tube])
     if gauge:
         spanningtree = st.spanningtree([domainboundary, vin, vout])
         spanningtree.write("inductionheating_spanntree.pos")
-        fieldA.setGauge(spanningtree)
+        fieldA1.setGauge(spanningtree)
+        fieldA2.setGauge(spanningtree)
 
-    fieldA.setDirichlet([domainboundary])
-    fieldV.setDirichlet([vout])
+    fieldA1.setDirichlet([domainboundary])
+    fieldA2.setDirichlet([domainboundary])
+    fieldV1.setDirichlet([vout])
+    fieldV2.setDirichlet([vout])
     
     if True:
         alpha = Parameter()
         alpha.set([vin], 1e9)
         VinRegion = Region([vin])
-        B = massMatrix(fieldV, alpha, VinRegion)
-        vinElements = fieldV.getElements(region=VinRegion)
+        B = massMatrix(fieldV1, alpha, VinRegion)
+        vinElements = fieldV1.getElements(region=VinRegion)
         pd = np.zeros(countAllFreeDofs())
         pd[np.unique(vinElements.ravel())] = 1
         rhs = B @ pd
@@ -64,28 +65,38 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
         # inhomogeneous Dirichlet BCs are not yet implemented!
         fieldV.setDirichlet([vin], 1) # WIP
     
-    K_A = stiffnessMatrixCurl(fieldA, nu, volumeRegion)
-    K_V = stiffnessMatrix(fieldV, sigma, conductorRegion)
+    K_A1 = stiffnessMatrixCurl(fieldA1, nu, volumeRegion)
+    K_A2 = stiffnessMatrixCurl(fieldA2, nu, volumeRegion)
+    K_A1A2 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
+    K_V1 = stiffnessMatrix(fieldV1, sigma, conductorRegion)
+    K_V2 = stiffnessMatrix(fieldV2, sigma, conductorRegion)
     
     # TODO: coupling terms
     # setFundamentalFrequency(50)
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
+    # magdyn += integral(conductor, sigma*grad(dof(v))*tf(a))
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
 
-    A = K_V + K_A
+    A = K_V1 + K_V2 + K_A1 + K_A2 + K_A1A2
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
     solve(A, rhs, 'petsc')    
-    u = fieldV.solution
-    E = -fieldV.grad(u, dim=3)
+    u1 = fieldV1.solution
+    u2 = fieldV2.solution
+    E1 = -fieldV1.grad(u1, dim=3)
+    E2 = -fieldV2.grad(u2, dim=3)
     #
     # TODO: implement storeInVTK on regions
     #
-    storeInVTK(E, "inductionheating_E.vtk", field=fieldV)    
-    u = fieldA.solution
-    B = fieldA.curl(u, dim=3)
-    storeInVTK(B, "inductionheating_B.vtk", field=fieldA)    
+    storeInVTK(E1, "inductionheating_E1.vtk", field=fieldV1)    
+    storeInVTK(E2, "inductionheating_E2.vtk", field=fieldV1)    
+    u1 = fieldA1.solution
+    u2 = fieldA2.solution
+    B1 = fieldA1.curl(u1, dim=3)
+    B2 = fieldA2.curl(u2, dim=3)
+    storeInVTK(B1, "inductionheating_B1.vtk", field=fieldA1)    
+    storeInVTK(B2, "inductionheating_B2.vtk", field=fieldA2)
     #print(f'max(u) = {max(u)}')
     #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
     #b = field.curl(u, dim=3)
