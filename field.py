@@ -141,7 +141,19 @@ class FieldHCurl(Field):
         return curls
 
     def dt(self, u, frequency, dim=3):
-        return self.curl(u, dim) * 2*np.pi*frequency  # TODO: is this correct?
+        if dim == 3:
+            elements = m.getMesh()['ett']
+            xiBarycenter = [1/3, 1/3, 1/3]
+            values = self.shapeFunctionValues(xiBarycenter)
+            jacs = m.transformationJacobians([], dim)
+            invJacs = np.linalg.inv(jacs)
+            detJacs = np.linalg.det(jacs)
+            signs = m.getMesh()['signs3d']
+            dts = np.einsum('i,ijk,lk,il,il->ij', detJacs, invJacs, values, signs, u[elements]) * 2*np.pi*frequency  # TODO: is this correct?   
+        elif dim == 2:
+            print("Error: not yet implemented!")
+            sys.exit()
+        return dts
 
 class FieldH1(Field):    
     def __init__(self, regionIDs=[]):

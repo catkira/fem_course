@@ -54,7 +54,7 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
         nBasisV = 4
         nBasisA = 6
         rows = np.tile(elementsA, nBasisV).astype(np.int64).ravel()
-        cols = np.repeat(elementsA, nBasisV).astype(np.int64).ravel()  
+        cols = np.repeat(elementsV, nBasisA).astype(np.int64).ravel()  
         data2 = np.zeros((len(elementsV), nBasisV, nBasisA))
         grads = fieldV.shapeFunctionGradients(elementDim)        
         integrationOrder = 2
@@ -63,8 +63,8 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
             values = fieldA.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
             for m in range(nBasisV):
                 for k in range(nBasisA):
-                    factor1 = np.einsum('i,i,ijk,k->ij', sigmas, detJacs, invJacs, grads[m])
-                    factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, values[k,:])
+                    factor1 = np.einsum('i,i,ikj,k->ij', sigmas, detJacs, invJacs, grads[m])
+                    factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
     # delete all rows and cols with index -1
