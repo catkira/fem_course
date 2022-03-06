@@ -67,34 +67,36 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     K_A1 = stiffnessMatrixCurl(fieldA1, nu, volumeRegion)
     K_A2 = stiffnessMatrixCurl(fieldA2, nu, volumeRegion)
+    # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
     K_A1A2 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
     K_V1 = stiffnessMatrix(fieldV1, sigma, conductorRegion)
     K_V2 = stiffnessMatrix(fieldV2, sigma, conductorRegion)
     
     # TODO: coupling terms
-    # setFundamentalFrequency(50)
-    # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
     # magdyn += integral(conductor, sigma*grad(dof(v))*tf(a))
+    K_V_A = matrix_gradDofV_tfA(fieldV1, fieldA1, sigma, conductorRegion)  # WIP
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
 
-    A = K_V1 + K_V2 + K_A1 + K_A2 + K_A1A2
+    A = K_V1 + K_V2 + K_A1 + K_A2
+    A += K_V_A
+    # A += K_A1A2
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
     solve(A, rhs, 'petsc')    
-    u1 = fieldV1.solution
-    u2 = fieldV2.solution
-    E1 = -fieldV1.grad(u1, dim=3)
-    E2 = -fieldV2.grad(u2, dim=3)
+
+    # TODO: check fieldA2.dt()
+    E1 = -fieldV1.grad(fieldV1.solution, dim=3)
+    E1 -= fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
+    E2 = -fieldV2.grad(fieldV2.solution, dim=3)
+    E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)[0:len(E2),:] # HACK
     #
     # TODO: implement storeInVTK on regions
     #
     storeInVTK(E1, "inductionheating_E1.vtk", field=fieldV1)    
-    storeInVTK(E2, "inductionheating_E2.vtk", field=fieldV1)    
-    u1 = fieldA1.solution
-    u2 = fieldA2.solution
-    B1 = fieldA1.curl(u1, dim=3)
-    B2 = fieldA2.curl(u2, dim=3)
+    storeInVTK(E2, "inductionheating_E2.vtk", field=fieldV2)    
+    B1 = fieldA1.curl(fieldA1.solution, dim=3)
+    B2 = fieldA2.curl(fieldA2.solution, dim=3)
     storeInVTK(B1, "inductionheating_B1.vtk", field=fieldA1)    
     storeInVTK(B2, "inductionheating_B2.vtk", field=fieldA2)
     #print(f'max(u) = {max(u)}')

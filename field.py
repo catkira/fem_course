@@ -65,7 +65,15 @@ class Field:
     def getNumberOfElements(self, region):
         elements = region.getElements(field=self)
         return len(elements)
-
+    
+    def addRegion(self, u, id):
+        print("Warning: this works only if added region has higher id than regions already present")
+        assert id > np.max(self.regions)
+        # dm.dofManagerData.fields[self.id]
+        num = np.count_nonzero(m.getMesh()['physical'][2] == id)
+        u = np.row_stack((u, np.zeros((num, u.shape[1]))))
+        return u
+    
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl(Field):
     def __init__(self, regionIDs=[]):
@@ -117,6 +125,7 @@ class FieldHCurl(Field):
                             [0,             -xi[2],         xi[1]],             # edge (2,3)
                             [xi[2],         0,              -xi[0]]],           # edge (3,1)
                             dtype=np.float64)
+    
     def curl(self, u, dim=3):
         if dim == 2:
             numEdges = m.numberOfEdges()
@@ -130,6 +139,9 @@ class FieldHCurl(Field):
             signs = m.getMesh()['signs3d']
             curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         return curls
+
+    def dt(self, u, frequency, dim=3):
+        return self.curl(u, dim) * 2*np.pi*frequency  # TODO: is this correct?
 
 class FieldH1(Field):    
     def __init__(self, regionIDs=[]):

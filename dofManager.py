@@ -43,7 +43,6 @@ class DofFieldData:
 class DofManagerData:
     def __init__(self):
         self.fields = np.empty(0, dtype=object)
-        fields = np.empty(0, object)
 
     def updateStartIndices(self):
         startIndex = 0

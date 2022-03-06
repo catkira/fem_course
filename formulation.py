@@ -37,7 +37,47 @@ def localCoordinate(G, t, x):
     xi,_,_,_ = np.linalg.lstsq(B, x-x1, rcond=None)
     return xi
 
-# magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
+# integral sigma * grad(dof(v)) * tf(a)
+def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
+    elementsV = fieldV.getElements(region = region)
+    elementsA = fieldA.getElements(region = region)
+    sigmas = sigmas.getValues(region)
+    elementDim = region.regionDimension
+    jacs = transformationJacobians(region, elementDim=elementDim)    
+    detJacs = np.abs(np.linalg.det(jacs))
+    invJacs = np.linalg.inv(jacs)
+    signs = getSigns(region)
+    if elementDim == 2:
+        print("Error: hcurl elements are not possible in 2d!")
+        sys.exit()
+    elif elementDim == 3:
+        nBasisV = 4
+        nBasisA = 6
+        rows = np.tile(elementsA, nBasisV).astype(np.int64).ravel()
+        cols = np.repeat(elementsA, nBasisV).astype(np.int64).ravel()  
+        data2 = np.zeros((len(elementsV), nBasisV, nBasisA))
+        grads = fieldV.shapeFunctionGradients(elementDim)        
+        integrationOrder = 2
+        gfs, gps = gaussData(integrationOrder, elementDim)        
+        for i in range(len(gfs)):
+            values = fieldA.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
+            for m in range(nBasisV):
+                for k in range(nBasisA):
+                    factor1 = np.einsum('i,i,ijk,k->ij', sigmas, detJacs, invJacs, grads[m])
+                    factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, values[k,:])
+                    data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+        data = data2.ravel(order='C')
+    # delete all rows and cols with index -1
+    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    data = np.delete(data, idx)
+    rows = np.delete(rows, idx)
+    cols = np.delete(cols, idx)
+    #
+    numFreeDofs = countAllFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
+    return K        
+
+# integral sigma * dt(dof(a)) * tf(a)
 def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
     elements1 = field1.getElements(region = region)
     elements2 = field2.getElements(region = region)
@@ -47,17 +87,13 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
     detJacs = np.abs(np.linalg.det(jacs))
     invJacs = np.linalg.inv(jacs)
     signs = getSigns(region)
-    if elementDim == 2:    
-        nBasis = 3
-    elif elementDim == 3:
-        nBasis = 6
     if elementDim == 2:
         print("Error: hcurl elements are not possible in 2d!")
         sys.exit()
     elif elementDim == 3:
+        nBasis = 6
         rows = np.tile(elements1, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements2, nBasis).astype(np.int64).ravel()  
-        # this formulation is more generic, because it supports higher orders
         data2 = np.zeros((len(elements1), nBasis, nBasis))
         integrationOrder = 2
         gfs, gps = gaussData(integrationOrder, elementDim)
