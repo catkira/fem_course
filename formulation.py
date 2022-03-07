@@ -114,7 +114,48 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
     #
     numFreeDofs = countAllFreeDofs()
     K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K        
+    return K
+
+# integral sigma * dt(dof(a)) * grad(tf(v))
+def matrix_dtDofA_gradTfV(fieldA, fieldV, sigmas, region, frequency):
+    elementsV = fieldV.getElements(region = region)
+    elementsA = fieldA.getElements(region = region)
+    sigmas = sigmas.getValues(region)
+    elementDim = region.regionDimension
+    jacs = transformationJacobians(region, elementDim=elementDim)    
+    detJacs = np.abs(np.linalg.det(jacs))
+    invJacs = np.linalg.inv(jacs)
+    signs = getSigns(region)
+    if elementDim == 2:
+        print("Error: hcurl elements are not possible in 2d!")
+        sys.exit()
+    elif elementDim == 3:
+        nBasisV = 4
+        nBasisA = 6
+        rows = np.tile(elementsV, nBasisA).astype(np.int64).ravel()
+        cols = np.repeat(elementsA, nBasisV).astype(np.int64).ravel()  
+        data2 = np.zeros((len(elementsV), nBasisA, nBasisV))
+        integrationOrder = 2
+        grads = fieldV.shapeFunctionGradients(elementDim)        
+        gfs, gps = gaussData(integrationOrder, elementDim)
+        dt = 2*np.pi*frequency              
+        for i in range(len(gfs)):
+            values = fieldA.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
+            for m in range(nBasisA):
+                for k in range(nBasisV):
+                    factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
+                    factor2 = np.einsum('ikj,k->ij', invJacs, grads[k])
+                    data2[:,m,k] += dt * gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+        data = data2.ravel(order='C')
+    # delete all rows and cols with index -1
+    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    data = np.delete(data, idx)
+    rows = np.delete(rows, idx)
+    cols = np.delete(cols, idx)
+    #
+    numFreeDofs = countAllFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
+    return K            
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
