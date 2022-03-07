@@ -147,7 +147,6 @@ class FieldHCurl(Field):
             values = self.shapeFunctionValues(xiBarycenter)
             jacs = m.transformationJacobians([], dim)
             invJacs = np.linalg.inv(jacs)
-            #detJacs = np.linalg.det(jacs)
             signs = m.getMesh()['signs3d']
             dts = np.einsum('ikj,lk,il,il->ij', invJacs, values, signs, u[elements]) * 2*np.pi*frequency  # TODO: is this correct?   
         elif dim == 2:

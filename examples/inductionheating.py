@@ -69,15 +69,15 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     # magdyn += integral(wholedomain, 1/mu* curl(dof(a)) * curl(tf(a)))
     K_A1 = stiffnessMatrixCurl(fieldA1, nu, volumeRegion)
     K_A2 = stiffnessMatrixCurl(fieldA2, nu, volumeRegion)
-        
+
     # magdyn += integral(conductor, sigma*grad(dof(v))*grad(tf(v)))
     K_V1 = stiffnessMatrix(fieldV1, sigma, conductorRegion)
     K_V2 = stiffnessMatrix(fieldV2, sigma, conductorRegion)
-    
+
     # magdyn += integral(conductor, sigma*grad(dof(v))*tf(a))
     K_V_A_1 = matrix_gradDofV_tfA(fieldV1, fieldA1, sigma, conductorRegion)  # seems to be ok
     K_V_A_2 = matrix_gradDofV_tfA(fieldV2, fieldA2, sigma, conductorRegion)  # seems to be ok
-    
+
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
     K_dtA1A2_1 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
     K_dtA1A2_2 = matrix_dtDofA_tfA(fieldA2, fieldA1, sigma, conductorRegion, 50)  # untested
@@ -88,8 +88,8 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
 
     A = K_V1 + K_V2 + K_A1 + K_A2 # seems to be ok
     A += K_V_A_1 + K_V_A_2  # seems to be ok
-    A += K_dtA1A2_1 + K_dtA1A2_1 # WIP
-    A += K_dtAV_1 + K_dtAV_2 # WIP
+    A += K_dtA1A2_1 + K_dtA1A2_2 # WIP
+    #A += K_dtAV_1 + K_dtAV_2 # WIP
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')

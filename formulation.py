@@ -92,8 +92,8 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
         sys.exit()
     elif elementDim == 3:
         nBasis = 6
-        rows = np.tile(elements1, nBasis).astype(np.int64).ravel()
-        cols = np.repeat(elements2, nBasis).astype(np.int64).ravel()  
+        rows = np.tile(elements2, nBasis).astype(np.int64).ravel()
+        cols = np.repeat(elements1, nBasis).astype(np.int64).ravel()  
         data2 = np.zeros((len(elements1), nBasis, nBasis))
         integrationOrder = 2
         gfs, gps = gaussData(integrationOrder, elementDim)
@@ -104,8 +104,8 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
                 for k in range(nBasis):
                     factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
                     factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
-                    data2[:,m,k] += dt * gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
-        data = data2.ravel(order='C')
+                    data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+        data = dt * data2.ravel(order='C')
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
     data = np.delete(data, idx)
