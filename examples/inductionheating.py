@@ -29,8 +29,8 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     #storeInVTK(nu,"nu.vtk")
 
     sigma = Parameter()
-    sigma.set(coil, 6e7)
-    sigma.set(tube, 3e7)
+    sigma.set(coil, 6e7) # [S/m]
+    sigma.set(tube, 3e7) # [S/m]
     sigma.set(air, 0)  # this is only needed for storeInVTK
     #storeInVTK(sigma, "inductionheating_sigma.vtk")
 
@@ -55,7 +55,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     if True:
         alpha = Parameter()
-        alpha.set([vin], 1e9)
+        alpha.set([vin], 1e7)  # TODO: why does it have to be exactly 1e7?
         VinRegion = Region([vin])
         B = massMatrix(fieldV1, alpha, VinRegion)
         vinElements = fieldV1.getElements(region=VinRegion)
@@ -66,26 +66,35 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
         # inhomogeneous Dirichlet BCs are not yet implemented!
         fieldV.setDirichlet([vin], 1) # WIP
     
+    # magdyn += integral(wholedomain, 1/mu* curl(dof(a)) * curl(tf(a)))
     K_A1 = stiffnessMatrixCurl(fieldA1, nu, volumeRegion)
     K_A2 = stiffnessMatrixCurl(fieldA2, nu, volumeRegion)
+    
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
-    K_A1A2 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
+    #K_A1A2_1 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
+    #K_A1A2_2 = matrix_dtDofA_tfA(fieldA2, fieldA1, sigma, conductorRegion, 50)  # untested
+    
+    # magdyn += integral(conductor, sigma*grad(dof(v))*grad(tf(v)))
     K_V1 = stiffnessMatrix(fieldV1, sigma, conductorRegion)
     K_V2 = stiffnessMatrix(fieldV2, sigma, conductorRegion)
     
-    # TODO: coupling terms
     # magdyn += integral(conductor, sigma*grad(dof(v))*tf(a))
-    K_V_A = matrix_gradDofV_tfA(fieldV1, fieldA1, sigma, conductorRegion)  # WIP
+    K_V_A_1 = matrix_gradDofV_tfA(fieldV1, fieldA1, sigma, conductorRegion)  # seems to be ok
+    K_V_A_2 = matrix_gradDofV_tfA(fieldV2, fieldA2, sigma, conductorRegion)  # seems to be ok
+    
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
 
     A = K_V1 + K_V2 + K_A1 + K_A2
-    A += K_V_A
-    # A += K_A1A2
+    A += K_V_A_1 + K_V_A_2
+    #A += K_A1A2_1 + K_A1A2_1
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
     solve(A, rhs, 'petsc')    
 
+    storeInVTK(fieldV1.solution, "inductionheating_V1.vtk", field=fieldV1, writePointData=True)    
+    storeInVTK(fieldV2.solution, "inductionheating_V2.vtk", field=fieldV2, writePointData=True)    
+    
     # TODO: check fieldA2.dt()
     E1 = -fieldV1.grad(fieldV1.solution, dim=3)
     E1 -= fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK

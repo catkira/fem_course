@@ -525,7 +525,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
             for i,gp in enumerate(gps):
                 for j in range(nBasis):
                     for k in range(nBasis):
-                        Mm[j,k] = Mm[j,k] + gfs[i] * field.shapeFunctionValues(gp, elementDim)[j] * field.shapeFunctionValues(gp, elementDim)[k] 
+                        Mm[j,k] += gfs[i] * field.shapeFunctionValues(gp, elementDim)[j] * field.shapeFunctionValues(gp, elementDim)[k] 
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
@@ -535,7 +535,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
     rows = np.tile(elements, nBasis).astype(np.int64).ravel()
     cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
     if vectorized:
-        data = np.einsum('i,jk',rhos * detJacs, Mm).ravel()
+        data = np.einsum('i,jk', rhos*detJacs, Mm).ravel()
     else:
         for elementIndex, element in enumerate(elements):
             rangeIndex = np.arange(start=elementIndex*elementMatrixSize, stop=elementIndex*elementMatrixSize+elementMatrixSize)
