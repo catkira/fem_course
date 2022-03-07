@@ -88,8 +88,8 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
 
     A = K_V1 + K_V2 + K_A1 + K_A2 # seems to be ok
     A += K_V_A_1 + K_V_A_2  # seems to be ok
-    A += K_dtA1A2_1 + K_dtA1A2_1
-    A += K_dtAV_1 + K_dtAV_2
+    A += K_dtA1A2_1 + K_dtA1A2_1 # WIP
+    A += K_dtAV_1 + K_dtAV_2 # WIP
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
