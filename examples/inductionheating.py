@@ -47,8 +47,8 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
         fieldA1.setGauge(spanningtree)
         fieldA2.setGauge(spanningtree)
 
-    fieldA1.setDirichlet([domainboundary])
-    fieldA2.setDirichlet([domainboundary])
+    fieldA1.setDirichlet([domainboundary, vin, vout])
+    fieldA2.setDirichlet([domainboundary, vin, vout])
     fieldV1.setDirichlet([vout])
     fieldV2.setDirichlet([vout])
     fieldV2.setDirichlet([vin])
@@ -79,16 +79,16 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     K_V_A_2 = matrix_gradDofV_tfA(fieldV2, fieldA2, sigma, conductorRegion)  # seems to be ok
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
-    K_dtA1A2_1 = matrix_dtDofA_tfA(fieldA1, fieldA2, sigma, conductorRegion, 50)  # untested
-    K_dtA1A2_2 = matrix_dtDofA_tfA(fieldA2, fieldA1, sigma, conductorRegion, 50)  # untested
+    K_dtA1A2_1 = (2*np.pi*50) * matrix_DofA_tfA(fieldA1, fieldA2, sigma, conductorRegion)  # untested
+    K_dtA1A2_2 = (-2*np.pi*50) * matrix_DofA_tfA(fieldA2, fieldA1, sigma, conductorRegion)  # untested
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
-    K_dtAV_1 = matrix_dtDofA_gradTfV(fieldA1, fieldV2, sigma, conductorRegion, 50) # untested
-    K_dtAV_2 = matrix_dtDofA_gradTfV(fieldA2, fieldV1, sigma, conductorRegion, 50) # untested
+    K_dtAV_1 = (2*np.pi*50) * matrix_DofA_gradTfV(fieldA1, fieldV2, sigma, conductorRegion) # untested
+    K_dtAV_2 = (-2*np.pi*50) * matrix_DofA_gradTfV(fieldA2, fieldV1, sigma, conductorRegion) # untested
 
     A = K_V1 + K_V2 + K_A1 + K_A2 # seems to be ok
     A += K_V_A_1 + K_V_A_2  # seems to be ok
-    A += K_dtA1A2_1 + K_dtA1A2_2 # WIP
+    #A += K_dtA1A2_1 + K_dtA1A2_2 # WIP
     #A += K_dtAV_1 + K_dtAV_2 # WIP
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       

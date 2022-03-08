@@ -77,8 +77,9 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
     K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
     return K        
 
-# integral sigma * dt(dof(a)) * tf(a)
-def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
+# integral sigma * dof(a) * tf(a)
+# just a mass matrix
+def matrix_DofA_tfA(field1, field2, sigmas, region):
     elements1 = field1.getElements(region = region)
     elements2 = field2.getElements(region = region)
     sigmas = sigmas.getValues(region)
@@ -97,7 +98,6 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
         data2 = np.zeros((len(elements1), nBasis, nBasis))
         integrationOrder = 2
         gfs, gps = gaussData(integrationOrder, elementDim)
-        dt = 2*np.pi*frequency              
         for i in range(len(gfs)):
             values = field1.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
             for m in range(nBasis):
@@ -105,7 +105,7 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
                     factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
                     factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
-        data = dt * data2.ravel(order='C')
+        data = data2.ravel(order='C')
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
     data = np.delete(data, idx)
@@ -116,8 +116,8 @@ def matrix_dtDofA_tfA(field1, field2, sigmas, region, frequency):
     K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
     return K
 
-# integral sigma * dt(dof(a)) * grad(tf(v))
-def matrix_dtDofA_gradTfV(fieldA, fieldV, sigmas, region, frequency):
+# integral sigma * dof(a) * grad(tf(v))
+def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
     elementsV = fieldV.getElements(region = region)
     elementsA = fieldA.getElements(region = region)
     sigmas = sigmas.getValues(region)
@@ -138,14 +138,13 @@ def matrix_dtDofA_gradTfV(fieldA, fieldV, sigmas, region, frequency):
         integrationOrder = 2
         grads = fieldV.shapeFunctionGradients(elementDim)        
         gfs, gps = gaussData(integrationOrder, elementDim)
-        dt = 2*np.pi*frequency              
         for i in range(len(gfs)):
             values = fieldA.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
             for m in range(nBasisA):
                 for k in range(nBasisV):
                     factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
                     factor2 = np.einsum('ikj,k->ij', invJacs, grads[k])
-                    data2[:,m,k] += dt * gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+                    data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
