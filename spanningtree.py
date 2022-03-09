@@ -7,10 +7,10 @@ class spanningtree:
     def __init__(self, excludedRegions=[], verbose=False):
         m.computeEdges3d()
         start = time.time()
-        self.graph = np.copy(m.mesh['pe'])
-        self.graphSorted2 = np.column_stack([m.mesh['pe'], np.arange(m.mesh['pe'].shape[0])])[m.mesh['pe'][:, 1].argsort()]
-        self.isNodeInTree = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
-        self.idx = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
+        self.edgePool = np.copy(m.mesh['pe'])
+        self.numNodes = m.mesh['xp'].shape[0]
+        self.graphSorted2 = np.column_stack([self.edgePool, np.arange(self.edgePool.shape[0])])[self.edgePool[:, 1].argsort()]
+        self.isNodeInTree = np.zeros(self.numNodes, dtype=np.bool)
 
         excludedNodes = np.empty(0, dtype = np.int64)
         for region in excludedRegions:
@@ -20,18 +20,19 @@ class spanningtree:
                         excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
                     elif dim == 2:
                         excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
-        excludedNodesMask = np.repeat(True, self.idx.shape[0])
+        excludedNodesMask = np.repeat(True, self.numNodes)
         excludedNodesMask[excludedNodes] = False
 
         # precaclulate connected nodes
-        self.connectedNodes = np.empty(np.max(self.graph.ravel())+1, dtype=object)
+        self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
+        self.idx = np.zeros(self.numNodes, dtype=np.bool)
         for node in range(self.connectedNodes.shape[0]):
-            self.connectedNodes[node] = np.arange(self.idx.shape[0])[self.getConnectedNodes(node) & excludedNodesMask]
+            self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & excludedNodesMask]
 
         # add first edge to tree
         # make sure its not in an excluded region
         self.edges = []
-        for edge in self.graph:
+        for edge in self.edgePool:
             if excludedNodesMask[edge[0]] & excludedNodesMask[edge[1]]:
                 self.edges = edge        
                 self.edges = np.expand_dims(self.edges, axis=0)
@@ -65,34 +66,34 @@ class spanningtree:
     def getConnectedNodes(self, node):
         self.idx[:] = False
         if False:
-            self.idx[self.graph[self.graph[:,0] == node][:,1]] = True
-            self.idx[self.graph[self.graph[:,1] == node][:,0]] = True
+            self.idx[self.edgePool[self.edgePool[:,0] == node][:,1]] = True
+            self.idx[self.edgePool[self.edgePool[:,1] == node][:,0]] = True
         if False: # this is a bit faster
-            self.idx[self.graph[np.where(self.graph[:,0] == node)][:,1]] = True
-            self.idx[self.graph[np.where(self.graph[:,1] == node)][:,0]] = True
+            self.idx[self.edgePool[np.where(self.edgePool[:,0] == node)][:,1]] = True
+            self.idx[self.edgePool[np.where(self.edgePool[:,1] == node)][:,0]] = True
         if False: # this is a bit more faster
-            firstMatch = np.searchsorted(self.graph[:,0], node)
-            while ((firstMatch < self.graph.shape[0]) and self.graph[firstMatch,0] == node):
-                self.idx[self.graph[firstMatch,1]] = True
+            firstMatch = np.searchsorted(self.edgePool[:,0], node)
+            while ((firstMatch < self.edgePool.shape[0]) and self.edgePool[firstMatch,0] == node):
+                self.idx[self.edgePool[firstMatch,1]] = True
                 firstMatch += 1
             firstMatch = np.searchsorted(self.graphSorted2[:,1], node)
-            while ((firstMatch < self.graph.shape[0]) and self.graphSorted2[firstMatch,1] == node):
-                self.idx[self.graph[self.graphSorted2[firstMatch,2],0]] = True
+            while ((firstMatch < self.edgePool.shape[0]) and self.graphSorted2[firstMatch,1] == node):
+                self.idx[self.edgePool[self.graphSorted2[firstMatch,2],0]] = True
                 firstMatch += 1
         if True: # this is a bit more faster
-            left = np.searchsorted(self.graph[:,0], node, 'left')
-            right = np.searchsorted(self.graph[:,0], node, 'right')
-            self.idx[self.graph[left:right,1]] = True
+            left = np.searchsorted(self.edgePool[:,0], node, 'left')
+            right = np.searchsorted(self.edgePool[:,0], node, 'right')
+            self.idx[self.edgePool[left:right,1]] = True
             left = np.searchsorted(self.graphSorted2[:,1], node, 'left')
             right = np.searchsorted(self.graphSorted2[:,1], node, 'right')
-            self.idx[self.graph[self.graphSorted2[left:right,2],0]] = True
+            self.idx[self.edgePool[self.graphSorted2[left:right,2],0]] = True
         return self.idx
 
     def addBranch(self, edge):
         if edge[0] > edge[1]:
             edge[0],edge[1] = edge[1], edge[0]
         idx = m.getMesh()['pe'][:,0].searchsorted(edge[0], 'left')
-        while idx < len(m.getMesh()['pe']) and m.getMesh()['pe'][idx,1] != edge[1]:
+        while (idx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][idx,1] != edge[1]):
             idx += 1
         self.branches = np.append(self.branches, idx)
 
@@ -123,7 +124,7 @@ class spanningtree:
         if len(connectedNodes) == 0:
             self.addBranch(edge)
             return
-        idx = np.repeat(False, m.mesh['xp'].shape[0])
+        idx = np.repeat(False, self.numNodes)
         idx[connectedNodes] = True
         filteredCands = idx & np.invert(self.isNodeInTree)
         if np.count_nonzero(filteredCands) == 0:
