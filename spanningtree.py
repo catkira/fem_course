@@ -4,7 +4,7 @@ import sys
 import time
 
 class spanningtree:
-    def __init__(self, excludedRegions=[], verbose=False):
+    def __init__(self, excludedRegions=[], verbose=False, verify=False):
         m.computeEdges3d()
         start = time.time()
         self.edgePool = np.copy(m.mesh['pe'])
@@ -27,7 +27,17 @@ class spanningtree:
         self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
         self.idx = np.zeros(self.numNodes, dtype=np.bool)
         for node in range(self.connectedNodes.shape[0]):
-            self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & excludedNodesMask]
+            if excludedNodesMask[node]:
+                self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & excludedNodesMask]
+
+        # verify connected nodes
+        if verify:
+            for node1, cn in enumerate(self.connectedNodes):
+                if cn is not None:
+                    for node2 in cn:
+                        if (node1 in self.connectedNodes[node2]) == False:
+                            print(f'nodes {node1} {node2}')
+                            sys.exit()
 
         # add first edge to tree
         # make sure its not in an excluded region
@@ -45,12 +55,14 @@ class spanningtree:
 
         self.branches = np.empty(0, dtype=np.int)
 
-        # TODO: why are the number of branches so different betweent recursive and iterative calculated tree?
         if True: 
             # the recursive version is about 2x slower than the iterative version
             sys.setrecursionlimit(1000000)
             self.growTreeRecursive(edge)
+            self.growTreeRecursive([edge[1],edge[0]])
         else:
+            print("not working!")
+            sys.exit()
             self.newEdges = self.edges
             generation = 0
             while len(self.newEdges) != 0:
@@ -58,6 +70,8 @@ class spanningtree:
                 if verbose:
                     print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
                 generation = generation + 1
+
+        self.branches = np.unique(self.branches)
         numNodes = len(np.unique(self.edges.ravel()))
         duration = time.time() - start
         print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
@@ -91,11 +105,12 @@ class spanningtree:
 
     def addBranch(self, edge):
         if edge[0] > edge[1]:
-            edge[0],edge[1] = edge[1], edge[0]
-        idx = m.getMesh()['pe'][:,0].searchsorted(edge[0], 'left')
-        while (idx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][idx,1] != edge[1]):
-            idx += 1
-        self.branches = np.append(self.branches, idx)
+            edge = [edge[1], edge[0]]
+        startIdx = m.getMesh()['pe'][:,0].searchsorted(edge[0], 'left')
+        while (startIdx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][startIdx,1] != edge[1]):
+            startIdx += 1
+        #print(f'add branch {edge[0]},{edge[1]} with id {startIdx}')
+        self.branches = np.append(self.branches, startIdx)
 
     def growTree(self):
         # add edges that dont create circles
@@ -122,23 +137,27 @@ class spanningtree:
         self.edges = np.row_stack((self.edges, self.newEdges))
 
     # recursive version of growTree()
-    def growTreeRecursive(self, edge):
+    def growTreeRecursive(self, edge, rec=False):
         connectedNodes = self.connectedNodes[edge[1]]
         if len(connectedNodes) == 0:
             self.addBranch(edge)
             return
-        idx = np.repeat(False, self.numNodes)
-        idx[connectedNodes] = True
-        filteredCands = idx & np.invert(self.isNodeInTree)
+        connectedNodesIdx = np.repeat(False, self.numNodes)
+        connectedNodesIdx[connectedNodes] = True
+        filteredCands = connectedNodesIdx & np.invert(self.isNodeInTree)
         if np.count_nonzero(filteredCands) == 0:
             self.addBranch(edge)
+            return
+        if rec: # only need to go one step back
             return
         self.isNodeInTree[filteredCands] = True
         newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])
         self.edges = np.row_stack((self.edges, newEdges))        
         for newEdge in newEdges:
             self.growTreeRecursive(newEdge)
-            self.growTreeRecursive([newEdge[1],newEdge[0]]) # need to grow tree on both nodes!
+            # need to grow tree in both directions, because some edges of newEdges can become branches
+            # in this for loop
+            self.growTreeRecursive([newEdge[1],newEdge[0]], True)
     
     def write(self, filename):
         if self.edges == []:
