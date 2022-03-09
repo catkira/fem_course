@@ -46,7 +46,7 @@ class spanningtree:
         self.branches = np.empty(0, dtype=np.int)
 
         # TODO: why are the number of branches so different betweent recursive and iterative calculated tree?
-        if False: 
+        if True: 
             # the recursive version is about 2x slower than the iterative version
             sys.setrecursionlimit(1000000)
             self.growTreeRecursive(edge)
@@ -115,6 +115,9 @@ class spanningtree:
             self.isNodeInTree[connectedNodes] = True
             newEdges2 = np.row_stack((newEdges2, 
                 np.column_stack([np.ones(len(connectedNodes), dtype=np.int64)*edge[1], connectedNodes])))
+            # tree needs to grow from both nodes of the edges!
+            newEdges2 = np.row_stack((newEdges2, 
+                np.column_stack([connectedNodes, np.ones(len(connectedNodes), dtype=np.int64)*edge[1]])))
         self.newEdges = newEdges2
         self.edges = np.row_stack((self.edges, self.newEdges))
 
@@ -135,6 +138,7 @@ class spanningtree:
         self.edges = np.row_stack((self.edges, newEdges))        
         for newEdge in newEdges:
             self.growTreeRecursive(newEdge)
+            self.growTreeRecursive([newEdge[1],newEdge[0]]) # need to grow tree on both nodes!
     
     def write(self, filename):
         if self.edges == []:
