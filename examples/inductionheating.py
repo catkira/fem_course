@@ -37,8 +37,8 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     volumeRegion = Region([coil, tube, air])
     conductorRegion = Region([coil, tube])
 
-    fieldA1 = FieldHCurl([coil, tube, air])  # 1st harmonic inphase component
-    fieldA2 = FieldHCurl([coil, tube, air])  # 1st harmonic quadrature component
+    fieldA1 = FieldHCurl([coil, tube, air])  # 1st harmonic inphase component (sin)
+    fieldA2 = FieldHCurl([coil, tube, air])  # 1st harmonic quadrature component (cos)
     fieldV1 = FieldH1([coil, tube])
     fieldV2 = FieldH1([coil, tube])
     if gauge:
@@ -55,13 +55,13 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     if True:
         alpha = Parameter()
-        alpha.set([vin], 1e7)  # TODO: why does it have to be exactly 1e7?
+        alpha.set([vin], 1e12)  # TODO: implement real inhomogeneous Dirichlet BCs
         VinRegion = Region([vin])
-        B = massMatrix(fieldV1, alpha, VinRegion)
+        B_D1 = massMatrix(fieldV1, alpha, VinRegion)
         vinElements = fieldV1.getElements(region=VinRegion)
         pd = np.zeros(countAllFreeDofs())
         pd[np.unique(vinElements.ravel())] = 1
-        rhs = B @ pd
+        rhs = B_D1 @ pd
     else:
         # inhomogeneous Dirichlet BCs are not yet implemented!
         fieldV.setDirichlet([vin], 1) # WIP
@@ -79,17 +79,18 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     K_V_A_2 = matrix_gradDofV_tfA(fieldV2, fieldA2, sigma, conductorRegion)  # seems to be ok
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
-    K_dtA1A2_1 = (2*np.pi*50) * matrix_DofA_tfA(fieldA1, fieldA2, sigma, conductorRegion)  # untested
-    K_dtA1A2_2 = (-2*np.pi*50) * matrix_DofA_tfA(fieldA2, fieldA1, sigma, conductorRegion)  # untested
+    K_dtA1A2_1 = (2*np.pi*50) * matrix_DofA_tfA(fieldA1, fieldA2, sigma, conductorRegion)  # seems to be ok
+    K_dtA1A2_2 = (-2*np.pi*50) * matrix_DofA_tfA(fieldA2, fieldA1, sigma, conductorRegion)  # seems to be ok
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
-    K_dtAV_1 = (2*np.pi*50) * matrix_DofA_gradTfV(fieldA1, fieldV2, sigma, conductorRegion) # untested
-    K_dtAV_2 = (-2*np.pi*50) * matrix_DofA_gradTfV(fieldA2, fieldV1, sigma, conductorRegion) # untested
+    K_dtAV_1 = (2*np.pi*50) * matrix_DofA_gradTfV(fieldA1, fieldV2, sigma, conductorRegion) # WIP
+    K_dtAV_2 = (-2*np.pi*50) * matrix_DofA_gradTfV(fieldA2, fieldV1, sigma, conductorRegion) # WIP
 
     A = K_V1 + K_V2 + K_A1 + K_A2 # seems to be ok
     A += K_V_A_1 + K_V_A_2  # seems to be ok
-    #A += K_dtA1A2_1 + K_dtA1A2_2 # WIP
+    A += K_dtA1A2_1 + K_dtA1A2_2 # seems to be ok
     #A += K_dtAV_1 + K_dtAV_2 # WIP
+    A += B_D1 # for inhomogeneous Dirichlet BCs
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
@@ -100,7 +101,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     # TODO: check fieldA2.dt()
     E1 = -fieldV1.grad(fieldV1.solution, dim=3)
-    E1 -= fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
+    E1 += fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
     E2 = -fieldV2.grad(fieldV2.solution, dim=3)
     E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)[0:len(E2),:] # HACK
     #
@@ -112,10 +113,6 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     B2 = fieldA2.curl(fieldA2.solution, dim=3)
     storeInVTK(B1, "inductionheating_B1.vtk", field=fieldA1)    
     storeInVTK(B2, "inductionheating_B2.vtk", field=fieldA2)
-    #print(f'max(u) = {max(u)}')
-    #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
-    #b = field.curl(u, dim=3)
-    #storeInVTK(b, "magmesh_b.vtk")
     #print(f'b_max = {max(np.linalg.norm(b,axis=1)):.8f}')    
     #assert(abs(max(np.linalg.norm(b,axis=1)) - 2.8919e-8) < 2e-3)
 
