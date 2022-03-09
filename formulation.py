@@ -142,8 +142,8 @@ def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
             values = fieldA.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
             for m in range(nBasisA):
                 for k in range(nBasisV):
-                    factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
-                    factor2 = np.einsum('ijk,k->ij', invJacs, grads[k])
+                    factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
+                    factor2 = np.einsum('ikj,k->ij', invJacs, grads[k])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
     # delete all rows and cols with index -1
