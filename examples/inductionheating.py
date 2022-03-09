@@ -55,7 +55,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     if True:
         alpha = Parameter()
-        alpha.set([vin], 1e12)  # TODO: implement real inhomogeneous Dirichlet BCs
+        alpha.set([vin], 1e10)  # TODO: implement real inhomogeneous Dirichlet BCs
         VinRegion = Region([vin])
         B_D1 = massMatrix(fieldV1, alpha, VinRegion)
         vinElements = fieldV1.getElements(region=VinRegion)

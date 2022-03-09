@@ -102,8 +102,8 @@ def matrix_DofA_tfA(field1, field2, sigmas, region):
             values = field1.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
             for m in range(nBasis):
                 for k in range(nBasis):
-                    factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
-                    factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, values[k,:])
+                    factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
+                    factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
     # delete all rows and cols with index -1
