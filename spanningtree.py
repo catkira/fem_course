@@ -12,25 +12,27 @@ class spanningtree:
         self.isNodeInTree = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
         self.idx = np.zeros(m.mesh['xp'].shape[0], dtype=np.bool)
 
-        # exclude excluded Regions by setting the nodes of those regions in isNodeInTree to true
+        excludedNodes = np.empty(0, dtype = np.int64)
         for region in excludedRegions:
             for dim in range(len(m.getMesh()['physical'])):
                 if region in m.getMesh()['physical'][dim]:
                     if dim == 1:
-                        self.isNodeInTree[m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)].ravel()] = True                    
+                        excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
                     elif dim == 2:
-                        m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)]
+                        excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
+        excludedNodesMask = np.repeat(True, self.idx.shape[0])
+        excludedNodesMask[excludedNodes] = False
 
         # precaclulate connected nodes
         self.connectedNodes = np.empty(np.max(self.graph.ravel())+1, dtype=object)
         for node in range(self.connectedNodes.shape[0]):
-            self.connectedNodes[node] = np.arange(self.idx.shape[0])[self.getConnectedNodes(node)]
+            self.connectedNodes[node] = np.arange(self.idx.shape[0])[self.getConnectedNodes(node) & excludedNodesMask]
 
         # add first edge to tree
         # make sure its not in an excluded region
         self.edges = []
         for edge in self.graph:
-            if self.isNodeInTree[edge[0]] == False and self.isNodeInTree[edge[1]] == False:
+            if excludedNodesMask[edge[0]] & excludedNodesMask[edge[1]]:
                 self.edges = edge        
                 self.edges = np.expand_dims(self.edges, axis=0)
                 self.isNodeInTree[self.edges[0,0]] = True
@@ -42,6 +44,7 @@ class spanningtree:
 
         self.branches = np.empty(0, dtype=np.int)
 
+        # TODO: why are the number of branches so different betweent recursive and iterative calculated tree?
         if False: 
             # the recursive version is about 2x slower than the iterative version
             sys.setrecursionlimit(1000000)
@@ -120,9 +123,9 @@ class spanningtree:
         if len(connectedNodes) == 0:
             self.addBranch(edge)
             return
-        self.idx = np.repeat(False, self.idx.shape[0])
-        self.idx[connectedNodes] = True
-        filteredCands = self.idx & np.invert(self.isNodeInTree)
+        idx = np.repeat(False, m.mesh['xp'].shape[0])
+        idx[connectedNodes] = True
+        filteredCands = idx & np.invert(self.isNodeInTree)
         if np.count_nonzero(filteredCands) == 0:
             self.addBranch(edge)
             return
