@@ -8,7 +8,7 @@ class DofFieldData:
     def __init__(self, field):
         self.freeNodesMask = np.repeat(False, m.numberOfVertices())
         self.freeEdgesMask = np.repeat(False, m.numberOfEdges())
-        self.gaugeMask = []
+        self.edgeIds = []
         self.isGauged = False
         if m.getMesh()['problemDimension'] == 3:
             self.dirichletMask = np.repeat(False, m.numberOfTriangles()) # assume dirichlet BCs are always on problemDimension -1
@@ -39,7 +39,7 @@ class DofFieldData:
             print("TODO: implemente applyDirichletMask() for 2d meshes!")
 
     def applyGaugeMask(self):
-        self.freeEdgesMask[self.gaugeMask] = False
+        self.freeEdgesMask[self.edgeIds] = False
 
 class DofManagerData:
     def __init__(self):
@@ -89,13 +89,13 @@ def createMatrix(rows, cols, data):
     return K    
 
 def createVector(rows, data):
-    n = countAllFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]
     rows = np.delete(rows, idx)
     data = np.delete(data, idx)
     #
-    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    numFreeDofs = countAllFreeDofs()
+    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[numFreeDofs,1]).toarray().ravel()
     return rhs    
 
 def countAllDofs():
@@ -161,7 +161,7 @@ def setDirichlet(field, regions, value = []):
     
 def setGauge(field, tree):
     global dofManagerData
-    dofManagerData.fields[field.id].gaugeMask = tree.branches
+    dofManagerData.fields[field.id].edgeIds = tree.edgeIds
     dofManagerData.fields[field.id].isGauged = True
     dofManagerData.fields[field.id].applyGaugeMask()    
     dofManagerData.updateStartIndices()        

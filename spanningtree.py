@@ -62,22 +62,7 @@ class spanningtree:
             self.growTreeRecursive(edge)
             self.growTreeRecursive([edge[1],edge[0]])
             sys.setrecursionlimit(origRecLimit)     
-    
-            # calculate edgeIds
-            self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
-            for i, edge in enumerate(self.edges):
-                self.edgeIds[i] = self.findEdgeId(edge)
-
-            # calculate branches
-            # for id, edge in enumerate(self.edgePool):
-            #     if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
-            #         if (id in self.edgeIds) == False:
-            #                 self.branches = np.append(self.branches, id)
-            self.branches = self.edgeIds
-
         else:
-            #print("not working!")
-            #sys.exit()
             self.newEdges = self.edges
             generation = 0
             while len(self.newEdges) != 0:
@@ -85,7 +70,18 @@ class spanningtree:
                 if verbose:
                     print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
                 generation = generation + 1
-            self.branches = np.unique(self.branches)
+
+        # calculate edgeIds
+        self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
+        for i, edge in enumerate(self.edges):
+            self.edgeIds[i] = self.findEdgeId(edge)
+
+        # calculate branches
+        # for id, edge in enumerate(self.edgePool):
+        #     if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
+        #         if (id in self.edgeIds) == False:
+        #                 self.branches = np.append(self.branches, id)
+        #self.branches = self.edgeIds
 
         numNodes = len(np.unique(self.edges.ravel()))
         duration = time.time() - start
@@ -146,11 +142,9 @@ class spanningtree:
         for edge in self.newEdges:
             connectedNodes = self.connectedNodes[edge[1]]
             if len(connectedNodes) == 0:
-                self.addBranch(edge)
                 continue
             connectedNodes = connectedNodes[np.invert(self.isNodeInTree[connectedNodes])]
             if len(connectedNodes) == 0:
-                self.addBranch(edge)
                 continue
             self.isNodeInTree[connectedNodes] = True
             newEdges2 = np.row_stack((newEdges2, 

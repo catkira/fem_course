@@ -158,10 +158,10 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     elif elementDim == 3:
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
         cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
+        curls = field.shapeFunctionCurls(elementDim)
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
-            curls = field.shapeFunctionCurls(elementDim)
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
@@ -174,7 +174,6 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
             integrationOrder = 2
             gfs,gps = gaussData(integrationOrder, elementDim)              
             for i in range(len(gfs)):
-                curls = field.shapeFunctionCurls(elementDim)
                 for m in range(nBasis):
                     for k in range(nBasis):
                         factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, 1/detJacs, jacs, curls[m,:])
