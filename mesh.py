@@ -92,6 +92,11 @@ def computeEdges2d():
                 E[highIndex, lowIndex] = triangleIndex
     [p1, p2, t1] = find(triu(E))
     mesh['pe'] = np.vstack([p1, p2]).T
+
+    # 'pe' needs to be sorted for functions like spanningtree::addBranch
+    # 2nd column is still not sorted, but thats ok
+    mesh['pe'] = mesh['pe'][np.argsort(mesh['pe'],axis=0)[:,0]]
+
     numEdges = mesh['pe'].shape[0]
     mesh['te'] = np.zeros([numEdges,2], dtype=np.int64)
     mesh['te'][:,0] = t1

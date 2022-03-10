@@ -42,6 +42,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     if gauge:
         spanningtree = st.spanningtree(excludedRegions=[inf]) # regions with Dirichlet BCs need to be excluded!
         spanningtree.write("h_magnet_spanntree.pos")
+        spanningtree.write("h_magnet_spanntree_branches2.pos", branches=True)
         field.setGauge(spanningtree)
     if dirichlet == 'soft':
         alpha = Parameter()

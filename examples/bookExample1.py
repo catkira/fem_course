@@ -21,6 +21,7 @@ def run_bookExample1(verify=False):
 
     spanningtree = st.spanningtree()
     spanningtree.write("example1_spanntree.pos")
+    spanningtree.write("example1_spanntree_branches.pos", branches=True)
 
     field = FieldH1()
     K = stiffnessMatrix(field, sigmas)
@@ -42,4 +43,7 @@ def run_bookExample1(verify=False):
     storeInVTK(u,"example1.vtk", writePointData=True)
 
 if __name__ == "__main__":
+    rectangularCriss(50,50)
+    computeEdges2d()
+    computeBoundary()       
     run_bookExample1()
