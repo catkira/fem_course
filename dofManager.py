@@ -2,6 +2,7 @@ import numpy as np
 import mesh as m
 import sys
 import field as fd
+from scipy.sparse import *
 
 class DofFieldData:
     def __init__(self, field):
@@ -76,6 +77,26 @@ def updateFieldRegions(field):
     dofManagerData.fields[field.id].applyDirichletMask()
     dofManagerData.fields[field.id].applyGaugeMask()
     dofManagerData.updateStartIndices()        
+
+def createMatrix(rows, cols, data):
+    # delete all rows and cols with index -1
+    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    data = np.delete(data, idx)
+    rows = np.delete(rows, idx)
+    cols = np.delete(cols, idx)
+    numFreeDofs = countAllFreeDofs()
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
+    return K    
+
+def createVector(rows, data):
+    n = countAllFreeDofs()
+    # delete all rows and cols with index -1
+    idx = np.where(rows == -1)[0]
+    rows = np.delete(rows, idx)
+    data = np.delete(data, idx)
+    #
+    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    return rhs    
 
 def countAllDofs():
     dofs = 0

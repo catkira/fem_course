@@ -67,15 +67,7 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
                     factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
-    # delete all rows and cols with index -1
-    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
-    data = np.delete(data, idx)
-    rows = np.delete(rows, idx)
-    cols = np.delete(cols, idx)
-    #
-    numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K        
+    return dm.createMatrix(rows, cols, data)
 
 # integral sigma * dof(a) * tf(a)
 # just a mass matrix
@@ -106,15 +98,7 @@ def matrix_DofA_tfA(field1, field2, sigmas, region):
                     factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
-    # delete all rows and cols with index -1
-    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
-    data = np.delete(data, idx)
-    rows = np.delete(rows, idx)
-    cols = np.delete(cols, idx)
-    #
-    numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K
+    return dm.createMatrix(rows, cols, data)
 
 # integral sigma * dof(a) * grad(tf(v))
 def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
@@ -146,15 +130,7 @@ def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
                     factor2 = np.einsum('ikj,k->ij', invJacs, grads[k])
                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
         data = data2.ravel(order='C')
-    # delete all rows and cols with index -1
-    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
-    data = np.delete(data, idx)
-    rows = np.delete(rows, idx)
-    cols = np.delete(cols, idx)
-    #
-    numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K            
+    return dm.createMatrix(rows, cols, data)         
 
 # integral curl(u) * sigma * curl(tf(u)) 
 def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
@@ -205,15 +181,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel(order='C')
-    # delete all rows and cols with index -1
-    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
-    data = np.delete(data, idx)
-    rows = np.delete(rows, idx)
-    cols = np.delete(cols, idx)
-    #
-    numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs,numFreeDofs]) 
-    return K
+    return dm.createMatrix(rows, cols, data)
 
 # integral grad(u) * sigma * grad(tf(u)) 
 def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
@@ -310,15 +278,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 data[indexRange] = (gamma11*B_11 + gamma12*B_12 + gamma21*B_21 + gamma22*B_22).ravel()
                 #K_Ts[triangleIndex] = gamma1*B_11 + gamma2*B_12 + gamma3*B_21 + gamma4*B_22
                 #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
-    n = countAllFreeDofs()
-    # delete all rows and cols with index -1
-    idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
-    data = np.delete(data, idx)
-    rows = np.delete(rows, idx)
-    cols = np.delete(cols, idx)
-    #    
-    K = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    return K
+    return dm.createMatrix(rows, cols, data)
 
 # integral br * rot(tf(u))
 def fluxRhsCurl(field, br, region=[], vectorized=True):
@@ -349,14 +309,7 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     for basis in range(nBasis):
         data[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
     data = data.ravel(order='C')        
-    n = countAllFreeDofs()
-    # delete all rows and cols with index -1
-    idx = np.where(rows == -1)[0]
-    rows = np.delete(rows, idx)
-    data = np.delete(data, idx)
-    #
-    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
-    return rhs
+    return dm.createVector(rows, data)
 
 # integral j * tf(u)
 # j contains a constant value for each element
@@ -397,14 +350,7 @@ def loadRhs(field, j, region=[], vectorized=True):
             else:
                 data[:,m] += gfs[i] * np.einsum('i,ij,j->i', detJacs, jTransformed, field.shapeFunctionValues(gp, elementDim)[m,:])
     data = data.ravel(order='C')
-    n = countAllFreeDofs()
-    # delete all rows and cols with index -1
-    idx = np.where(rows == -1)[0]
-    rows = np.delete(rows, idx)
-    data = np.delete(data, idx)
-    #
-    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
-    return rhs    
+    return dm.createVector(rows, data)
 
 # integral br * grad(tf(u))
 def fluxRhs(field, br, region=[], vectorized=True):
@@ -442,12 +388,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
         for basis in range(nBasis):
             data[:,basis] = np.einsum('ij,ij->i', br, temp2[:,:,basis])
         data = data.ravel(order='C')
-        # delete all rows and cols with index -1
-        idx = np.where(rows == -1)[0]
-        rows = np.delete(rows, idx)
-        data = np.delete(data, idx)
-        #            
-        rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+        rhs = dm.createVector(rows, data)
     else:
         rhs = np.zeros(n)
         for elementIndex, element in enumerate(elements):
@@ -582,13 +523,7 @@ def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
             data[rangeIndex] = (rhos[elementIndex]*detJacs[elementIndex]*Mm).ravel()
             #M_T = rhos[triangleIndex]*detJac*Mm
             #M[np.ix_(triangle[:],triangle[:])] = M[np.ix_(triangle[:],triangle[:])] + M_T
-    # delete all rows and cols with index -1
-    idx = np.where(rows == -1)
-    rows = np.delete(rows, idx)
-    data = np.delete(data, idx)
-    #            
-    M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-    return M    
+    return dm.createMatrix(rows, cols, data)
 
 # this function is only here for legacy
 # it can be used to simulate the most simple poisson equation
