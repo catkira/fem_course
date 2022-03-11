@@ -204,11 +204,26 @@ def getAllRegions(dim = -1):
     if dim == -1:
         for dim in range(mesh['problemDimension']):
             if not mesh['physical'][dim] is None:
-                regions = np.append(regions, np.unique(mesh['physical'][dim]))
+                regions = np.append(regions, np.unique(mesh['physical'][dim]).astype(np.int))
     else:
         if not mesh['physical'][dim-1] is None:
-            regions = np.append(regions, np.unique(mesh['physical'][dim-1]))
+            regions = np.append(regions, np.unique(mesh['physical'][dim-1]).astype(np.int))
     return regions
+
+def getNodesInRegion(regions):
+    if not (type(regions) == list) and not (type(regions) == np.ndarray):
+        regions = [regions]
+    combinedNodes = np.empty(0, dtype=np.int64)
+    for region in regions:
+        for dim in range(mesh['problemDimension']):
+            if (mesh['physical'][dim] is not None) and (region in mesh['physical'][dim]):
+                elementIndices = (mesh['physical'][dim] == region)
+                if dim == 1:
+                    regionElements = mesh['pt'][elementIndices]
+                elif dim == 2:
+                    regionElements = mesh['ptt'][elementIndices]
+                combinedNodes = np.append(combinedNodes, np.arange(numberOfVertices())[regionElements.ravel()])
+    return combinedNodes
 
 def transformationJacobians(reg = [], elementDim=3):
     global mesh

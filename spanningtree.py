@@ -9,72 +9,84 @@ class spanningtree:
         start = time.time()
         self.edgePool = np.copy(m.mesh['pe'])
         self.numNodes = m.mesh['xp'].shape[0]
+        self.nodeInSubtree = np.repeat(-1, self.numNodes)
+        self.currentRegion = -1
+        self.idx = np.zeros(self.numNodes, dtype=np.bool)
         self.graphSorted2 = np.column_stack([self.edgePool, np.arange(self.edgePool.shape[0])])[self.edgePool[:, 1].argsort()]
         self.isNodeInTree = np.zeros(self.numNodes, dtype=np.bool)
+        self.branches = []
 
-        excludedNodes = np.empty(0, dtype = np.int64)
-        for region in excludedRegions:
-            for dim in range(len(m.getMesh()['physical'])):
-                if region in m.getMesh()['physical'][dim]:
-                    if dim == 1:
-                        excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
-                    elif dim == 2:
-                        excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
-        self.excludedNodesMask = np.repeat(True, self.numNodes)
-        self.excludedNodesMask[excludedNodes] = False
-
-        # precaclulate connected nodes
-        self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
-        self.idx = np.zeros(self.numNodes, dtype=np.bool)
-        for node in range(self.connectedNodes.shape[0]):
-            if self.excludedNodesMask[node]:
-                self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.excludedNodesMask]
-
-        # verify connected nodes
-        if verify:
-            for node1, cn in enumerate(self.connectedNodes):
-                if cn is not None:
-                    for node2 in cn:
-                        if (node1 in self.connectedNodes[node2]) == False:
-                            print(f'nodes {node1} {node2}')
-                            sys.exit()
-
-        # add first edge to tree
-        # make sure its not in an excluded region
-        self.edges = []
-        for edge in self.edgePool:
-            if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
-                self.edges = edge        
-                self.edges = np.expand_dims(self.edges, axis=0)
-                self.isNodeInTree[self.edges[0,0]] = True
-                self.isNodeInTree[self.edges[0,1]] = True
-                break
-        if self.edges == []:
-            print('Error: no start edge for tree found!')
-            sys.exit()
-
-        self.branches = np.empty(0, dtype=np.int64)
-
-        if True: 
-            # the recursive version is about 2x slower than the iterative version
+        if True:
             origRecLimit = sys.getrecursionlimit()
             sys.setrecursionlimit(1000000)
-            self.growTreeRecursive(edge)
-            self.growTreeRecursive([edge[1],edge[0]])
-            sys.setrecursionlimit(origRecLimit)     
+            self.createTree(excludedRegions)        
+            sys.setrecursionlimit(origRecLimit)                
+
         else:
-            self.newEdges = self.edges
-            generation = 0
-            while len(self.newEdges) != 0:
-                self.growTree()
-                if verbose:
-                    print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
-                generation = generation + 1
+            excludedNodes = np.empty(0, dtype = np.int64)
+            for region in excludedRegions:
+                for dim in range(len(m.getMesh()['physical'])):
+                    if region in m.getMesh()['physical'][dim]:
+                        if dim == 1:
+                            excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
+                        elif dim == 2:
+                            excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
+            self.excludedNodesMask = np.repeat(True, self.numNodes)
+            self.excludedNodesMask[excludedNodes] = False
+
+            # precaclulate connected nodes
+            self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
+            for node in range(self.connectedNodes.shape[0]):
+                if self.excludedNodesMask[node]:
+                    self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.excludedNodesMask]
+
+            # verify connected nodes
+            if verify:
+                for node1, cn in enumerate(self.connectedNodes):
+                    if cn is not None:
+                        for node2 in cn:
+                            if (node1 in self.connectedNodes[node2]) == False:
+                                print(f'nodes {node1} {node2}')
+                                sys.exit()
+
+            # add first edge to tree
+            # make sure its not in an excluded region
+            self.edges = []
+            for edge in self.edgePool:
+                if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
+                    self.edges = edge        
+                    self.edges = np.expand_dims(self.edges, axis=0)
+                    self.isNodeInTree[self.edges[0,0]] = True
+                    self.isNodeInTree[self.edges[0,1]] = True
+                    break
+            if self.edges == []:
+                print('Error: no start edge for tree found!')
+                sys.exit()
+
+            self.branches = np.empty(0, dtype=np.int64)
+
+            if True: 
+                # the recursive version is about 2x slower than the iterative version
+                origRecLimit = sys.getrecursionlimit()
+                sys.setrecursionlimit(1000000)
+                self.growTreeRecursive(edge)
+                self.growTreeRecursive([edge[1],edge[0]])
+                sys.setrecursionlimit(origRecLimit)     
+            else:
+                self.newEdges = self.edges
+                generation = 0
+                while len(self.newEdges) != 0:
+                    self.growTree()
+                    if verbose:
+                        print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
+                    generation = generation + 1
 
         # calculate edgeIds
+        print(f"calculate tree edges")           
         self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
         for i, edge in enumerate(self.edges):
             self.edgeIds[i] = self.findEdgeId(edge)
+            assert np.all(m.getMesh()['pe'][self.edgeIds[i]] == np.sort(edge))
 
         # calculate branches
         # for id, edge in enumerate(self.edgePool):
@@ -86,7 +98,72 @@ class spanningtree:
         numNodes = len(np.unique(self.edges.ravel()))
         duration = time.time() - start
         print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
-        #print(f"len(edges) + len(branches) = {len(self.branches)+len(self.edges)}")
+
+    def prepareConnectedNodes(self, region):
+        self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
+        self.availableNodeMask = np.repeat(False, m.numberOfVertices())
+        self.availableNodeMask[m.getNodesInRegion(region)] = True
+        for node in range(self.connectedNodes.shape[0]):
+            if self.availableNodeMask[node]:
+                self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.availableNodeMask]
+
+
+    def createTree(self, priorityRegions):
+        self.edges = np.empty((0,2), dtype=np.int64)
+        for region in priorityRegions:
+            self.prepareConnectedNodes(region)
+            # add first edge to tree
+            # make sure its not in an excluded region
+            for edge in self.edgePool:
+                if self.availableNodeMask[edge[0]] & self.availableNodeMask[edge[1]] & (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
+                    self.edges = np.row_stack((self.edges, edge))        
+                    self.isNodeInTree[edge.ravel()] = True
+                    self.nodeInSubtree[edge.ravel()] = region
+                    break
+            print(f"building tree for priority region {region}")           
+            self.currentRegion = region     
+            if self.connectedNodes[edge[1]] is None:
+                self.growTreeRecursive([edge[1],edge[0]])
+            else:
+                self.growTreeRecursive(edge)
+
+        # create trees for remaining regions
+        remainingRegions = np.setdiff1d(m.getAllRegions(), priorityRegions)
+        for region in remainingRegions:
+            self.prepareConnectedNodes(region)
+            # add first edge to tree
+            # make sure its not in an excluded region
+            for edge in self.edgePool:
+                if self.availableNodeMask[edge[0]] & self.availableNodeMask[edge[1]] & (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
+                    self.edges = np.row_stack((self.edges, edge))        
+                    self.isNodeInTree[edge.ravel()] = True
+                    self.nodeInSubtree[edge.ravel()] = region
+                    break
+            print(f"building tree for region {region}")
+            self.currentRegion = region               
+            if self.connectedNodes[edge[1]] is None:
+                self.growTreeRecursive([edge[1],edge[0]])
+            else:
+                self.growTreeRecursive(edge)
+
+        print("connecting subtrees")
+        self.prepareConnectedNodes(m.getAllRegions())
+        connectedSubtrees = np.empty(len(m.getAllRegions()), dtype=object)
+        for i in range(len(connectedSubtrees)):
+            connectedSubtrees[i] = [i]
+        for edge in self.edgePool:
+            if self.isNodeInTree[edge[0]] and self.isNodeInTree[edge[1]]:
+                if self.nodeInSubtree[edge[0]] != self.nodeInSubtree[edge[1]]:
+                    # make sure it does not create a loop
+                    if (self.nodeInSubtree[edge[1]] in connectedSubtrees[self.nodeInSubtree[edge[0]]]): 
+                        continue
+                    if (self.nodeInSubtree[edge[0]] in connectedSubtrees[self.nodeInSubtree[edge[1]]]): 
+                        continue                    
+
+                    self.edges = np.row_stack((self.edges, edge)) # add edge
+                    print(f"connection region {self.nodeInSubtree[edge[0]]} with region {self.nodeInSubtree[edge[1]]}")
+                    connectedSubtrees[self.nodeInSubtree[edge[1]]] += connectedSubtrees[self.nodeInSubtree[edge[0]]]
+                    connectedSubtrees[self.nodeInSubtree[edge[0]]] += connectedSubtrees[self.nodeInSubtree[edge[1]]]
 
     def getConnectedNodes(self, node):
         self.idx[:] = False
@@ -163,6 +240,7 @@ class spanningtree:
         if np.count_nonzero(filteredCands) == 0:
             return
         self.isNodeInTree[filteredCands] = True
+        self.nodeInSubtree[filteredCands] = self.currentRegion
         newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])
         self.edges = np.row_stack((self.edges, newEdges))        
         #for newEdge in newEdges:
