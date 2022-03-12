@@ -81,6 +81,11 @@ def getElementsInRegion(elementType, regions):
         for dim in range(mesh['problemDimension']):
             if not mesh['physical'][dim] is None and region in mesh['physical'][dim]:
                 if elementType == 0:
+                    if dim == 0:
+                        if elements is None:
+                            elements = mesh['pl'][mesh['physical'][dim] == region]
+                        else:
+                            elements = np.row_stack((elements, mesh['pl'][mesh['physical'][dim] == region]))                    
                     if dim == 1:
                         if elements is None:
                             elements = mesh['pt'][mesh['physical'][dim] == region]
