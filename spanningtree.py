@@ -247,7 +247,7 @@ class spanningtree:
             return
         self.isNodeInTree[filteredCands] = True
         self.nodeInSubtree[filteredCands] = self.currentRegion
-        newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1], np.arange(m.mesh['xp'].shape[0])[filteredCands]])
+        newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1], np.arange(m.numberOfVertices())[filteredCands]])
         self.edges = np.row_stack((self.edges, newEdges))        
         #for newEdge in newEdges:
         #    print(f"add edge {newEdge[0]},{newEdge[1]}")
