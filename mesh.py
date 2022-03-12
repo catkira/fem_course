@@ -58,6 +58,53 @@ def getElements(elementType, elementDim):
         elif elementDim == 2:
             return mesh['ett']
 
+def getNodesInRegion(regions):
+    if not (type(regions) == list) and not (type(regions) == np.ndarray):
+        regions = [regions]
+    combinedNodes = np.empty(0, dtype=np.int64)
+    for region in regions:
+        for dim in range(mesh['problemDimension']):
+            if (mesh['physical'][dim] is not None) and (region in mesh['physical'][dim]):
+                elementIndices = (mesh['physical'][dim] == region)
+                if dim == 1:
+                    regionElements = mesh['pt'][elementIndices]
+                elif dim == 2:
+                    regionElements = mesh['ptt'][elementIndices]
+                combinedNodes = np.append(combinedNodes, np.arange(numberOfVertices())[regionElements.ravel()])
+    return combinedNodes            
+
+def getElementsInRegion(elementType, regions):
+    if not (type(regions) == list) and not (type(regions) == np.ndarray):
+        regions = [regions]
+    elements = None
+    for region in regions:
+        for dim in range(mesh['problemDimension']):
+            if not mesh['physical'][dim] is None and region in mesh['physical'][dim]:
+                if elementType == 0:
+                    if dim == 1:
+                        if elements is None:
+                            elements = mesh['pt'][mesh['physical'][dim] == region]
+                        else:
+                            elements = np.row_stack((elements, mesh['pt'][mesh['physical'][dim] == region]))
+                    if dim == 2:
+                        if elements is None:
+                            elements = mesh['ptt'][mesh['physical'][dim] == region]
+                        else:
+                            elements = np.row_stack((elements, mesh['ptt'][mesh['physical'][dim] == region]))                 
+                if elementType == 1:
+                    if dim == 1:                    
+                        if elements is None:
+                            elements = mesh['et'][mesh['physical'][dim] == region]
+                        else:
+                            elements = np.row_stack((elements, mesh['et'][mesh['physical'][dim] == region]))
+                    if dim == 2:
+                        if elements is None:
+                            elements = mesh['ett'][mesh['physical'][dim] == region]
+                        else:
+                            elements = np.row_stack((elements, mesh['ett'][mesh['physical'][dim] == region]))   
+    return elements
+
+
 def getSigns(region):
     if region.regionDimension == 2:
         index = np.repeat(False, len(mesh['physical'][1]))
@@ -209,21 +256,6 @@ def getAllRegions(dim = -1):
         if not mesh['physical'][dim-1] is None:
             regions = np.append(regions, np.unique(mesh['physical'][dim-1]).astype(np.int))
     return regions
-
-def getNodesInRegion(regions):
-    if not (type(regions) == list) and not (type(regions) == np.ndarray):
-        regions = [regions]
-    combinedNodes = np.empty(0, dtype=np.int64)
-    for region in regions:
-        for dim in range(mesh['problemDimension']):
-            if (mesh['physical'][dim] is not None) and (region in mesh['physical'][dim]):
-                elementIndices = (mesh['physical'][dim] == region)
-                if dim == 1:
-                    regionElements = mesh['pt'][elementIndices]
-                elif dim == 2:
-                    regionElements = mesh['ptt'][elementIndices]
-                combinedNodes = np.append(combinedNodes, np.arange(numberOfVertices())[regionElements.ravel()])
-    return combinedNodes
 
 def transformationJacobians(reg = [], elementDim=3):
     global mesh

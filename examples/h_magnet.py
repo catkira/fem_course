@@ -48,12 +48,12 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         alpha.set(inf, 1e9) # Dirichlet BC
         K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
         B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
-        rhs = fluxRhsCurl(field, hr, volumeRegion)    
-        A = K+B    
+        rhs = fluxRhsCurl(field, hr, volumeRegion)
+        A = K+B
     else:
         field.setDirichlet([inf])  # this has to come before any assembly!!!
         K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
-        rhs = fluxRhsCurl(field, hr, volumeRegion)    
+        rhs = fluxRhsCurl(field, hr, volumeRegion)
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       

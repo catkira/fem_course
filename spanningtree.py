@@ -11,6 +11,7 @@ class spanningtree:
         self.numNodes = m.mesh['xp'].shape[0]
         self.nodeInSubtree = np.repeat(-1, self.numNodes)
         self.currentRegion = -1
+        self.currentEdgePool = np.empty((0,2))
         self.idx = np.zeros(self.numNodes, dtype=np.bool)
         self.graphSorted2 = np.column_stack([self.edgePool, np.arange(self.edgePool.shape[0])])[self.edgePool[:, 1].argsort()]
         self.isNodeInTree = np.zeros(self.numNodes, dtype=np.bool)
@@ -101,12 +102,18 @@ class spanningtree:
 
     def prepareConnectedNodes(self, region):
         self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
-        self.availableNodeMask = np.repeat(False, m.numberOfVertices())
-        self.availableNodeMask[m.getNodesInRegion(region)] = True
-        for node in range(self.connectedNodes.shape[0]):
-            if self.availableNodeMask[node]:
-                self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.availableNodeMask]
-
+        #self.availableNodeMask = np.repeat(False, m.numberOfVertices())
+        #self.availableNodeMask[m.getNodesInRegion(region)] = True
+        elements = m.getElementsInRegion(elementType = 1, regions = region).ravel()
+        elements = m.getMesh()['pe'][elements]
+        elements = np.row_stack((elements, np.column_stack((elements[:,1], elements[:,0])))) # need to consider edges in both directions
+        self.currentEdgePool = elements[np.argsort(elements,axis=0)[:,0]]
+        i = 0
+        while i < len(self.currentEdgePool):
+            startIdx = i
+            stopIdx = np.searchsorted(self.currentEdgePool[:,0], self.currentEdgePool[startIdx,0], side='right')
+            self.connectedNodes[self.currentEdgePool[startIdx,0]] = np.unique(self.currentEdgePool[startIdx:stopIdx,1])
+            i = stopIdx + 1
 
     def createTree(self, priorityRegions):
         self.edges = np.empty((0,2), dtype=np.int64)
@@ -114,8 +121,8 @@ class spanningtree:
             self.prepareConnectedNodes(region)
             # add first edge to tree
             # make sure its not in an excluded region
-            for edge in self.edgePool:
-                if self.availableNodeMask[edge[0]] & self.availableNodeMask[edge[1]] & (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
+            for edge in self.currentEdgePool:
+                if (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
                     self.edges = np.row_stack((self.edges, edge))        
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
@@ -133,8 +140,8 @@ class spanningtree:
             self.prepareConnectedNodes(region)
             # add first edge to tree
             # make sure its not in an excluded region
-            for edge in self.edgePool:
-                if self.availableNodeMask[edge[0]] & self.availableNodeMask[edge[1]] & (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
+            for edge in self.currentEdgePool:
+                if (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
                     self.edges = np.row_stack((self.edges, edge))        
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
@@ -147,8 +154,7 @@ class spanningtree:
                 self.growTreeRecursive(edge)
 
         print("connecting subtrees")
-        self.prepareConnectedNodes(m.getAllRegions())
-        connectedSubtrees = np.empty(len(m.getAllRegions()), dtype=object)
+        connectedSubtrees = np.empty(np.max(m.getAllRegions())+1, dtype=object)
         for i in range(len(connectedSubtrees)):
             connectedSubtrees[i] = [i]
         for edge in self.edgePool:
@@ -232,7 +238,7 @@ class spanningtree:
     # recursive version of growTree()
     def growTreeRecursive(self, edge):
         connectedNodes = self.connectedNodes[edge[1]]
-        if len(connectedNodes) == 0:
+        if connectedNodes is None or len(connectedNodes) == 0:
             return
         connectedNodesIdx = np.repeat(False, self.numNodes)
         connectedNodesIdx[connectedNodes] = True
