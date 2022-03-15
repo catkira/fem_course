@@ -4,9 +4,8 @@ import sys
 import time
 
 class spanningtree:
-    def __init__(self, excludedRegions=[], verbose=False, verify=False):
+    def __init__(self, excludedRegions=[], verbose=False, verify=False, create=True):
         m.computeEdges3d()
-        start = time.time()
         self.edgePool = np.copy(m.mesh['pe'])
         self.numNodes = m.mesh['xp'].shape[0]
         self.nodeInSubtree = np.repeat(-1, self.numNodes)
@@ -17,88 +16,133 @@ class spanningtree:
         self.isNodeInTree = np.zeros(self.numNodes, dtype=np.bool)
         self.branches = []
 
-        if True:
-            origRecLimit = sys.getrecursionlimit()
-            sys.setrecursionlimit(1000000)
-            self.createTree(excludedRegions)        
-            sys.setrecursionlimit(origRecLimit)                
-
-        else:
-            excludedNodes = np.empty(0, dtype = np.int64)
-            for region in excludedRegions:
-                for dim in range(len(m.getMesh()['physical'])):
-                    if region in m.getMesh()['physical'][dim]:
-                        if dim == 1:
-                            excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
-                        elif dim == 2:
-                            excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
-            self.excludedNodesMask = np.repeat(True, self.numNodes)
-            self.excludedNodesMask[excludedNodes] = False
-
-            # precaclulate connected nodes
-            self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
-            for node in range(self.connectedNodes.shape[0]):
-                if self.excludedNodesMask[node]:
-                    self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.excludedNodesMask]
-
-            # verify connected nodes
-            if verify:
-                for node1, cn in enumerate(self.connectedNodes):
-                    if cn is not None:
-                        for node2 in cn:
-                            if (node1 in self.connectedNodes[node2]) == False:
-                                print(f'nodes {node1} {node2}')
-                                sys.exit()
-
-            # add first edge to tree
-            # make sure its not in an excluded region
-            self.edges = []
-            for edge in self.edgePool:
-                if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
-                    self.edges = edge        
-                    self.edges = np.expand_dims(self.edges, axis=0)
-                    self.isNodeInTree[self.edges[0,0]] = True
-                    self.isNodeInTree[self.edges[0,1]] = True
-                    break
-            if self.edges == []:
-                print('Error: no start edge for tree found!')
-                sys.exit()
-
-            self.branches = np.empty(0, dtype=np.int64)
-
-            if True: 
-                # the recursive version is about 2x slower than the iterative version
+        if create:
+            start = time.time()
+            if True:
                 origRecLimit = sys.getrecursionlimit()
                 sys.setrecursionlimit(1000000)
-                self.growTreeRecursive(edge)
-                self.growTreeRecursive([edge[1],edge[0]])
-                sys.setrecursionlimit(origRecLimit)     
+                self.createTree(excludedRegions)        
+                sys.setrecursionlimit(origRecLimit)    
+            
             else:
-                self.newEdges = self.edges
-                generation = 0
-                while len(self.newEdges) != 0:
-                    self.growTree()
-                    if verbose:
-                        print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
-                    generation = generation + 1
+                excludedNodes = np.empty(0, dtype = np.int64)
+                for region in excludedRegions:
+                    for dim in range(len(m.getMesh()['physical'])):
+                        if region in m.getMesh()['physical'][dim]:
+                            if dim == 1:
+                                excludedNodes = np.append(excludedNodes, m.getMesh()['pt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
+                            elif dim == 2:
+                                excludedNodes = np.append(excludedNodes, m.getMesh()['ptt'][np.where(m.getMesh()['physical'][dim] == region)[0]].ravel())
+                self.excludedNodesMask = np.repeat(True, self.numNodes)
+                self.excludedNodesMask[excludedNodes] = False
 
-        # calculate edgeIds
-        print(f"calculate tree edges")           
-        self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
-        for i, edge in enumerate(self.edges):
-            self.edgeIds[i] = self.findEdgeId(edge)
-            assert np.all(m.getMesh()['pe'][self.edgeIds[i]] == np.sort(edge))
+                # precaclulate connected nodes
+                self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
+                for node in range(self.connectedNodes.shape[0]):
+                    if self.excludedNodesMask[node]:
+                        self.connectedNodes[node] = np.arange(self.numNodes)[self.getConnectedNodes(node) & self.excludedNodesMask]
 
-        # calculate branches
-        # for id, edge in enumerate(self.edgePool):
-        #     if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
-        #         if (id in self.edgeIds) == False:
-        #                 self.branches = np.append(self.branches, id)
-        #self.branches = self.edgeIds
+                # verify connected nodes
+                if verify:
+                    for node1, cn in enumerate(self.connectedNodes):
+                        if cn is not None:
+                            for node2 in cn:
+                                if (node1 in self.connectedNodes[node2]) == False:
+                                    print(f'nodes {node1} {node2}')
+                                    sys.exit()
 
-        numNodes = len(np.unique(self.edges.ravel()))
+                # add first edge to tree
+                # make sure its not in an excluded region
+                self.edges = []
+                for edge in self.edgePool:
+                    if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
+                        self.edges = edge        
+                        self.edges = np.expand_dims(self.edges, axis=0)
+                        self.isNodeInTree[self.edges[0,0]] = True
+                        self.isNodeInTree[self.edges[0,1]] = True
+                        break
+                if self.edges == []:
+                    print('Error: no start edge for tree found!')
+                    sys.exit()
+
+                self.branches = np.empty(0, dtype=np.int64)
+
+                if True: 
+                    # the recursive version is about 2x slower than the iterative version
+                    origRecLimit = sys.getrecursionlimit()
+                    sys.setrecursionlimit(1000000)
+                    self.growTreeRecursive(edge)
+                    self.growTreeRecursive([edge[1],edge[0]])
+                    sys.setrecursionlimit(origRecLimit)     
+                else:
+                    self.newEdges = self.edges
+                    generation = 0
+                    while len(self.newEdges) != 0:
+                        self.growTree()
+                        if verbose:
+                            print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
+                        generation = generation + 1
+
+            # calculate edgeIds
+            print(f"calculate tree edges")           
+            self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
+            for i, edge in enumerate(self.edges):
+                self.edgeIds[i] = self.findEdgeId(edge)
+                assert np.all(m.getMesh()['pe'][self.edgeIds[i]] == np.sort(edge))
+
+            #verify that there are no loops in the tree
+            if False:
+                inTree = self.isNodeInTree
+                inTree[:] = False
+                for edge in self.edgeIds:
+                    if np.all(inTree[m.getMesh()['pe'][edge.ravel()]] == [False, False]):
+                        inTree[m.getMesh()['pe'][edge.ravel()]] = False
+                    else:
+                        print("Error!")
+                        sys.exit()
+            #                 
+
+            # calculate branches
+            # for id, edge in enumerate(self.edgePool):
+            #     if self.excludedNodesMask[edge[0]] & self.excludedNodesMask[edge[1]]:
+            #         if (id in self.edgeIds) == False:
+            #                 self.branches = np.append(self.branches, id)
+            #self.branches = self.edgeIds
+
+            numNodes = len(np.unique(self.edges.ravel()))
+            duration = time.time() - start
+            print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
+
+    def load(self, filename):
+        start = time.time()
+        lines = []
+        with open(filename) as f:
+            lines = f.readlines()
+        delLines = []
+        for i in range(len(lines)):
+            if len(lines[i]) < 10 or lines[i][0:2] != "SL":
+                delLines.append(i)
+            else:
+                lines[i] = lines[i][3:len(lines[i])-2]
+        lines = np.delete(lines, delLines)
+        coords = np.empty((len(lines), 6))
+        for i,line in enumerate(lines):
+            coords[i,:] = np.fromstring(line, sep = ',')
+        coords = coords.reshape((len(lines)*2,3))
+        self.edgeIds = np.empty((len(lines)), dtype=np.int64)
+        self.edges = np.empty((len(lines), 2), dtype=np.int64)
+        for i in range(len(lines)):
+            point = coords[2*i, :]
+            diff = np.sum(np.abs(m.getMesh()['xp'] - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
+            self.edges[i,0] = np.argmin(diff)
+            point = coords[2*i + 1, :]
+            diff = np.sum(np.abs(m.getMesh()['xp'] - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
+            self.edges[i,1] = np.argmin(diff)
+            self.edgeIds[i] = self.findEdgeId(self.edges[i,:])
+        assert len(self.edgeIds) == len(np.unique(self.edgeIds))
         duration = time.time() - start
-        print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
+        print(f"imported tree with {len(self.edges)} edges completed in {duration:.4f}s")
+
 
     def prepareConnectedNodes(self, region):
         self.connectedNodes = np.empty(np.max(self.edgePool.ravel())+1, dtype=object)
@@ -107,7 +151,7 @@ class spanningtree:
         elements = m.getElementsInRegion(elementType = 1, regions = region).ravel()
         elements = m.getMesh()['pe'][elements]
         elements = np.row_stack((elements, np.column_stack((elements[:,1], elements[:,0])))) # need to consider edges in both directions
-        self.currentEdgePool = elements[np.argsort(elements,axis=0)[:,0]]
+        self.currentEdgePool = elements[np.argsort(elements, axis = 0)[:,0]]
         i = 0
         while i < len(self.currentEdgePool):
             startIdx = i
@@ -198,25 +242,29 @@ class spanningtree:
         return self.idx
 
     def findEdgeId(self, nodes):
+        sortedNodes = nodes
         if nodes[0] > nodes[1]:
-            nodes = [nodes[1], nodes[0]]
-        startIdx = m.getMesh()['pe'][:,0].searchsorted(nodes[0], 'left')
-        while (startIdx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][startIdx,1] != nodes[1]):
+            sortedNodes = [nodes[1], nodes[0]]
+        startIdx = m.getMesh()['pe'][:,0].searchsorted(sortedNodes[0], 'left')
+        while (startIdx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][startIdx,1] != sortedNodes[1]):
             startIdx += 1
-        assert np.all(m.getMesh()['pe'][startIdx] == nodes)
+        #assert np.all(m.getMesh()['pe'][startIdx] == sortedNodes)
         return startIdx
 
     def addBranch(self, edge):
-        if edge[0] > edge[1]:
-            edge = [edge[1], edge[0]]
-        startIdx = m.getMesh()['pe'][:,0].searchsorted(edge[0], 'left')
-        while (startIdx < len(m.getMesh()['pe'])) and (m.getMesh()['pe'][startIdx,1] != edge[1]):
-            startIdx += 1
-        #assert np.all(m.getMesh()['pe'][startIdx] == edge)
+        edgeId = self.findEdgeId(edge)
         #print(f'add branch {edge[0]},{edge[1]} with id {startIdx}')
-        self.branches = np.append(self.branches, startIdx)
+        self.branches = np.append(self.branches, edgeId)
 
-    def growTree(self):
+    def growTree(self, edge):
+        self.newEdges = [edge]
+        generation = 0
+        while len(self.newEdges) != 0:
+            self.growTree2()
+            print(f'Generation {generation:d}: added {len(self.newEdges):d} edges')
+            generation = generation + 1
+
+    def growTree2(self):
         # add edges that dont create circles
             # get all candidate nodes
             # filter out circles
@@ -230,6 +278,7 @@ class spanningtree:
             if len(connectedNodes) == 0:
                 continue
             self.isNodeInTree[connectedNodes] = True
+            self.nodeInSubtree[connectedNodes] = self.currentRegion            
             newEdges2 = np.row_stack((newEdges2, 
                 np.column_stack([np.ones(len(connectedNodes), dtype=np.int64)*edge[1], connectedNodes])))
         self.newEdges = newEdges2
@@ -267,7 +316,7 @@ TIME{0};"""
                 elements = self.edges
             for edge in elements:
                 p1 = m.mesh['xp'][int(edge[0])]
-                p2 = m.mesh['xp'][int(edge[1])] #- p1
+                p2 = m.mesh['xp'][int(edge[1])]
                 if m.mesh['problemDimension'] == 2:
                     txt += f"SL({p1[0]},{p1[1]},{0},{p2[0]},{p2[1]},{0})"
                 else:

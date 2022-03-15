@@ -76,17 +76,18 @@ def updateFieldRegions(field):
                     dofManagerData.fields[field.id].freeNodesMask[elements[region == m.getMesh()['physical'][dim]]] = True
     dofManagerData.fields[field.id].applyDirichletMask()
     dofManagerData.fields[field.id].applyGaugeMask()
-    dofManagerData.updateStartIndices()        
+    dofManagerData.updateStartIndices()
 
 def createMatrix(rows, cols, data):
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    #idx = np.where((rows == -1) | (cols == -1))
     data = np.delete(data, idx)
     rows = np.delete(rows, idx)
     cols = np.delete(cols, idx)
     numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K    
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs])
+    return K
 
 def createVector(rows, data):
     # delete all rows and cols with index -1
@@ -95,7 +96,7 @@ def createVector(rows, data):
     data = np.delete(data, idx)
     #
     numFreeDofs = countAllFreeDofs()
-    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[numFreeDofs,1]).toarray().ravel()
+    rhs = csr_matrix((data, (rows, np.zeros(len(rows)))), shape=[numFreeDofs, 1]).toarray().ravel()
     return rhs    
 
 def countAllDofs():
