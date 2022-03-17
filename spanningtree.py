@@ -21,7 +21,7 @@ class spanningtree:
             if True:
                 origRecLimit = sys.getrecursionlimit()
                 sys.setrecursionlimit(1000000)
-                self.createTree(excludedRegions)        
+                self.createTree(excludedRegions, verbose=verbose)        
                 sys.setrecursionlimit(origRecLimit)    
             
             else:
@@ -159,7 +159,7 @@ class spanningtree:
             self.connectedNodes[self.currentEdgePool[startIdx,0]] = np.unique(self.currentEdgePool[startIdx:stopIdx,1])
             i = stopIdx + 1
 
-    def createTree(self, priorityRegions):
+    def createTree(self, priorityRegions, verbose):
         self.edges = np.empty((0,2), dtype=np.int64)
         for region in priorityRegions:
             self.prepareConnectedNodes(region)
@@ -171,7 +171,8 @@ class spanningtree:
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
                     break
-            print(f"building tree for priority region {region}")           
+            if verbose:
+                print(f"building tree for priority region {region}")           
             self.currentRegion = region     
             if self.connectedNodes[edge[1]] is None:
                 self.growTreeRecursive([edge[1],edge[0]])
@@ -190,14 +191,16 @@ class spanningtree:
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
                     break
-            print(f"building tree for region {region}")
+            if verbose:
+                print(f"building tree for region {region}")
             self.currentRegion = region               
             if self.connectedNodes[edge[1]] is None:
                 self.growTreeRecursive([edge[1],edge[0]])
             else:
                 self.growTreeRecursive(edge)
 
-        print("connecting subtrees")
+        if verbose:
+            print("connecting subtrees")
         connectedSubtrees = np.empty(np.max(m.getAllRegions())+1, dtype=object)
         for i in range(len(connectedSubtrees)):
             connectedSubtrees[i] = [i]
@@ -211,7 +214,8 @@ class spanningtree:
                         continue                    
 
                     self.edges = np.row_stack((self.edges, edge)) # add edge
-                    print(f"connection region {self.nodeInSubtree[edge[0]]} with region {self.nodeInSubtree[edge[1]]}")
+                    if verbose:
+                        print(f"connection region {self.nodeInSubtree[edge[0]]} with region {self.nodeInSubtree[edge[1]]}")
                     connectedSubtrees[self.nodeInSubtree[edge[1]]] += connectedSubtrees[self.nodeInSubtree[edge[0]]]
                     connectedSubtrees[self.nodeInSubtree[edge[0]]] += connectedSubtrees[self.nodeInSubtree[edge[1]]]
 
