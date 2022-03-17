@@ -15,8 +15,8 @@ from ioHelper import *
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
     import petsc4py
-    #petsc4py.init(sys.argv)
-    petsc4py.init(['-mat_mumps_use_omp_threads 8'])
+    petsc4py.init(sys.argv)
+    #petsc4py.init(['-mat_mumps_use_omp_threads 8'])
     from petsc4py import PETSc
 else:
     print("Warning: no petsc4py found, solving will be very slow!")

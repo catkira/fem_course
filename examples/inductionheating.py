@@ -89,7 +89,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     A = K_V1 + K_V2 + K_A1 + K_A2 # seems to be ok
     A += K_V_A_1 + K_V_A_2  # seems to be ok
     A += K_dtA1A2_1 + K_dtA1A2_2 # seems to be ok
-    #A += K_dtAV_1 + K_dtAV_2 # WIP
+    A += K_dtAV_1 + K_dtAV_2 # WIP
     A += B_D1 # for inhomogeneous Dirichlet BCs
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
@@ -101,9 +101,9 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     
     # TODO: check fieldA2.dt()
     E1 = -fieldV1.grad(fieldV1.solution, dim=3)
-    #E1 += fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
+    E1 += fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
     E2 = -fieldV2.grad(fieldV2.solution, dim=3)
-    #E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)[0:len(E2),:] # HACK
+    E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)[0:len(E2),:] # HACK
     #
     # TODO: implement storeInVTK on regions
     #
