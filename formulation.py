@@ -15,7 +15,8 @@ from ioHelper import *
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
     import petsc4py
-    petsc4py.init(sys.argv)        
+    #petsc4py.init(sys.argv)
+    petsc4py.init(['-mat_mumps_use_omp_threads 8'])
     from petsc4py import PETSc
 else:
     print("Warning: no petsc4py found, solving will be very slow!")
@@ -180,6 +181,7 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel()
+    #return csr_matrix((data, (rows, cols)), shape=[dm.countAllDofs(), dm.countAllDofs()])
     return dm.createMatrix(rows, cols, data)
 
 # integral grad(u) * sigma * grad(tf(u)) 
@@ -568,17 +570,18 @@ def solve(A, b, method='np'):
         print(f"using {size} CPUs")
 
         opts = PETSc.Options()
-        #opts.setValue("st_pc_factor_shift_type", "NONZERO")    
+        #opts.setValue("st_pc_factor_shift_type", "NONZERO")
+        #opts.setValue("mat_mumps_use_omp_threads", 8)  
         n = len(b)   
         Ap = PETSc.Mat().createAIJWithArrays(size=(n, n),  csr=(A.indptr, A.indices, A.data), comm=PETSc.COMM_WORLD)     
-        Ap.setUp()
         Ap.assemblyBegin()
         Ap.assemblyEnd()
+        #if Ap.isSymmetric() == False:
+        #    print("Warning: A is not symmetric!")
 
         bp = PETSc.Vec().create(comm=PETSc.COMM_WORLD) 
         bp.setSizes(n)
         bp.setFromOptions()
-        bp.setUp()
         bp.setValues(range(n),b)    
         bp.assemblyBegin()
         bp.assemblyEnd()    
@@ -586,27 +589,32 @@ def solve(A, b, method='np'):
         up = PETSc.Vec().create(comm=PETSc.COMM_WORLD)
         up.setSizes(n)
         up.setFromOptions()         
-        up.setUp()
         up.assemblyBegin()
         up.assemblyEnd()    
 
         ksp = PETSc.KSP().create()
-        ksp.getPC().setFactorSolverType('mumps')
-        ksp.setOperators(Ap)        
         ksp.setFromOptions()
-        #ksp.getPC().setFactorSolverType('petsc')
-        ksp.getPC().setType(PETSc.PC.Type.LU)
-        ksp.setUp()
-        #ksp.getInitialGuessNonzero()        
-        #ksp.setType(PETSc.KSP.Type.PREONLY)
+        ksp.setOperators(Ap)
+        #ksp.setTolerances(rtol=1e-20, atol=1e-10, max_it=1000)
+        ksp.setType(PETSc.KSP.Type.PREONLY)
         #ksp.setType(PETSc.KSP.Type.CG)  # conjugate gradient
         #ksp.setType(PETSc.KSP.Type.GMRES)
-        #ksp.getPC().setFactorSolverType("superlu_dist")
+
+        PC =  ksp.getPC()
+        #PC.setFromOptions()        
+        PC.setType(PETSc.PC.Type.LU)
+        PC.setFactorSolverType(PETSc.Mat.SolverType.MUMPS)
+        #PC.setFactorSolverType("superlu_dist")
+        #PC.setFactorSolverType('petsc')
+        #ksp.getInitialGuessNonzero()        
         #ksp.getPC().setType('cholesky') # cholesky
         #ksp.getPC().setType('icc') # incomplete cholesky
-        
+
         print(f'Solving {n} dofs with: {ksp.getType():s} and preconditioner {ksp.getPC().getType():s}')
+        #PC.setUp() # ksp.solve() calls this already
+        #ksp.setUp() # ksp.solve() calls this already
         ksp.solve(bp, up)
+        
         print(f"Converged in {ksp.getIterationNumber():d} iterations.")
         u = np.array(up)
     elif method == 'np':
@@ -618,4 +626,33 @@ def solve(A, b, method='np'):
     assert numDofs == countAllFreeDofs()
     putSolutionIntoFields(u)
     stop = time.time()
-    print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")    
+    print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")
+
+def is_symmetric(m):
+
+    if m.shape[0] != m.shape[1]:
+        raise ValueError('m must be a square matrix')
+
+    if not isinstance(m, coo_matrix):
+        m = coo_matrix(m)
+
+    r, c, v = m.row, m.col, m.data
+    tril_no_diag = r > c
+    triu_no_diag = c > r
+
+    if triu_no_diag.sum() != tril_no_diag.sum():
+        return False
+
+    rl = r[tril_no_diag]
+    cl = c[tril_no_diag]
+    vl = v[tril_no_diag]
+    ru = r[triu_no_diag]
+    cu = c[triu_no_diag]
+    vu = v[triu_no_diag]
+
+    sortl = np.lexsort((cl, rl))
+    sortu = np.lexsort((ru, cu))
+    vl = vl[sortl]
+    vu = vu[sortu]
+    check = np.allclose(vl, vu, atol=0.0000001)
+    return check
