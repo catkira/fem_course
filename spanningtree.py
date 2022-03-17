@@ -84,7 +84,8 @@ class spanningtree:
                         generation = generation + 1
 
             # calculate edgeIds
-            print(f"calculate tree edges")           
+            if verbose:
+                print(f"calculate tree edges")           
             self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
             for i, edge in enumerate(self.edges):
                 self.edgeIds[i] = self.findEdgeId(edge)
