@@ -444,13 +444,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
             gammas = np.einsum('i,i,ikj,ikl->ijl', rhos, detJacs, invJacs, invJacs)
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs)
             data = np.einsum('ilm,ijk,jklm->iml', signsMultiplied, gammas, Mm).ravel()
-            # delete all rows and cols with index -1
-            idx = np.where(rows == -1)[0]
-            rows = np.delete(rows, idx)
-            data = np.delete(data, idx)
-            #            
-            M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-
+            M = dm.createMatrix(rows, cols, data)
         if calcMethod == 2 or verify:
             data2 = np.zeros((len(elements), nBasis, nBasis))
             for i,gp in enumerate(gps):
@@ -460,12 +454,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, field.shapeFunctionValues(gp, elementDim)[k,:])                   
                         data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,ij->i', factor1, factor2)
             data = data2.ravel()
-            # delete all rows and cols with index -1
-            idx = np.where(rows == -1)[0]
-            rows = np.delete(rows, idx)
-            data = np.delete(data, idx)
-            #
-            M2 = csr_matrix((data, (rows, cols)), shape=[n,n])
+            M2 = dm.createMatrix(rows, cols, data)
             
     if verify:
         if not np.all(np.round((M[342:350,342:350].toarray()),3) == np.round((M2[342:350,342:350].toarray()),3)):
@@ -560,17 +549,12 @@ def solve(A, b, method='np'):
         from scipy.sparse.linalg import inv    
         A = csc_matrix(A)
         u = inv(A) @ b
-    elif method == 'petsc':
+    elif method == 'mumps' or method == 'gmres':
         if not hasPetsc:
             print("petsc is not available on this system")
             sys.exit()            
 
-        rank = PETSc.COMM_WORLD.Get_rank()
-        size = PETSc.COMM_WORLD.Get_size()
-        print(f"using {size} CPUs")
-
-        opts = PETSc.Options()
-        #opts.setValue("st_pc_factor_shift_type", "NONZERO")
+        #opts = PETSc.Options()
         #opts.setValue("mat_mumps_use_omp_threads", 8)  
         n = len(b)   
         Ap = PETSc.Mat().createAIJWithArrays(size=(n, n),  csr=(A.indptr, A.indices, A.data), comm=PETSc.COMM_WORLD)     
@@ -595,27 +579,30 @@ def solve(A, b, method='np'):
         ksp = PETSc.KSP().create()
         ksp.setFromOptions()
         ksp.setOperators(Ap)
-        #ksp.setTolerances(rtol=1e-20, atol=1e-10, max_it=1000)
-        ksp.setType(PETSc.KSP.Type.PREONLY)
-        #ksp.setType(PETSc.KSP.Type.CG)  # conjugate gradient
-        #ksp.setType(PETSc.KSP.Type.GMRES)
+        if method == 'gmres':
+            ksp.setType(PETSc.KSP.Type.GMRES)
+            PC =  ksp.getPC()
+            #ksp.setTolerances(rtol=1e-20, atol=1e-10, max_it=1000)
+            #ksp.setType(PETSc.KSP.Type.CG)  # conjugate gradient
+            #PC.setFromOptions()        
+            #PC.setFactorSolverType("superlu_dist")
+            #PC.setFactorSolverType('petsc')
+            #ksp.getInitialGuessNonzero()        
+            #ksp.getPC().setType('cholesky') # cholesky
+            #ksp.getPC().setType('icc') # incomplete cholesky
+        else:
+            ksp.setType(PETSc.KSP.Type.PREONLY)
+            PC =  ksp.getPC()
+            PC.setType(PETSc.PC.Type.LU)
+            PC.setFactorSolverType(PETSc.Mat.SolverType.MUMPS)
 
-        PC =  ksp.getPC()
-        #PC.setFromOptions()        
-        PC.setType(PETSc.PC.Type.LU)
-        PC.setFactorSolverType(PETSc.Mat.SolverType.MUMPS)
-        #PC.setFactorSolverType("superlu_dist")
-        #PC.setFactorSolverType('petsc')
-        #ksp.getInitialGuessNonzero()        
-        #ksp.getPC().setType('cholesky') # cholesky
-        #ksp.getPC().setType('icc') # incomplete cholesky
-
-        print(f'Solving {n} dofs with: {ksp.getType():s} and preconditioner {ksp.getPC().getType():s}')
+        print(f'Solving {n} dofs with: {PC.getFactorSolverType():s} {ksp.getType():s} and preconditioner {ksp.getPC().getType():s}')
         #PC.setUp() # ksp.solve() calls this already
         #ksp.setUp() # ksp.solve() calls this already
         ksp.solve(bp, up)
         
-        print(f"Converged in {ksp.getIterationNumber():d} iterations.")
+        if method == 'gmres':
+            print(f"Converged in {ksp.getIterationNumber():d} iterations.")            
         u = np.array(up)
     elif method == 'np':
         u = np.linalg.inv(A.toarray()) @ b

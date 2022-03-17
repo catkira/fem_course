@@ -57,7 +57,7 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
         A = K
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
-    solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'mumps')    
     u = field.solution
     storeInVTK(u, "h_magnet_octant_u.vtk", writePointData=True)    
     h = -field.grad(u, dim=3)

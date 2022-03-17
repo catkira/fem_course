@@ -94,7 +94,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
-    solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'mumps')    
 
     storeInVTK(fieldV1.solution, "inductionheating_V1.vtk", field=fieldV1, writePointData=True)    
     storeInVTK(fieldV2.solution, "inductionheating_V2.vtk", field=fieldV2, writePointData=True)    
