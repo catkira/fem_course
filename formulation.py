@@ -70,36 +70,37 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
         data = data2.ravel(order='C')
     return dm.createMatrix(rows, cols, data)
 
+# this function is only left for legacy, massMatrixCurl should be used instead
 # integral sigma * dof(a) * tf(a)
 # just a mass matrix
-def matrix_DofA_tfA(field1, field2, sigmas, region):
-    elements1 = field1.getElements(region = region)
-    elements2 = field2.getElements(region = region)
-    sigmas = sigmas.getValues(region)
-    elementDim = region.regionDimension
-    jacs = transformationJacobians(region, elementDim=elementDim)    
-    detJacs = np.abs(np.linalg.det(jacs))
-    invJacs = np.linalg.inv(jacs)
-    signs = getSigns(region)
-    if elementDim == 2:
-        print("Error: hcurl elements are not possible in 2d!")
-        sys.exit()
-    elif elementDim == 3:
-        nBasis = 6
-        rows = np.tile(elements2, nBasis).astype(np.int64).ravel()
-        cols = np.repeat(elements1, nBasis).astype(np.int64).ravel()  
-        data2 = np.zeros((len(elements1), nBasis, nBasis))
-        integrationOrder = 2
-        gfs, gps = gaussData(integrationOrder, elementDim)
-        for i in range(len(gfs)):
-            values = field1.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
-            for m in range(nBasis):
-                for k in range(nBasis):
-                    factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
-                    factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
-                    data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
-        data = data2.ravel(order='C')
-    return dm.createMatrix(rows, cols, data)
+# def matrix_DofA_tfA(field1, field2, sigmas, region):
+#     elements1 = field1.getElements(region = region)
+#     elements2 = field2.getElements(region = region)
+#     sigmas = sigmas.getValues(region)
+#     elementDim = region.regionDimension
+#     jacs = transformationJacobians(region, elementDim=elementDim)    
+#     detJacs = np.abs(np.linalg.det(jacs))
+#     invJacs = np.linalg.inv(jacs)
+#     signs = getSigns(region)
+#     if elementDim == 2:
+#         print("Error: hcurl elements are not possible in 2d!")
+#         sys.exit()
+#     elif elementDim == 3:
+#         nBasis = 6
+#         rows = np.tile(elements2, nBasis).astype(np.int64).ravel()
+#         cols = np.repeat(elements1, nBasis).astype(np.int64).ravel()  
+#         data2 = np.zeros((len(elements1), nBasis, nBasis))
+#         integrationOrder = 2
+#         gfs, gps = gaussData(integrationOrder, elementDim)
+#         for i in range(len(gfs)):
+#             values = field1.shapeFunctionValues(xi = gps[i], elementDim=elementDim)
+#             for m in range(nBasis):
+#                 for k in range(nBasis):
+#                     factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], sigmas, detJacs, invJacs, values[m,:])
+#                     factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, values[k,:])
+#                     data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
+#         data = data2.ravel(order='C')
+#     return dm.createMatrix(rows, cols, data)
 
 # integral sigma * dof(a) * grad(tf(v))
 def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
@@ -402,66 +403,64 @@ def fluxRhs(field, br, region=[], vectorized=True):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
+def massMatrixCurl(field1, field2, rhos, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
-        elements = region  # TODO: Dangerous! this does not work with constraints or multiple fields!
-        elementDim = getMesh['problemDimension']
-        jacs = transformationJacobians(elementDim=elementDim)
+        region = Region(region)
     elif isinstance(region, Region):
-        elements = field.getElements(region = region)
-        rhos = rhos.getValues(region)
-        elementDim = region.regionDimension
-        jacs = transformationJacobians(region, elementDim=elementDim)
+        pass
     else:
         print("Error: unsupported paramter!")
         sys.exit()
+    elements1 = field1.getElements(region = region)
+    elements2 = field2.getElements(region = region)
+    rhos = rhos.getValues(region)
+    elementDim = region.regionDimension
+    jacs = transformationJacobians(region, elementDim=elementDim)
+    signs = getSigns(region)
     if elementDim == 2:
-        integrationOrder = 2 # should be elementOrder*2
         nBasis = 3
-        gfs,gps = gaussData(integrationOrder, elementDim)
+    elif elementDim == 3:
+        nBasis = 6
     else:
         print("Error: this dimension is not implemented!")
         sys.exit()
-    elementMatrixSize = nBasis**2     
-    m = len(elements)
-    rows = np.tile(elements, nBasis).astype(np.int64).ravel()
-    cols = np.repeat(elements,nBasis).astype(np.int64).ravel()
-    data = np.zeros(m*elementMatrixSize)    
-    n = countAllFreeDofs()        
-    if elementDim == 2:
+    integrationOrder = 2 # should be elementOrder*2
+    gfs,gps = gaussData(integrationOrder, elementDim)
+    rows = np.tile(elements2, nBasis).astype(np.int64).ravel()
+    cols = np.repeat(elements1, nBasis).astype(np.int64).ravel()  
+    data2 = np.zeros((len(elements1), nBasis, nBasis))    
+    if elementDim == 2 or elementDim == 3:  # should work for any dimension
         detJacs = np.abs(np.linalg.det(jacs))    
         invJacs = np.linalg.inv(jacs)       
-        signs = getMesh()['signs2d'] 
-        calcMethod = 1
-        if calcMethod == 1 or verify:
+        calcMethod = 2
+        if calcMethod == 1 or verify: # this method is garbage, but it works
             nCoords = 3
             Mm = np.zeros((nCoords, nCoords, nBasis, nBasis))
             for i,gp in enumerate(gps):
                 for m in range(nBasis):
                     for k in range(nBasis):
                         Mm[m,k] = Mm[m,k] + gfs[i] * np.einsum('i,j->ij',
-                            field.shapeFunctionValues(gp, elementDim)[:,m], field.shapeFunctionValues(gp, elementDim)[:,k])
-            gammas = np.einsum('i,i,ikj,ikl->ijl', rhos, detJacs, invJacs, invJacs)
+                            field1.shapeFunctionValues(gp, elementDim)[:,m], field2.shapeFunctionValues(gp, elementDim)[:,k])
+            gammas = np.einsum('i,i,ijk,ilk->ijl', rhos, detJacs, invJacs, invJacs)
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs)
             data = np.einsum('ilm,ijk,jklm->iml', signsMultiplied, gammas, Mm).ravel()
             M = dm.createMatrix(rows, cols, data)
         if calcMethod == 2 or verify:
-            data2 = np.zeros((len(elements), nBasis, nBasis))
+            data2 = np.zeros((len(elements1), nBasis, nBasis))
             for i,gp in enumerate(gps):
                 for m in range(nBasis):
                     for k in range(nBasis):
-                        factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], rhos, detJacs, invJacs, field.shapeFunctionValues(gp, elementDim)[m,:])
-                        factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, field.shapeFunctionValues(gp, elementDim)[k,:])                   
-                        data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,ij->i', factor1, factor2)
+                        factor1 = np.einsum('i,i,i,ikj,k->ij', signs[:,m], rhos, detJacs, invJacs, field1.shapeFunctionValues(gp, elementDim)[m,:])
+                        factor2 = np.einsum('i,ikj,k->ij', signs[:,k], invJacs, field2.shapeFunctionValues(gp, elementDim)[k,:])                   
+                        data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)
             data = data2.ravel()
-            M2 = dm.createMatrix(rows, cols, data)
-            
+            M2 = dm.createMatrix(rows, cols, data)             
     if verify:
-        if not np.all(np.round((M[342:350,342:350].toarray()),3) == np.round((M2[342:350,342:350].toarray()),3)):
+        if not np.all(np.round((M[0:350,0:350].toarray()),3) == np.round((M2[0:350,0:350].toarray()),3)):
             print("Error: methods give different results!")
-            print(M[342:350,342:350].toarray())
+            print(M[0:350, 0:350].toarray())
             print("\n")
-            print(M2[342:350,342:350].toarray())
+            print(M2[0:350, 0:350].toarray())
             sys.exit()       
     return M if calcMethod == 1 else M2  
 

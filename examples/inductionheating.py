@@ -79,8 +79,10 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     K_V_A_2 = matrix_gradDofV_tfA(fieldV2, fieldA2, sigma, conductorRegion)  # seems to be ok
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*tf(a))
-    K_dtA1A2_1 = (2*np.pi*50) * matrix_DofA_tfA(fieldA1, fieldA2, sigma, conductorRegion)  # seems to be ok
-    K_dtA1A2_2 = (-2*np.pi*50) * matrix_DofA_tfA(fieldA2, fieldA1, sigma, conductorRegion)  # seems to be ok
+    #K_dtA1A2_1 = (2*np.pi*50) * massMatrixCurl(fieldA1, fieldA2, sigma, conductorRegion)  # seems to be ok
+    #K_dtA1A2_2 = (-2*np.pi*50) * massMatrixCurl(fieldA2, fieldA1, sigma, conductorRegion)  # seems to be ok
+    #K_dtA1A2_1 = (2*np.pi*50) * matrix_DofA_tfA(fieldA1, fieldA2, sigma, conductorRegion)  # seems to be ok
+    #K_dtA1A2_2 = (-2*np.pi*50) * matrix_DofA_tfA(fieldA2, fieldA1, sigma, conductorRegion)  # seems to be ok
 
     # magdyn += integral(conductor, sigma*dt(dof(a))*grad(tf(v)))
     K_dtAV_1 = (2*np.pi*50) * matrix_DofA_gradTfV(fieldA1, fieldV2, sigma, conductorRegion) # WIP

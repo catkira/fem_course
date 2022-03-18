@@ -36,8 +36,7 @@ def main():
         run_magnet_in_room()
 
         run_magmesh(dirichlet='hard', gauge=True, coarse=False)
-        run_magmesh(dirichlet='hard', gauge=False, coarse=False)
-        run_magmesh(dirichlet='soft', gauge=False, coarse=False)
+        run_magmesh(dirichlet='soft', gauge=True, coarse=False)
     print('finished')
 
 if __name__ == "__main__":

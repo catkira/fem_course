@@ -43,7 +43,7 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     if dirichlet == 'soft':
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
-        B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
+        B = massMatrixCurl(field, field, alpha, boundaryRegion, verify=verify)
         K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy = False)
         rhs = loadRhs(field, currentDensity, volumeRegion)    
         A = K+B    
@@ -66,4 +66,4 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
 
 
 if __name__ == "__main__":
-    run_magmesh(dirichlet='hard', gauge=True, coarse=False)
+    run_magmesh(dirichlet='soft', gauge=True, coarse=False)

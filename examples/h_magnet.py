@@ -52,7 +52,7 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         alpha = Parameter()
         alpha.set(inf, 1e9) # Dirichlet BC
         K = stiffnessMatrixCurl(field, nu, volumeRegion, legacy=legacy)
-        B = massMatrixCurl(field, alpha, boundaryRegion, verify=verify)
+        B = massMatrixCurl(field, field, alpha, boundaryRegion, verify=verify)
         rhs = fluxRhsCurl(field, hr, volumeRegion)
         A = K+B
     else:
@@ -91,4 +91,4 @@ def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
         assert(abs(max(np.linalg.norm(b,axis=1)) - 3.1892) < 2e-3)
 
 if __name__ == "__main__":
-    run_h_magnet(dirichlet='hard', gauge=True, legacy=False)
+    run_h_magnet(dirichlet='soft', gauge=True, legacy=False, verify=True)
