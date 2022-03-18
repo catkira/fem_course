@@ -18,9 +18,9 @@ def main():
         computeBoundary()        
         run_bookExample1()
 
-        run_bookExample2Parameter(True, anisotropicInclusion=False, method='petsc')
-        run_bookExample2(False, anisotropicInclusion=True, method='petsc')     
-        run_bookExample2(False, anisotropicInclusion=True, method='petsc', mesh='criss')    
+        run_bookExample2Parameter(True, anisotropicInclusion=False, method='mumps')
+        run_bookExample2(False, anisotropicInclusion=True, method='mumps')
+        run_bookExample2(False, anisotropicInclusion=True, method='mumps', mesh='criss')
 
         run_h_magnet_octant(dirichlet='soft', vectorized=True)
         run_h_magnet_octant(dirichlet='soft', vectorized=False)

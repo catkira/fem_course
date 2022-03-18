@@ -55,7 +55,7 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
-    solve(A, rhs, 'petsc')    
+    solve(A, rhs, 'mumps')    
     u = field.solution
     print(f'max(u) = {max(u)}')
     #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    

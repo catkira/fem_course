@@ -8,7 +8,7 @@ class DofFieldData:
     def __init__(self, field):
         self.freeNodesMask = np.repeat(False, m.numberOfVertices())
         self.freeEdgesMask = np.repeat(False, m.numberOfEdges())
-        self.gaugeMask = []
+        self.edgeIds = []
         self.isGauged = False
         if m.getMesh()['problemDimension'] == 3:
             self.dirichletMask = np.repeat(False, m.numberOfTriangles()) # assume dirichlet BCs are always on problemDimension -1
@@ -39,7 +39,7 @@ class DofFieldData:
             print("TODO: implemente applyDirichletMask() for 2d meshes!")
 
     def applyGaugeMask(self):
-        self.freeEdgesMask[self.gaugeMask] = False
+        self.freeEdgesMask[self.edgeIds] = False
 
 class DofManagerData:
     def __init__(self):
@@ -76,26 +76,27 @@ def updateFieldRegions(field):
                     dofManagerData.fields[field.id].freeNodesMask[elements[region == m.getMesh()['physical'][dim]]] = True
     dofManagerData.fields[field.id].applyDirichletMask()
     dofManagerData.fields[field.id].applyGaugeMask()
-    dofManagerData.updateStartIndices()        
+    dofManagerData.updateStartIndices()
 
 def createMatrix(rows, cols, data):
     # delete all rows and cols with index -1
     idx = np.append(np.where(rows == -1)[0], np.where(cols == -1)[0])
+    #idx = np.where((rows == -1) | (cols == -1))
     data = np.delete(data, idx)
     rows = np.delete(rows, idx)
     cols = np.delete(cols, idx)
     numFreeDofs = countAllFreeDofs()
-    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs]) 
-    return K    
+    K = csr_matrix((data, (rows, cols)), shape=[numFreeDofs, numFreeDofs])
+    return K
 
 def createVector(rows, data):
-    n = countAllFreeDofs()
     # delete all rows and cols with index -1
     idx = np.where(rows == -1)[0]
     rows = np.delete(rows, idx)
     data = np.delete(data, idx)
     #
-    rhs = csr_matrix((data, (rows,np.zeros(len(rows)))), shape=[n,1]).toarray().ravel()
+    numFreeDofs = countAllFreeDofs()
+    rhs = csr_matrix((data, (rows, np.zeros(len(rows)))), shape=[numFreeDofs, 1]).toarray().ravel()
     return rhs    
 
 def countAllDofs():
@@ -125,7 +126,7 @@ def resetDofManager():
 
 def translateDofIndices(field, elements):
     mask = dofManagerData.fields[field.id].freeDofMask()
-    idx = np.repeat(-1, len(mask)).astype(np.int)
+    idx = np.repeat(-1, len(mask)).astype(np.int64)
     addr = dofManagerData.fields[field.id].startIndex
     for id in range(len(idx)):
         if mask[id]:
@@ -161,7 +162,7 @@ def setDirichlet(field, regions, value = []):
     
 def setGauge(field, tree):
     global dofManagerData
-    dofManagerData.fields[field.id].gaugeMask = tree.branches
+    dofManagerData.fields[field.id].edgeIds = tree.edgeIds
     dofManagerData.fields[field.id].isGauged = True
     dofManagerData.fields[field.id].applyGaugeMask()    
     dofManagerData.updateStartIndices()        

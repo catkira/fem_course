@@ -15,7 +15,8 @@ from ioHelper import *
 if 'petsc4py' in pkg_resources.working_set.by_key:
     hasPetsc = True
     import petsc4py
-    petsc4py.init(sys.argv)        
+    petsc4py.init(sys.argv)
+    #petsc4py.init(['-mat_mumps_use_omp_threads 8'])
     from petsc4py import PETSc
 else:
     print("Warning: no petsc4py found, solving will be very slow!")
@@ -157,11 +158,11 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
         sys.exit()
     elif elementDim == 3:
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
-        cols = np.repeat(elements, nBasis).astype(np.int64).ravel()  
+        cols = np.repeat(elements, nBasis).astype(np.int64).ravel()
+        curls = field.shapeFunctionCurls(elementDim)
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
-            curls = field.shapeFunctionCurls(elementDim)
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
                 for k in range(3):
@@ -172,15 +173,15 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
             # this formulation is more generic, because it supports higher orders
             data2 = np.zeros((len(elements), nBasis, nBasis))
             integrationOrder = 2
-            gfs,gps = gaussData(integrationOrder, elementDim)              
+            gfs, _ = gaussData(integrationOrder, elementDim)              
             for i in range(len(gfs)):
-                curls = field.shapeFunctionCurls(elementDim)
                 for m in range(nBasis):
                     for k in range(nBasis):
                         factor1 = np.einsum('i,i,i,ijk,k->ij', signs[:,m], sigmas, 1/detJacs, jacs, curls[m,:])
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
-            data = data2.ravel(order='C')
+            data = data2.ravel()
+    #return csr_matrix((data, (rows, cols)), shape=[dm.countAllDofs(), dm.countAllDofs()])
     return dm.createMatrix(rows, cols, data)
 
 # integral grad(u) * sigma * grad(tf(u)) 
@@ -280,7 +281,7 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
                 #K[np.ix_(triangle[:],triangle[:])] = K[np.ix_(triangle[:],triangle[:])] + K_T      
     return dm.createMatrix(rows, cols, data)
 
-# integral br * rot(tf(u))
+# integral br * curl(tf(u))
 def fluxRhsCurl(field, br, region=[], vectorized=True):
     if region == []:
         elements = getMesh()['pt']
@@ -303,12 +304,12 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
     curls = field.shapeFunctionCurls(elementDim)    
 
     numAllDofs = len(elements)
-    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))  # TODO is detJac needed here??
-    rows = elements.ravel(order='C')
+    temp = area* np.einsum('ik,ijk->ijk', signs, np.einsum('ijk,lk', jacs, curls))
+    rows = elements.ravel()
     data = np.zeros((numAllDofs,nBasis))
     for basis in range(nBasis):
         data[:,basis] = np.einsum('ij,ij->i', br, temp[:,:,basis])
-    data = data.ravel(order='C')        
+    data = data.ravel()        
     return dm.createVector(rows, data)
 
 # integral j * tf(u)
@@ -337,7 +338,7 @@ def loadRhs(field, j, region=[], vectorized=True):
     detJacs = np.abs(np.linalg.det(jacs))
 
     data = np.zeros((len(elements),nBasis))
-    rows = elements.ravel(order='C')
+    rows = elements.ravel()
     
     # here only the rotation part of the affine transformation need to be considered for j
     # because j is already given for every element
@@ -349,7 +350,7 @@ def loadRhs(field, j, region=[], vectorized=True):
                 data[:,m] += gfs[i] * np.einsum('i,ij,i,j->i', detJacs, jTransformed, signs[:,m], field.shapeFunctionValues(gp, elementDim)[m,:])
             else:
                 data[:,m] += gfs[i] * np.einsum('i,ij,j->i', detJacs, jTransformed, field.shapeFunctionValues(gp, elementDim)[m,:])
-    data = data.ravel(order='C')
+    data = data.ravel()
     return dm.createVector(rows, data)
 
 # integral br * grad(tf(u))
@@ -383,11 +384,11 @@ def fluxRhs(field, br, region=[], vectorized=True):
         # temp2 = area* np.repeat(detJacs,nCoords*nBasis).reshape((len(detJacs),nCoords,nBasis))* np.einsum('ikj,lk', invJacs, Grads)        
         # this line is also ok, the order of multiplication is probably favorable with regard to rounding errors
         temp2 = area* np.einsum('i,i...->i...', detJacs, np.einsum('ikj,lk', invJacs, Grads))
-        rows = elements.ravel(order='C')
+        rows = elements.ravel()
         data = np.zeros((len(elements),nBasis))
         for basis in range(nBasis):
             data[:,basis] = np.einsum('ij,ij->i', br, temp2[:,:,basis])
-        data = data.ravel(order='C')
+        data = data.ravel()
         rhs = dm.createVector(rows, data)
     else:
         rhs = np.zeros(n)
@@ -443,13 +444,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
             gammas = np.einsum('i,i,ikj,ikl->ijl', rhos, detJacs, invJacs, invJacs)
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs)
             data = np.einsum('ilm,ijk,jklm->iml', signsMultiplied, gammas, Mm).ravel()
-            # delete all rows and cols with index -1
-            idx = np.where(rows == -1)[0]
-            rows = np.delete(rows, idx)
-            data = np.delete(data, idx)
-            #            
-            M = csr_matrix((data, (rows, cols)), shape=[n,n]) 
-
+            M = dm.createMatrix(rows, cols, data)
         if calcMethod == 2 or verify:
             data2 = np.zeros((len(elements), nBasis, nBasis))
             for i,gp in enumerate(gps):
@@ -459,12 +454,7 @@ def massMatrixCurl(field, rhos, region=[], elementDim=2, verify=False):
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], invJacs, field.shapeFunctionValues(gp, elementDim)[k,:])                   
                         data2[:,m,k] = data2[:,m,k] + gfs[i] * np.einsum('ij,ij->i', factor1, factor2)
             data = data2.ravel()
-            # delete all rows and cols with index -1
-            idx = np.where(rows == -1)[0]
-            rows = np.delete(rows, idx)
-            data = np.delete(data, idx)
-            #
-            M2 = csr_matrix((data, (rows, cols)), shape=[n,n])
+            M2 = dm.createMatrix(rows, cols, data)
             
     if verify:
         if not np.all(np.round((M[342:350,342:350].toarray()),3) == np.round((M2[342:350,342:350].toarray()),3)):
@@ -559,40 +549,60 @@ def solve(A, b, method='np'):
         from scipy.sparse.linalg import inv    
         A = csc_matrix(A)
         u = inv(A) @ b
-    elif method == 'petsc':
+    elif method == 'mumps' or method == 'gmres':
         if not hasPetsc:
             print("petsc is not available on this system")
             sys.exit()            
-        opts = PETSc.Options()
-        #opts.setValue("st_pc_factor_shift_type", "NONZERO")        
+
+        #opts = PETSc.Options()
+        #opts.setValue("mat_mumps_use_omp_threads", 8)  
         n = len(b)   
-        Ap = PETSc.Mat().createAIJ(size=(n, n),  csr=(A.indptr, A.indices, A.data))        
-        Ap.setUp()
+        Ap = PETSc.Mat().createAIJWithArrays(size=(n, n),  csr=(A.indptr, A.indices, A.data), comm=PETSc.COMM_WORLD)     
         Ap.assemblyBegin()
         Ap.assemblyEnd()
-        bp = PETSc.Vec().createSeq(n) 
-        bp.setValues(range(n),b)        
-        up = PETSc.Vec().createSeq(n)        
-        if True:
-            ksp = PETSc.KSP().create()
-            ksp.setOperators(Ap)        
-            ksp.setFromOptions()
-            #ksp.getPC().setFactorSolverType('mumps')
-            ksp.getPC().setFactorSolverType('petsc')
-            #ksp.setType('cg')  # conjugate gradient
-            #ksp.setType('gmres')
-            #ksp.getPC().setType('lu')
+        #if Ap.isSymmetric() == False:
+        #    print("Warning: A is not symmetric!")
+
+        bp = PETSc.Vec().create(comm=PETSc.COMM_WORLD) 
+        bp.setSizes(n)
+        bp.setFromOptions()
+        bp.setValues(range(n),b)    
+        bp.assemblyBegin()
+        bp.assemblyEnd()    
+
+        up = PETSc.Vec().create(comm=PETSc.COMM_WORLD)
+        up.setSizes(n)
+        up.setFromOptions()         
+        up.assemblyBegin()
+        up.assemblyEnd()    
+
+        ksp = PETSc.KSP().create()
+        ksp.setFromOptions()
+        ksp.setOperators(Ap)
+        if method == 'gmres':
+            ksp.setType(PETSc.KSP.Type.GMRES)
+            PC =  ksp.getPC()
+            #ksp.setTolerances(rtol=1e-20, atol=1e-10, max_it=1000)
+            #ksp.setType(PETSc.KSP.Type.CG)  # conjugate gradient
+            #PC.setFromOptions()        
+            #PC.setFactorSolverType("superlu_dist")
+            #PC.setFactorSolverType('petsc')
+            #ksp.getInitialGuessNonzero()        
             #ksp.getPC().setType('cholesky') # cholesky
             #ksp.getPC().setType('icc') # incomplete cholesky
-            print(f'Solving {n} dofs with: {ksp.getType():s}')
-            ksp.solve(bp, up)
         else:
-            snes = PETSc.SNES() 
-            snes.create(PETSc.COMM_SELF)
-            snes.setUseMF(True)
-            snes.getKSP().setType('cg')
-            snes.setFromOptions()
-        print(f"Converged in {ksp.getIterationNumber():d} iterations.")
+            ksp.setType(PETSc.KSP.Type.PREONLY)
+            PC =  ksp.getPC()
+            PC.setType(PETSc.PC.Type.LU)
+            PC.setFactorSolverType(PETSc.Mat.SolverType.MUMPS)
+
+        print(f'Solving {n} dofs with: {PC.getFactorSolverType():s} {ksp.getType():s} and preconditioner {ksp.getPC().getType():s}')
+        #PC.setUp() # ksp.solve() calls this already
+        #ksp.setUp() # ksp.solve() calls this already
+        ksp.solve(bp, up)
+        
+        if method == 'gmres':
+            print(f"Converged in {ksp.getIterationNumber():d} iterations.")            
         u = np.array(up)
     elif method == 'np':
         u = np.linalg.inv(A.toarray()) @ b
@@ -603,4 +613,33 @@ def solve(A, b, method='np'):
     assert numDofs == countAllFreeDofs()
     putSolutionIntoFields(u)
     stop = time.time()
-    print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")    
+    print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")
+
+def is_symmetric(m):
+
+    if m.shape[0] != m.shape[1]:
+        raise ValueError('m must be a square matrix')
+
+    if not isinstance(m, coo_matrix):
+        m = coo_matrix(m)
+
+    r, c, v = m.row, m.col, m.data
+    tril_no_diag = r > c
+    triu_no_diag = c > r
+
+    if triu_no_diag.sum() != tril_no_diag.sum():
+        return False
+
+    rl = r[tril_no_diag]
+    cl = c[tril_no_diag]
+    vl = v[tril_no_diag]
+    ru = r[triu_no_diag]
+    cu = c[triu_no_diag]
+    vu = v[triu_no_diag]
+
+    sortl = np.lexsort((cl, rl))
+    sortu = np.lexsort((ru, cu))
+    vl = vl[sortl]
+    vu = vu[sortu]
+    check = np.allclose(vl, vu, atol=0.0000001)
+    return check

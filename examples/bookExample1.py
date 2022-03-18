@@ -19,9 +19,8 @@ def run_bookExample1(verify=False):
     alphas = 1e9*np.ones(r)  # dirichlet BC
     f = np.ones(n)
 
-    spanningtree = st.spanningtree()
-    spanningtree.write("example1_spanntree.pos")
-    spanningtree.write("example1_spanntree_branches.pos", branches=True)
+    #spanningtree = st.spanningtree()
+    #spanningtree.write("example1_spanntree.pos")
 
     field = FieldH1()
     K = stiffnessMatrix(field, sigmas)
