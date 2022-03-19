@@ -110,7 +110,7 @@ def getElementsInRegion(elementType, regions):
     return elements
 
 
-def getSigns(region):
+def getSigns(region : region.Region):
     if region.regionDimension == 2:
         index = np.repeat(False, len(mesh['physical'][1]))
         for id in region.ids:
@@ -230,7 +230,7 @@ def numberOfBoundaryEdges():
     global mesh
     return mesh['eb'].shape[0]
 
-def dimensionOfRegion(id):
+def dimensionOfRegion(id : int):
     global mesh
     if id in mesh['physical'][0]:
         return 1
@@ -251,7 +251,7 @@ def dimensionOfMesh():
         return 1
     return 0
 
-def getAllRegions(dim = -1):
+def getAllRegions(dim : int = -1):
     regions = np.empty(0, dtype = np.int)
     if dim == -1:
         for dim in range(mesh['problemDimension']):
@@ -262,7 +262,7 @@ def getAllRegions(dim = -1):
             regions = np.append(regions, np.unique(mesh['physical'][dim-1]).astype(np.int))
     return regions
 
-def transformationJacobians(reg = [], elementDim=3):
+def transformationJacobians(reg = [], elementDim : int = 3):
     global mesh
     if reg == []:
         if elementDim == 2:
@@ -344,7 +344,7 @@ def printMeshInfo():
     elif mesh['problemDimension'] == 3:
         print(f'mesh contains {numberOfTetraeders():d} tetraeder, {numberOfTriangles():d} triangles, {numberOfVertices():d} vertices')
 
-def regionDimension(id):
+def regionDimension(id : int):
     global mesh
     if id in mesh['physical'][0]: # check lines
         return 1

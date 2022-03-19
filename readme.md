@@ -9,14 +9,17 @@ Features implemented so far are:
 - homogeneous Dirichlet boundary conditions
 - mesh import from GMSH including use of physical regions
 - solution export as vtk-file for ParaView
-- tree-cotree gauge
-- eddy current example in A-phi-formulation
-- harmonics
+- tree gauge
+- eddy current example in A-V/A formulation
+- harmonics (partly implemented)
 
-Planned features:
-- higher order elements
-- pos-file export for GMSH
-- inhomogeneous Dirichlet boundary conditions
+Possible features to be implemented (difficulty in in brackets):
+- higher order elements for node and edge elements (++)
+- pos-file export for GMSH (+)
+- inhomogeneous Dirichlet boundary conditions (++)
+- h-adaptation and .msh mesh export (++)
+- symbolic expressions (+++)
+- harmonics (++)
 
 # Install on Ubuntu 18
     sudo apt update
