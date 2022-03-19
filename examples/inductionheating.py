@@ -3,6 +3,7 @@ import time
 import os
 import sys
 import inspect
+#from typing import final
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)

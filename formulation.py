@@ -49,11 +49,11 @@ def matrix_gradDofV_tfA(fieldV, fieldA, sigmas, region):
     invJacs = np.linalg.inv(jacs)
     signs = getSigns(region)
     if elementDim == 2:
-        print("Error: hcurl elements are not possible in 2d!")
+        print("Error: not implemented!")
         sys.exit()
     elif elementDim == 3:
-        nBasisV = 4
-        nBasisA = 6
+        nBasisV = fieldV.numBasisFunctions(elementDim)
+        nBasisA = fieldA.numBasisFunctions(elementDim)
         rows = np.tile(elementsA, nBasisV).astype(np.int64).ravel()
         cols = np.repeat(elementsV, nBasisA).astype(np.int64).ravel()  
         data2 = np.zeros((len(elementsV), nBasisV, nBasisA))
@@ -113,11 +113,11 @@ def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
     invJacs = np.linalg.inv(jacs)
     signs = getSigns(region)
     if elementDim == 2:
-        print("Error: hcurl elements are not possible in 2d!")
+        print("Error: not implemented!")
         sys.exit()
     elif elementDim == 3:
-        nBasisV = 4
-        nBasisA = 6
+        nBasisV = fieldV.numBasisFunctions(elementDim)
+        nBasisA = fieldA.numBasisFunctions(elementDim)
         rows = np.tile(elementsV, nBasisA).astype(np.int64).ravel()
         cols = np.repeat(elementsA, nBasisV).astype(np.int64).ravel()  
         data2 = np.zeros((len(elementsV), nBasisA, nBasisV))
@@ -135,7 +135,7 @@ def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
     return dm.createMatrix(rows, cols, data)         
 
 # integral curl(u) * sigma * curl(tf(u)) 
-def stiffnessMatrixCurl(field, sigmas : Parameter, region : None | Region = None, legacy = False):
+def stiffnessMatrixCurl(field, sigmas : Parameter, region : int = None | Region, legacy = False):
     if region == None:
         elementDim = getMesh()['problemDimension'] 
         elements = field.getElements(dim = elementDim)
@@ -147,15 +147,10 @@ def stiffnessMatrixCurl(field, sigmas : Parameter, region : None | Region = None
         elementDim = region.regionDimension
         jacs = transformationJacobians(region, elementDim=elementDim)
         signs = getSigns(region)
-    if elementDim == 2:    
-        nBasis = 3
-        elementArea = 1/2
-    elif elementDim == 3:
-        nBasis = 6
-        elementArea = 1/6        
+    nBasis = field.numBasisFunctions(elementDim)
     detJacs = np.abs(np.linalg.det(jacs))
     if elementDim == 2:
-        print("Error: hcurl elements are not possible in 2d!")
+        print("Error: not implemented!")
         sys.exit()
     elif elementDim == 3:
         rows = np.tile(elements, nBasis).astype(np.int64).ravel()
@@ -163,6 +158,10 @@ def stiffnessMatrixCurl(field, sigmas : Parameter, region : None | Region = None
         curls = field.shapeFunctionCurls(elementDim)
         if legacy:
             # this formulation might be a bit faster but only supports order 1!
+            if elementDim == 2:    
+                elementArea = 1/2
+            elif elementDim == 3:
+                elementArea = 1/6        
             signsMultiplied = np.einsum('ij,ik->ijk', signs, signs) 
             B = np.zeros((elementDim, elementDim, nBasis, nBasis))
             for i in range(3):
@@ -182,7 +181,6 @@ def stiffnessMatrixCurl(field, sigmas : Parameter, region : None | Region = None
                         factor2 = np.einsum('i,ijk,k->ij', signs[:,k], jacs, curls[k,:])
                         data2[:,m,k] += gfs[i] * np.einsum('ij,ij->i', factor1, factor2)    
             data = data2.ravel()
-    #return csr_matrix((data, (rows, cols)), shape=[dm.countAllDofs(), dm.countAllDofs()])
     return dm.createMatrix(rows, cols, data)
 
 # integral grad(u) * sigma * grad(tf(u)) 
@@ -613,32 +611,3 @@ def solve(A, b, method='np'):
     putSolutionIntoFields(u)
     stop = time.time()
     print(f"{bcolors.OKGREEN}solved {numDofs} dofs in {stop - start:.2f} s{bcolors.ENDC}")
-
-def is_symmetric(m):
-
-    if m.shape[0] != m.shape[1]:
-        raise ValueError('m must be a square matrix')
-
-    if not isinstance(m, coo_matrix):
-        m = coo_matrix(m)
-
-    r, c, v = m.row, m.col, m.data
-    tril_no_diag = r > c
-    triu_no_diag = c > r
-
-    if triu_no_diag.sum() != tril_no_diag.sum():
-        return False
-
-    rl = r[tril_no_diag]
-    cl = c[tril_no_diag]
-    vl = v[tril_no_diag]
-    ru = r[triu_no_diag]
-    cu = c[triu_no_diag]
-    vu = v[triu_no_diag]
-
-    sortl = np.lexsort((cl, rl))
-    sortu = np.lexsort((ru, cu))
-    vl = vl[sortl]
-    vu = vu[sortu]
-    check = np.allclose(vl, vu, atol=0.0000001)
-    return check

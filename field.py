@@ -19,7 +19,13 @@ class Field:
         if regionIDs == []:
             regionIDs = m.getAllRegions(dim=m.dimensionOfMesh())
         self.regions = regionIDs
-        dm.updateFieldRegions(self)                  
+        dm.updateFieldRegions(self)
+
+    def numBasisFunctions(self, elementDim):
+        if elementDim == 2:
+            return 3
+        elif elementDim == 3:
+            return 4                
 
     def setDirichlet(self, regions, value = []):
         dm.setDirichlet(self, regions, value)
@@ -79,6 +85,12 @@ class FieldHCurl(Field):
     def __init__(self, regionIDs=[]):
         self.elementType = 1
         super().__init__(regionIDs)
+
+    def numBasisFunctions(self, elementDim):
+        if elementDim == 2:
+            return 3
+        elif elementDim == 3:
+            return 6
 
     def setGauge(self, tree):
         dm.setGauge(self, tree)       
