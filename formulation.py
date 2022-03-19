@@ -135,8 +135,8 @@ def matrix_DofA_gradTfV(fieldA, fieldV, sigmas, region):
     return dm.createMatrix(rows, cols, data)         
 
 # integral curl(u) * sigma * curl(tf(u)) 
-def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
-    if region == []:
+def stiffnessMatrixCurl(field, sigmas : Parameter, region : None | Region = None, legacy = False):
+    if region == None:
         elementDim = getMesh()['problemDimension'] 
         elements = field.getElements(dim = elementDim)
         jacs = transformationJacobians(elementDim=elementDim)
@@ -186,8 +186,8 @@ def stiffnessMatrixCurl(field, sigmas, region=[], legacy=False):
     return dm.createMatrix(rows, cols, data)
 
 # integral grad(u) * sigma * grad(tf(u)) 
-def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
-    if region == []:
+def stiffnessMatrix(field, sigmas : Parameter, region : Region | None = None, vectorized = True, legacy = False):
+    if region == None:
         elementDim = 2
         elements = field.getElements(dim = elementDim)
         jacs = transformationJacobians(elementDim=elementDim)
@@ -283,8 +283,8 @@ def stiffnessMatrix(field, sigmas, region=[], vectorized=True, legacy=False):
     return dm.createMatrix(rows, cols, data)
 
 # integral br * curl(tf(u))
-def fluxRhsCurl(field, br, region=[], vectorized=True):
-    if region == []:
+def fluxRhsCurl(field, br : Parameter, region = None, vectorized=True):
+    if region == None:
         elements = getMesh()['pt']
         elementDim = getMesh()['problemDimension']         
         elements = field.getElements(dim = elementDim)        
@@ -315,8 +315,8 @@ def fluxRhsCurl(field, br, region=[], vectorized=True):
 
 # integral j * tf(u)
 # j contains a constant value for each element
-def loadRhs(field, j, region=[], vectorized=True):
-    if region == []:
+def loadRhs(field, j : Parameter, region = None, vectorized=True):
+    if region == None:
         elementDim = getMesh()['problemDimension']             
         elements = field.getElements(dim = elementDim)        
         jacs = transformationJacobians([], elementDim)
@@ -355,8 +355,8 @@ def loadRhs(field, j, region=[], vectorized=True):
     return dm.createVector(rows, data)
 
 # integral br * grad(tf(u))
-def fluxRhs(field, br, region=[], vectorized=True):
-    if region == []:
+def fluxRhs(field, br : Parameter, region = None, vectorized=True):
+    if region == None:
         elementDim = 2
         elements = field.getElements(dim = elementDim)
     else:
@@ -403,7 +403,7 @@ def fluxRhs(field, br, region=[], vectorized=True):
     return rhs
 
 # integral rho * u * tf(u)
-def massMatrixCurl(field1, field2, rhos, region=[], elementDim=2, verify=False):
+def massMatrixCurl(field1, field2, rhos : Parameter, region=[], elementDim=2, verify=False):
     if isinstance(region, list) or type(region) is np.ndarray:
         region = Region(region)
     elif isinstance(region, Region):
@@ -465,7 +465,7 @@ def massMatrixCurl(field1, field2, rhos, region=[], elementDim=2, verify=False):
     return M if calcMethod == 1 else M2  
 
 # integral rho * u * tf(u)
-def massMatrix(field, rhos, region=[], elementDim=2, vectorized=True):
+def massMatrix(field, rhos : Parameter, region=[], elementDim=2, vectorized=True):
     n = countAllFreeDofs()
     if isinstance(region, list) or type(region) is np.ndarray:
         elements = np.array(region) # TODO: Dangerous! this does not work with constraints or multiple fields!
