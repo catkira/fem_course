@@ -20,6 +20,8 @@ Possible features to be implemented (difficulty in in brackets):
 - h-adaptation and .msh mesh export (++)
 - symbolic expressions (+++)
 - harmonics (++)
+- output animated harmonic solution (+)
+- time stepping (+++)
 
 # Install on Ubuntu 18
     sudo apt update
