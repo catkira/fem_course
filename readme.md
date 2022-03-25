@@ -20,6 +20,8 @@ Possible features to be implemented (difficulty in in brackets):
 - h-adaptation and .msh mesh export (++)
 - symbolic expressions (+++)
 - harmonics (++)
+- output animated harmonic solution (+)
+- time stepping (+++)
 
 # Install on Ubuntu 18
     sudo apt update
@@ -47,6 +49,10 @@ examples/magnet_in_room.py
 ![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magnet_in_room.png?raw=true)
 examples/magmesh.py
 ![magnet_in_room](https://github.com/catkira/fem_course/blob/master/examples/magmesh.png?raw=true)
+examples/inductionheating.py
+![inductionheating1](https://github.com/catkira/fem_course/blob/master/examples/inductionheating_current.png?raw=true)
+![inductionheating2](https://github.com/catkira/fem_course/blob/master/examples/inductionheating_current_arrows.png?raw=true)
+![inductionheating3](https://github.com/catkira/fem_course/blob/master/examples/inductionheating_cut.png?raw=true)
 
 
 # Recommended literature/papers
