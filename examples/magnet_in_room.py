@@ -51,16 +51,16 @@ def run_magnet_in_room():
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")        
     solve(A, b, 'mumps')
     u = field.solution
-    storeInVTK(u,"magnet_in_room_phi.vtk", writePointData=True)
+    storeInVTK(u, "magnet_in_room_phi.vtk", writePointData=True)
     m = numberOfTriangles()   
     h = -field.grad(u)
-    storeInVTK(h,"magnet_in_room_h.vtk")
+    storeInVTK(h, "magnet_in_room_h.vtk")
     mus = mu.getValues()  
     brs = np.column_stack([br.getValues(), np.zeros(m)])
-    b = np.column_stack([mus,mus,mus])*h + brs  # this is a bit ugly
+    b = np.column_stack([mus,mus,mus])*h.solution + brs  # this is a bit ugly
     storeInVTK(b,"magnet_in_room_b.vtk")
     print(f'b_max = {max(np.linalg.norm(b,axis=1)):.4f}')    
-    assert(abs(max(np.linalg.norm(b,axis=1)) - 1.7536) < 1e-3)
+    assert(abs(max(np.linalg.norm(b, axis=1)) - 1.7536) < 1e-3)
 
 if __name__ == "__main__":
     run_magnet_in_room()

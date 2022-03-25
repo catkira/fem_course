@@ -3,6 +3,8 @@ import mesh as m
 import dofManager as dm
 import sys
 import region as rg
+import parameter
+import copy
 
 # this is only a hack to allow simpler function calls when only one field is defined
 globalField = []
@@ -20,6 +22,41 @@ class Field:
             regionIDs = m.getAllRegions(dim=m.dimensionOfMesh())
         self.regions = regionIDs
         dm.updateFieldRegions(self)
+
+    def __mul__(self, other):
+        if isinstance(other, parameter.Parameter):
+            pass
+        else: # assume its just a number
+            self.solution *= other
+
+    def __neg__(self):
+        newField = copy.deepcopy(self)
+        newField.solution *= -1
+        return newField
+
+    # TODO: what should self.elementType be, if a H1 and Hcurl field are added ??
+    def __add__(self, other):
+        newField = copy.deepcopy(self)
+        if self.regions != other.regions:
+            newField.regions = np.intersect1d(self.regions, other.regions)
+            newField.solution = np.empty((0,self.solution.shape[1]))
+            selfRegionStartIdx = 0
+            otherRegionStartIdx = 0
+            for region in np.union1d(self.regions, other.regions):
+                regionLen = self.getNumberOfElements(region)
+                if region in newField.regions:
+                    newField.solution = np.row_stack((newField.solution, self.solution[selfRegionStartIdx:selfRegionStartIdx+regionLen]
+                        + other.solution[otherRegionStartIdx:otherRegionStartIdx+regionLen]))
+                if region in other.regions:
+                    otherRegionStartIdx += regionLen
+                if region in self.regions:
+                    selfRegionStartIdx += regionLen
+        else:
+            newField.solution = self.solution + other.solution
+        return newField
+
+    def __sub__(self, other):
+        return self + (-other)
 
     def numBasisFunctions(self, elementDim):
         if elementDim == 2:
@@ -69,7 +106,10 @@ class Field:
             return elements            
 
     def getNumberOfElements(self, region):
-        elements = region.getElements(field=self)
+        if isinstance(region, rg.Region):
+            elements = region.getElements(field=self)
+        else:
+            elements = rg.Region([region]).getElements(field=self)
         return len(elements)
     
     def addRegion(self, u, id):
@@ -150,7 +190,9 @@ class FieldHCurl(Field):
             detJacs = np.linalg.det(jacs)
             signs = m.getMesh()['signs3d']
             curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
-        return curls
+        newField = copy.deepcopy(self)
+        newField.solution = curls
+        return newField
 
     def dt(self, u, frequency, dim=3):
         if dim == 3:
@@ -164,7 +206,9 @@ class FieldHCurl(Field):
         elif dim == 2:
             print("Error: not yet implemented!")
             sys.exit()
-        return dts
+        newField = copy.deepcopy(self)
+        newField.solution = dts
+        return newField
 
 class FieldH1(Field):    
     def __init__(self, regionIDs=[]):
@@ -214,7 +258,9 @@ class FieldH1(Field):
                 jac,_ = m.transformationJacobian(elementIndex)        
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
-        return grads
+        newField = copy.deepcopy(self)
+        newField.solution = grads
+        return newField
         # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
         # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)
         # celltypes = np.empty(m, np.uint8)

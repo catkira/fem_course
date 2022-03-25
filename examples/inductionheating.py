@@ -103,18 +103,20 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     storeInVTK(fieldV2.solution, "inductionheating_V2.vtk", field=fieldV2, writePointData=True)    
     
     E1 = -fieldV1.grad(fieldV1.solution, dim=3)
-    E1 += fieldA2.dt(fieldA2.solution, dim=3, frequency=50)[0:len(E1),:] # HACK
+    E1 += fieldA2.dt(fieldA2.solution, dim=3, frequency=50)
     E2 = -fieldV2.grad(fieldV2.solution, dim=3)
-    E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)[0:len(E2),:] # HACK
+    E2 -= fieldA1.dt(fieldA1.solution, dim=3, frequency=50)
     #
     # TODO: implement storeInVTK on regions
     #
-    storeInVTK(E1, "inductionheating_E1.vtk", field=fieldV1)    
-    storeInVTK(E2, "inductionheating_E2.vtk", field=fieldV2)    
+    storeInVTK(E1, "inductionheating_E1.vtk")    
+    storeInVTK(E2, "inductionheating_E2.vtk")    
+    #storeInVTK(E1*sigma, "inductionheating_J1.vtk", field=fieldV1)    # TODO: implement field parameter 
+    #storeInVTK(E2*sigma, "inductionheating_J2.vtk", field=fieldV2)    
     B1 = fieldA1.curl(fieldA1.solution, dim=3)
     B2 = fieldA2.curl(fieldA2.solution, dim=3)
-    storeInVTK(B1, "inductionheating_B1.vtk", field=fieldA1)    
-    storeInVTK(B2, "inductionheating_B2.vtk", field=fieldA2)
+    storeInVTK(B1, "inductionheating_B1.vtk")    
+    storeInVTK(B2, "inductionheating_B2.vtk")
     #print(f'b_max = {max(np.linalg.norm(b,axis=1)):.8f}')    
     #assert(abs(max(np.linalg.norm(b,axis=1)) - 2.8919e-8) < 2e-3)
 

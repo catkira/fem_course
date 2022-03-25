@@ -14,13 +14,19 @@ def f2s(inputValue):
 # if its a parameter, it has to be defined for all regions in its dimension
 # parameter can only be plotted if its on the highest dimension of the mesh
 def storeInVTK(u, filename, writePointData : np.bool8 = False, field = []):
-    if field == []:
-        field = fd.globalField  # TODO: this only works if only one field is defined !
     if isinstance(u, Parameter):
+        if field == []:
+            field = fd.globalField  # TODO: this only works if only one field is defined !
         if writePointData:
             u = u.getVertexValues()  # this function is problematic -> see definition
         else:
-            u = u.getValues() 
+            u = u.getValues()
+    elif isinstance(u, fd.Field):
+        field = u
+        u = u.solution
+    else: # assume u is just an array with values
+        if field == []:
+            field = fd.globalField  # TODO: this only works if only one field is defined !
     storeInVTK2(u, filename, writePointData, field)
 
 def storeInVTK2(u, filename, writePointData, field):
@@ -52,7 +58,7 @@ def storeInVTK2(u, filename, writePointData, field):
             # TODO: figure out while this assert is not working with inductionheating
             pass
     else:
-        assert len(u) == m, "u has to be defined for all elements in the mesh"
+        assert len(u) == m, "u has to be defined for all elements in the field"
 
     scalarValue = (not isinstance(u[0], list)) and (not type(u[0]) is np.ndarray)
     with open(filename, 'w') as file:

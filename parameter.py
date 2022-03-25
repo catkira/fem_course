@@ -1,8 +1,8 @@
 import numpy as np
 import sys
-from mesh import *
+import mesh as m
 from field import *
-from region import Region
+import region as rg
 
 parameterList = []
 
@@ -19,8 +19,8 @@ class Parameter:
     def checkDimensions(self):
         for setting in self.settings:
             if self.parameterDimension == 0:
-                self.parameterDimension = regionDimension(setting[0])
-            elif regionDimension(setting[0]) != self.parameterDimension:
+                self.parameterDimension = m.regionDimension(setting[0])
+            elif m.regionDimension(setting[0]) != self.parameterDimension:
                 print(f'Error: cannot mix regions with different dimensions in a parameter!')
                 sys.exit()
 
@@ -46,18 +46,18 @@ class Parameter:
                 continue
             if self.rows == 1: # there is probably also a way to do it without this if-else
                 self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
-                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][0] == setting[0])))
+                    np.repeat(setting[1], np.count_nonzero(m.getMesh()['physical'][0] == setting[0])))
                 self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
-                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][1] == setting[0])))
+                    np.repeat(setting[1], np.count_nonzero(m.getMesh()['physical'][1] == setting[0])))
                 self.preparedValues[str(ids)] = np.append(self.preparedValues[str(ids)], 
-                    np.repeat(setting[1], np.count_nonzero(getMesh()['physical'][2] == setting[0])))
+                    np.repeat(setting[1], np.count_nonzero(m.getMesh()['physical'][2] == setting[0])))
             else:
                 self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
-                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][0] == setting[0]),1))))
+                    np.tile(setting[1], (np.count_nonzero(m.getMesh()['physical'][0] == setting[0]),1))))
                 self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
-                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][1] == setting[0]),1))))
+                    np.tile(setting[1], (np.count_nonzero(m.getMesh()['physical'][1] == setting[0]),1))))
                 self.preparedValues[str(ids)] = np.row_stack((self.preparedValues[str(ids)], 
-                    np.tile(setting[1], (np.count_nonzero(getMesh()['physical'][2] == setting[0]),1))))
+                    np.tile(setting[1], (np.count_nonzero(m.getMesh()['physical'][2] == setting[0]),1))))
 
     def getValues(self, region=[]):
         ids = []
@@ -85,15 +85,15 @@ class Parameter:
     # but its only a problem for visualization, since this function is not used in calculation
     def getVertexValues(self):
         triangleValues = self.getValues()
-        if len(triangleValues) != numberOfTriangles():
+        if len(triangleValues) != m.numberOfTriangles():
             print("getVertexValues() only works for parameters that are defined on all mesh regions!")
             sys.exit()
         if len(triangleValues.shape) > 1:
-            vertexValues = np.zeros((numberOfVertices(), triangleValues.shape[1]))
+            vertexValues = np.zeros((m.numberOfVertices(), triangleValues.shape[1]))
         else:
-            vertexValues = np.zeros((numberOfVertices()))
-        for n in range(numberOfTriangles()):
-            vertexValues[mesh()['pt'][n][0]] = triangleValues[n]
-            vertexValues[mesh()['pt'][n][1]] = triangleValues[n]
-            vertexValues[mesh()['pt'][n][2]] = triangleValues[n]
+            vertexValues = np.zeros((m.numberOfVertices()))
+        for n in range(m.numberOfTriangles()):
+            vertexValues[m.getMesh()['pt'][n][0]] = triangleValues[n]
+            vertexValues[m.getMesh()['pt'][n][1]] = triangleValues[n]
+            vertexValues[m.getMesh()['pt'][n][2]] = triangleValues[n]
         return vertexValues     
