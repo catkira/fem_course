@@ -64,7 +64,7 @@ def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     storeInVTK(h, "h_magnet_octant_h.vtk")
     mus = mu.getValues()  
     brs = br.getValues()
-    b = np.column_stack([mus,mus,mus])*h.solution + brs  # this is a bit ugly, TODO: implement field-parameter operations
+    b = np.column_stack([mus,mus,mus])*h.elementValues.values + brs  # this is a bit ugly, TODO: implement field-parameter operations
     storeInVTK(b, "h_magnet_octant_b.vtk")        
     print(f'b_max = {max(np.linalg.norm(b, axis=1)):.4f}')    
     assert(abs(max(np.linalg.norm(b, axis=1)) - 3.3684) < 1e-3)

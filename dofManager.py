@@ -16,25 +16,24 @@ class DofFieldData:
         self.startIndex = 0
 
     def freeDofMask(self):
-        if self.field.elementType == 0:
-            return self.freeNodesMask
-        elif self.field.elementType == 1:
+        if self.field.isEdgeField():
             return self.freeEdgesMask        
+        else:
+            return self.freeNodesMask
 
     def countFreeDofs(self):
-        if self.field.elementType == 0:
-            return np.count_nonzero(self.freeNodesMask)
-        elif self.field.elementType == 1:
+        if self.field.isEdgeField():
             return np.count_nonzero(self.freeEdgesMask)      
+        else:
+            return np.count_nonzero(self.freeNodesMask)
 
     def applyDirichletMask(self):
-        elementType = self.field.elementType
         meshDim = m.getMesh()['problemDimension']    
         if meshDim == 3:
-            if elementType == 0:
-                self.freeNodesMask[np.unique(m.getMesh()['pt'][self.dirichletMask].ravel())] = False
-            elif elementType == 1:
+            if self.field.isEdgeField():
                 self.freeEdgesMask[np.unique(m.getMesh()['et'][self.dirichletMask].ravel())] = False
+            else:
+                self.freeNodesMask[np.unique(m.getMesh()['pt'][self.dirichletMask].ravel())] = False
         elif meshDim == 2:
             print("TODO: implemente applyDirichletMask() for 2d meshes!")
 

@@ -23,7 +23,7 @@ def storeInVTK(u, filename, writePointData : np.bool8 = False, field = []):
             u = u.getValues()
     elif isinstance(u, fd.Field):
         field = u
-        u = u.solution
+        u = u.elementValues.values
     else: # assume u is just an array with values
         if field == []:
             field = fd.globalField  # TODO: this only works if only one field is defined !

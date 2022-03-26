@@ -6,6 +6,30 @@ import region as rg
 import parameter
 import copy
 
+class ElementValues:
+    def __init__(self):
+        self.regions = []
+        self.regionStartIdx = dict()
+        self.regionLen = dict()
+        self.values = None
+
+    def __neg__(self):
+        newElementValues = copy.deepcopy(self)
+        newElementValues.values *= -1
+        return newElementValues
+
+    def __add__(self, other):
+        newElementValues = copy.deepcopy(self)
+        if self.regions != other.regions:
+            newElementValues.regions = np.intersect1d(self.regions, other.regions)
+            newElementValues.values = np.empty((0,self.values.shape[1]))
+            for region in newElementValues.regions:
+                newElementValues.values = np.row_stack((newElementValues.values, self.values[self.regionStartIdx[region]:self.regionStartIdx[region]+self.regionLen[region]]
+                    + other.values[other.regionStartIdx[region]:other.regionStartIdx[region] + other.regionLen[region]]))
+        else:
+            newElementValues.values = self.values + other.values
+        return newElementValues          
+
 # this is only a hack to allow simpler function calls when only one field is defined
 globalField = []
 
@@ -21,38 +45,18 @@ class Field:
         if regionIDs == []:
             regionIDs = m.getAllRegions(dim=m.dimensionOfMesh())
         self.regions = regionIDs
+        self.elementValues = ElementValues()
         dm.updateFieldRegions(self)
-
-    def __mul__(self, other):
-        if isinstance(other, parameter.Parameter):
-            pass
-        else: # assume its just a number
-            self.solution *= other
 
     def __neg__(self):
         newField = copy.deepcopy(self)
-        newField.solution *= -1
+        newField.elementValues.values *= -1
         return newField
 
     # TODO: what should self.elementType be, if a H1 and Hcurl field are added ??
     def __add__(self, other):
         newField = copy.deepcopy(self)
-        if self.regions != other.regions:
-            newField.regions = np.intersect1d(self.regions, other.regions)
-            newField.solution = np.empty((0,self.solution.shape[1]))
-            selfRegionStartIdx = 0
-            otherRegionStartIdx = 0
-            for region in np.union1d(self.regions, other.regions):
-                regionLen = self.getNumberOfElements(region)
-                if region in newField.regions:
-                    newField.solution = np.row_stack((newField.solution, self.solution[selfRegionStartIdx:selfRegionStartIdx+regionLen]
-                        + other.solution[otherRegionStartIdx:otherRegionStartIdx+regionLen]))
-                if region in other.regions:
-                    otherRegionStartIdx += regionLen
-                if region in self.regions:
-                    selfRegionStartIdx += regionLen
-        else:
-            newField.solution = self.solution + other.solution
+        newField.elementValues = self.elementValues + other.elementValues
         return newField
 
     def __sub__(self, other):
@@ -66,9 +70,6 @@ class Field:
 
     def setDirichlet(self, regions, value = []):
         dm.setDirichlet(self, regions, value)
-
-    def isEdgeField(self):
-        return self.elementType 
 
     def isGauged(self):
         return dm.isGauged(self)
@@ -123,8 +124,8 @@ class Field:
 # HCurl only makes sense for mesh()['problemDimension'] = 3 !
 class FieldHCurl(Field):
     def __init__(self, regionIDs=[]):
-        self.elementType = 1
         super().__init__(regionIDs)
+        self.elementType = 1
 
     def numBasisFunctions(self, elementDim):
         if elementDim == 2:
@@ -134,6 +135,9 @@ class FieldHCurl(Field):
 
     def setGauge(self, tree):
         dm.setGauge(self, tree)       
+
+    def isEdgeField(self):
+        return True
 
     def shapeFunctionCurls(self, elementDim = 2):
         if elementDim == 2:
@@ -191,7 +195,13 @@ class FieldHCurl(Field):
             signs = m.getMesh()['signs3d']
             curls = np.einsum('i,ijk,lk,il,il->ij', 1/detJacs, jacs, sfCurls, signs, u[elements])   
         newField = copy.deepcopy(self)
-        newField.solution = curls
+        newField.elementValues.values = curls
+        newField.elementValues.regions  = self.regions
+        idx = 0
+        for region in self.regions:
+            newField.elementValues.regionStartIdx[region] = idx
+            newField.elementValues.regionLen[region] = self.getNumberOfElements(region)
+            idx += newField.elementValues.regionLen[region]
         return newField
 
     def dt(self, u, frequency, dim=3):
@@ -207,13 +217,22 @@ class FieldHCurl(Field):
             print("Error: not yet implemented!")
             sys.exit()
         newField = copy.deepcopy(self)
-        newField.solution = dts
+        newField.elementValues.values = dts
+        newField.elementValues.regions = self.regions
+        idx = 0
+        for region in self.regions:
+            newField.elementValues.regionStartIdx[region] = idx
+            newField.elementValues.regionLen[region] = self.getNumberOfElements(region)
+            idx += newField.elementValues.regionLen[region]    
         return newField
 
 class FieldH1(Field):    
     def __init__(self, regionIDs=[]):
+        super().__init__(regionIDs)
         self.elementType = 0
-        super().__init__(regionIDs)        
+
+    def isEdgeField(self):
+        return False
 
     def shapeFunctionGradients(self, elementDim = 2):
         if elementDim == 2:
@@ -259,7 +278,13 @@ class FieldH1(Field):
                 invJac = np.linalg.inv(jac)
                 grads[elementIndex] = invJac.T @ sfGrads.T @ u[element]
         newField = copy.deepcopy(self)
-        newField.solution = grads
+        newField.elementValues.values = grads
+        newField.elementValues.regions = self.regions
+        idx = 0
+        for region in self.regions:
+            newField.elementValues.regionStartIdx[region] = idx
+            newField.elementValues.regionLen[region] = self.getNumberOfElements(region)
+            idx += newField.elementValues.regionLen[region]
         return newField
         # points = np.hstack([mesh()['xp'], np.zeros((n,1))]) # add z coordinate
         # cells = (np.hstack([(3*np.ones((m,1))), mesh()['pt']])).ravel().astype(np.int64)

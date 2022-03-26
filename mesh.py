@@ -71,7 +71,7 @@ def getNodesInRegion(regions):
                 elif dim == 2:
                     regionElements = mesh['ptt'][elementIndices]
                 combinedNodes = np.append(combinedNodes, np.arange(numberOfVertices())[regionElements.ravel()])
-    return combinedNodes            
+    return combinedNodes
 
 def getElementsInRegion(elementType, regions):
     if not (type(regions) == list) and not (type(regions) == np.ndarray):

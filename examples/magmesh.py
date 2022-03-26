@@ -61,9 +61,8 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
     b = field.curl(u, dim=3)
     storeInVTK(b, "magmesh_b.vtk")
-    print(f'b_max = {max(np.linalg.norm(b.solution ,axis=1)):.8f}')    
-    assert(abs(max(np.linalg.norm(b.solution ,axis=1)) - 2.8919e-8) < 2e-3)
-
+    print(f'b_max = {max(np.linalg.norm(b.elementValues.values, axis=1)):.8f}')    
+    assert(abs(max(np.linalg.norm(b.elementValues.values ,axis=1)) - 2.8919e-8) < 2e-3)
 
 if __name__ == "__main__":
     run_magmesh(dirichlet='soft', gauge=True, coarse=False)
