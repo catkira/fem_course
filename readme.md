@@ -37,14 +37,12 @@ Possible features to be implemented (difficulty in in brackets):
     cd ~/.venv
     python3 -m venv python_fem
     source ./python_fem/bin/activate
-    https://github.com/pyvista/pyvista-wheels/raw/main/vtk-9.1.0.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
     pip install scipy numpy matplotlib plotly vtk pyvista meshio
-    pip install mpi4py
-    
+    pip install mpi4py    
     export PETSC_CONFIGURE_OPTIONS="--with-openmp --with-mpi=0 --with-shared-libraries=1 --with-mumps-serial=1 --download-mumps --download-openblas --download-openblas-commit=origin/develop --download-metis --download-slepc --with-debugging=0 --with-scalar-type=real --with-x=0 COPTFLAGS=-O3 CXXOPTFLAGS=-O3 FOPTFLAGS=-O3"
-    pip install  -v petsc
-    pip install  -v petsc4py
+    pip install -r requirements.txt
     
+    Alternatively to install petsc manually:
     git clone -b release https://gitlab.com/petsc/petsc
     cd petsc
     ./configure --with-openmp --with-mpi=0 --with-shared-libraries=1 --with-mumps-serial=1 --download-mumps --download-openblas --download-openblas-commit=origin/develop --download-metis --download-slepc --with-debugging=0 --with-scalar-type=real --with-x=0 --with-petsc4py COPTFLAGS=-O3 CXXOPTFLAGS=-O3 FOPTFLAGS=-O3
