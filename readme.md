@@ -1,5 +1,4 @@
 [![Python package](https://github.com/catkira/fem_course/actions/workflows/python-package.yml/badge.svg)](https://github.com/catkira/fem_course/actions/workflows/python-package.yml)
-[![Github All Releases](https://img.shields.io/github/downloads/catkira/fem_course/total.svg)]()
 
 # What is this?
 This is a minimal FEM implementation entirely in Python. It is only an educational project with the goal to better understand FEM in the context of electromagnetic fields. Even though it is not particularly speed optimized, vectorized assembly with numpy and petsc4py for solving is used so that the speed is pretty fast (I have used up to 200k elements, but 1M elements should also work).
