@@ -252,14 +252,14 @@ def dimensionOfMesh():
     return 0
 
 def getAllRegions(dim : int = -1):
-    regions = np.empty(0, dtype = np.int)
+    regions = np.empty(0, dtype = int)
     if dim == -1:
         for dim in range(mesh['problemDimension']):
             if not mesh['physical'][dim] is None:
-                regions = np.append(regions, np.unique(mesh['physical'][dim]).astype(np.int))
+                regions = np.append(regions, np.unique(mesh['physical'][dim]).astype(int))
     else:
         if not mesh['physical'][dim-1] is None:
-            regions = np.append(regions, np.unique(mesh['physical'][dim-1]).astype(np.int))
+            regions = np.append(regions, np.unique(mesh['physical'][dim-1]).astype(int))
     return regions
 
 def transformationJacobians(reg = [], elementDim : int = 3):
