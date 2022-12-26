@@ -1,0 +1,8 @@
+meshio
+pyvista
+plotly
+numpy
+scipy
+mpi4py
+petsc
+petsc4py

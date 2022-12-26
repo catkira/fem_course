@@ -20,6 +20,7 @@ if 'petsc4py' in pkg_resources.working_set.by_key:
     from petsc4py import PETSc
 else:
     print("Warning: no petsc4py found, solving will be very slow!")
+    hasPetsc = False
 np.set_printoptions(linewidth=400)    
 
 from mesh import getMesh
