@@ -1,3 +1,4 @@
+[![Python package](https://github.com/catkira/fem_course/actions/workflows/python-package.yml/badge.svg)](https://github.com/catkira/fem_course/actions/workflows/python-package.yml)
 [![Github All Releases](https://img.shields.io/github/downloads/catkira/fem_course/total.svg)]()
 
 # What is this?
