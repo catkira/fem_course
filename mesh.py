@@ -375,7 +375,7 @@ def rectangularCriss(w, h):
     G['allPhysicalIds'] = np.empty((3,0))    
     G['physical'] = np.empty(3, object)
     G['physical'][0] = []
-    G['physical'][1] = np.ones(G['pt'].shape[0], dtype=np.int)
+    G['physical'][1] = np.ones(G['pt'].shape[0], dtype=int)
     G['physical'][2] = []
     G['allPhysicalIds'][0] = []
     G['allPhysicalIds'][1] = [1]
