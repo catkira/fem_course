@@ -11,9 +11,9 @@ class spanningtree:
         self.nodeInSubtree = np.repeat(-1, self.numNodes)
         self.currentRegion = -1
         self.currentEdgePool = np.empty((0,2))
-        self.idx = np.zeros(self.numNodes, dtype=np.bool)
+        self.idx = np.zeros(self.numNodes, dtype=bool)
         self.graphSorted2 = np.column_stack([self.edgePool, np.arange(self.edgePool.shape[0])])[self.edgePool[:, 1].argsort()]
-        self.isNodeInTree = np.zeros(self.numNodes, dtype=np.bool)
+        self.isNodeInTree = np.zeros(self.numNodes, dtype=bool)
         self.branches = []
 
         if create:

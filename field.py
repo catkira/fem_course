@@ -86,7 +86,7 @@ class Field:
                 print("Error: cannot call with dim and region set at the same time!")
                 sys.exit()
             # oldRegions = self.regions
-            # self.regions = np.unique(np.append(self.regions, region.ids)).astype(np.int)
+            # self.regions = np.unique(np.append(self.regions, region.ids)).astype(int)
             # if np.any(oldRegions != self.regions) or len(oldRegions) == 0:
             #    dm.updateFieldRegions(self)
             elements = region.getElements(field=self, nodesOnly = nodesOnly)

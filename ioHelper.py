@@ -13,7 +13,7 @@ def f2s(inputValue):
 # u can be of type parameter or a list
 # if its a parameter, it has to be defined for all regions in its dimension
 # parameter can only be plotted if its on the highest dimension of the mesh
-def storeInVTK(u, filename, writePointData : np.bool8 = False, field = []):
+def storeInVTK(u, filename, writePointData: bool = False, field = []):
     if isinstance(u, Parameter):
         if field == []:
             field = fd.globalField  # TODO: this only works if only one field is defined !

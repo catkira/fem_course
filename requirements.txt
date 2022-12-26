@@ -3,6 +3,5 @@ pyvista
 plotly
 numpy
 scipy
+cython
 mpi4py
-petsc
-petsc4py
