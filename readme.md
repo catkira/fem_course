@@ -1,3 +1,5 @@
+[![Github All Releases](https://img.shields.io/github/downloads/catkira/fem_course/total.svg)]()
+
 # What is this?
 This is a minimal FEM implementation entirely in Python. It is only an educational project with the goal to better understand FEM in the context of electromagnetic fields. Even though it is not particularly speed optimized, vectorized assembly with numpy and petsc4py for solving is used so that the speed is pretty fast (I have used up to 200k elements, but 1M elements should also work).
 This is not intended to be used for real applications, there are plenty of open source FEM tools with much more features available - I think the best one is sparselizard.
