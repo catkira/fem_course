@@ -3,7 +3,7 @@ name: Python package
 on: [push]
 
 jobs:
-  build:
+  lint_and_test:
 
     runs-on: ubuntu-latest
     strategy:
@@ -44,8 +44,8 @@ jobs:
         run: |
           python3 run_examples.py
 
-  deploy:
-    needs: build
+  deploy_badge:
+    needs: lint_and_test
 
     permissions:
       pages: write
@@ -65,6 +65,6 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v1
         with:
-          path: './badge'
+          path: '.'
       - id: deployment
         uses: actions/deploy-pages@master
