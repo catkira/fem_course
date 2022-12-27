@@ -16,14 +16,14 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install dependencies
         run: |
           sudo apt install -y libblas-dev liblapack-dev # needed for pip install petsc
           sudo apt install -y libopenmpi-dev
           export PETSC_CONFIGURE_OPTIONS="--with-openmp --with-mpi=0 --with-shared-libraries=1 --with-mumps-serial=1 --download-mumps --download-openblas --download-openblas-commit=origin/develop --download-metis --download-slepc --with-debugging=0 --with-scalar-type=real --with-x=0 COPTFLAGS=-O3 CXXOPTFLAGS=-O3 FOPTFLAGS=-O3"
           python -m pip install --upgrade pip
-          pip install flake8 pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
       - name: Lint with pylint
         run: |
           pylint --exit-zero *.py | tee pylint.txt
