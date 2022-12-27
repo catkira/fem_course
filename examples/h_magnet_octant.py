@@ -8,7 +8,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
-
+from mesh import *
+from mesh import *
+from field import FieldH1
+from ioHelper import storeInVTK
 
 def run_h_magnet_octant(vectorized=True, legacy=False, dirichlet='soft'):
     loadMesh("examples/h_magnet_octant.msh")

@@ -8,6 +8,9 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
+from mesh import *
+from ioHelper import storeInVTK
+from field import FieldH1
 
 def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', mesh='msh'):    
     if mesh == 'msh':
@@ -48,7 +51,7 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', me
     alphas = np.zeros(r) 
     for e in range(r):
         cog = np.sum(getMesh()['xp'][getMesh()['pe'][getMesh()['eb'][e],:],:],0)/2
-        if abs(cog[0]-5) < 1e-6: 
+        if abs(cog[0]-5) < 1e-6:
             alphas[e] = 1e9 # Dirichlet BC
         elif abs(cog[0]) < 1e-6:
             alphas[e] = 1e-9 # Neumann BC
@@ -69,11 +72,11 @@ def run_bookExample2(scalarSigma, anisotropicInclusion=False, method='petsc', me
     B = boundaryMassMatrix(field, alphas)
     b = B @ pd
     A = K+B
-    stop = time.time()    
+    stop = time.time()
     print(f'assembled in {stop - start:.2f} s')        
     solve(A, b, method)
     u = field.solution
-    print(f'u_max = {max(u):.4f}')    
+    print(f'u_max = {max(u):.4f}')
     assert(abs(max(u) - 4) < 1e-3)
     if anisotropicInclusion:
         #storeFluxInVTK(u,sigmas,"example2_anisotropicInclusions.vtk")

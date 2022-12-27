@@ -8,6 +8,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
+from mesh import *
+from ioHelper import storeInVTK
+from field import FieldHCurl
+import spanningtree as st
 
 def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     if coarse:

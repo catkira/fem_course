@@ -9,6 +9,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
+from mesh import *
+from field import FieldHCurl
+import spanningtree as st
+from ioHelper import storeInVTK
 
 def run_h_magnet(verify=False, dirichlet='soft', gauge=True, legacy=False):
     loadMesh("examples/h_magnet.msh")

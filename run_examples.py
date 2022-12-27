@@ -5,6 +5,7 @@ from examples.h_magnet_octant import *
 from examples.magnet_in_room import *
 from examples.magmesh import *
 from formulation import *
+from mesh import *
 
 def main():
     if True:

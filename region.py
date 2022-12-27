@@ -6,22 +6,28 @@ import field as fd
 regionList = []
 
 class Region:
-    def __init__(self, ids=[]):
+    def __init__(self, ids = None):
         global regionList
-        self.ids = []
+        self.ids = None
         self.elements = []
         self.edgeElements = []
         self.regionDimension = 0
-        if ids is not  []:
+        if ids is not None:
             self.ids = list(ids)
         regionList.append(self)
 
     def append(self, ids):
-        if isinstance(ids, list) or type(ids) is np.ndarray:
-            for id in ids:
-                self.ids.append(id)
-        else:
-            self.ids.append(ids)
+        if isinstance(ids, (list, np.ndarray)):
+            if self.ids is not None:
+                for id in ids:
+                    self.ids.append(id)
+            else:
+                self.ids = list(ids)
+        elif isinstance(ids, int):
+            if self.ids is None:
+                self.ids = [ids]
+            else:
+                self.ids.append(ids)
         self.updateRegionDimension()
 
     # if elementType is not specified, take elementType of Field
@@ -49,7 +55,7 @@ class Region:
                     if self.regionDimension != 0 and self.regionDimension != dim:
                         print("cannot mix dimensions in single region!")
                         sys.exit()
-                    self.regionDimension = dim                    
+                    self.regionDimension = dim                 
 
     def calculateElements(self, edges=False):
         if edges:

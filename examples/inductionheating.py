@@ -9,6 +9,11 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
+from mesh import *
+from ioHelper import storeInVTK
+from field import FieldV, FieldHCurl, FieldH1
+import dofManager as dm
+import spanningtree as st
 
 def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
     loadMesh("examples/inductionheating.msh")
@@ -60,7 +65,7 @@ def run_inductionheating(verify=False, dirichlet='soft', gauge=True):
         VinRegion = Region([vin])
         B_D1 = massMatrix(fieldV1, alpha, VinRegion)
         vinElements = fieldV1.getElements(region=VinRegion)
-        pd = np.zeros(countAllFreeDofs())
+        pd = np.zeros(dm.countAllFreeDofs())
         pd[np.unique(vinElements.ravel())] = 1
         rhs = B_D1 @ pd
     else:

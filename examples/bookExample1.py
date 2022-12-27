@@ -8,6 +8,9 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from formulation import *
+from mesh import *
+from field import FieldH1
+from ioHelper import storeInVTK
 
 def run_bookExample1(verify=False):
     # example from book page 33

@@ -1,8 +1,6 @@
 import numpy as np
 import sys
 import mesh as m
-from field import *
-import region as rg
 
 parameterList = []
 
