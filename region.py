@@ -1,3 +1,4 @@
+"""Module providing functions needed to define regions."""
 import numpy as np
 import sys
 import mesh as m
@@ -5,8 +6,9 @@ import field as fd
 
 regionList = []
 
-class Region:
-    def __init__(self, ids = None):
+
+class Region: # pylint: disable=C0115
+    def __init__(self, ids=None):
         global regionList
         self.ids = None
         self.elements = []
@@ -19,8 +21,8 @@ class Region:
     def append(self, ids):
         if isinstance(ids, (list, np.ndarray)):
             if self.ids is not None:
-                for id in ids:
-                    self.ids.append(id)
+                for regionId in ids:
+                    self.ids.append(regionId)
             else:
                 self.ids = list(ids)
         elif isinstance(ids, int):
@@ -32,10 +34,10 @@ class Region:
 
     # if elementType is not specified, take elementType of Field
     def getElements(self, nodesOnly=False, field=-1):
-        if nodesOnly == True:
+        if nodesOnly is True:
             edges = False
         else:
-            if field == -1: # this is used if only one global field is defined
+            if field == -1:  # this is used if only one global field is defined
                 edges = fd.isEdgeField()
             else:
                 edges = field.isEdgeField()
@@ -49,13 +51,13 @@ class Region:
             return self.elements
 
     def updateRegionDimension(self):
-        for id in self.ids:
-            for dim in np.arange(start=1,stop=4):
-                if id in m.mesh['physical'][dim-1]:
-                    if self.regionDimension != 0 and self.regionDimension != dim:
+        for regionId in self.ids:
+            for dim in np.arange(start=1, stop=4):
+                if regionId in m.mesh["physical"][dim - 1]:
+                    if self.regionDimension not in (0, dim):
                         print("cannot mix dimensions in single region!")
                         sys.exit()
-                    self.regionDimension = dim                 
+                    self.regionDimension = dim
 
     def calculateElements(self, edges=False):
         if edges:
@@ -63,25 +65,25 @@ class Region:
         # always sort physicalIds so that numbering of region elements and parameters match
         self.ids.sort()
         if edges:
-            self.edgeElements = m.getElementsInRegion(elementType=1, regions = self.ids)
+            self.edgeElements = m.getElementsInRegion(elementType=1, regions=self.ids)
         else:
-            self.elements = m.getElementsInRegion(elementType=0, regions = self.ids)
+            self.elements = m.getElementsInRegion(elementType=0, regions=self.ids)
 
-        for id in self.ids:
-            for dim in np.arange(start=1,stop=4):
-                if id in m.mesh['physical'][dim-1]:
-                    if self.regionDimension != 0 and self.regionDimension != dim:
+        for regionId in self.ids:
+            for dim in np.arange(start=1, stop=4):
+                if regionId in m.mesh["physical"][dim - 1]:
+                    if self.regionDimension not in (0, dim):
                         print("cannot mix dimensions in single region!")
                         sys.exit()
                     self.regionDimension = dim
-        #             matches = (m.mesh['physical'][dim-1] == id)
-        #             if edges:
-        #                 if self.edgeElements == []:
-        #                     self.edgeElements = m.getElements(edges, dim-1)[matches]
-        #                 else:
-        #                     self.edgeElements = np.row_stack((self.edgeElements, m.getElements(edges, dim-1)[matches]))
-        #             else:
-        #                 if self.elements == []:
-        #                     self.elements = m.getElements(edges, dim-1)[matches]
-        #                 else:
-        #                     self.elements = np.row_stack((self.elements, m.getElements(edges, dim-1)[matches]))
+    #             matches = (m.mesh['physical'][dim-1] == id)
+    #             if edges:
+    #                 if self.edgeElements == []:
+    #                     self.edgeElements = m.getElements(edges, dim-1)[matches]
+    #                 else:
+    #                     self.edgeElements = np.row_stack((self.edgeElements, m.getElements(edges, dim-1)[matches]))
+    #             else:
+    #                 if self.elements == []:
+    #                     self.elements = m.getElements(edges, dim-1)[matches]
+    #                 else:
+    #                     self.elements = np.row_stack((self.elements, m.getElements(edges, dim-1)[matches]))

@@ -1,5 +1,7 @@
 import numpy as np
 import time
+import vtk
+
 import field as fd
 from parameter import Parameter
 from mesh import *

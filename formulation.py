@@ -1,4 +1,4 @@
-"""Module providingFunction printing python version."""
+"""Module providing functions needed to formulate a FEM problem."""
 import numpy as np
 import time
 import sys

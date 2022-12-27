@@ -47,7 +47,7 @@ class Field:
         self.id = dm.registerField(self)
         self.solution = np.empty(0)
         if regionIDs == []:
-            regionIDs = m.getAllRegions(dim=m.dimensionOfMesh())
+            regionIDs = m.getAllRegions(dimReq=m.dimensionOfMesh())
         self.regions = regionIDs
         self.elementValues = ElementValues()
         dm.updateFieldRegions(self)
