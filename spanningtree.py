@@ -23,7 +23,7 @@ class spanningtree:
                 sys.setrecursionlimit(1000000)
                 self.createTree(excludedRegions, verbose=verbose)        
                 sys.setrecursionlimit(origRecLimit)    
-            
+
             else:
                 excludedNodes = np.empty(0, dtype = np.int64)
                 for region in excludedRegions:
@@ -85,7 +85,7 @@ class spanningtree:
 
             # calculate edgeIds
             if verbose:
-                print(f"calculate tree edges")           
+                print(f'calculate tree edges')
             self.edgeIds = np.empty(self.edges.shape[0], dtype=np.int64)
             for i, edge in enumerate(self.edges):
                 self.edgeIds[i] = self.findEdgeId(edge)
@@ -101,7 +101,7 @@ class spanningtree:
                     else:
                         print("Error!")
                         sys.exit()
-            #                 
+            #
 
             # calculate branches
             # for id, edge in enumerate(self.edgePool):
@@ -112,7 +112,7 @@ class spanningtree:
 
             numNodes = len(np.unique(self.edges.ravel()))
             duration = time.time() - start
-            print(f"tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s")
+            print(f'tree with {len(self.edges)} edges, {len(self.branches)} branches and {numNodes} nodes completed in {duration:.4f}s')
 
     def load(self, filename):
         start = time.time()
@@ -121,7 +121,7 @@ class spanningtree:
             lines = f.readlines()
         delLines = []
         for i in range(len(lines)):
-            if len(lines[i]) < 10 or lines[i][0:2] != "SL":
+            if len(lines[i]) < 10 or lines[i][0:2] != 'SL':
                 delLines.append(i)
             else:
                 lines[i] = lines[i][3:len(lines[i])-2]
@@ -134,15 +134,17 @@ class spanningtree:
         self.edges = np.empty((len(lines), 2), dtype=np.int64)
         for i in range(len(lines)):
             point = coords[2*i, :]
-            diff = np.sum(np.abs(m.getMesh()['xp'] - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
+            diff = np.sum(np.abs(m.getMesh()['xp']
+                - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
             self.edges[i,0] = np.argmin(diff)
             point = coords[2*i + 1, :]
-            diff = np.sum(np.abs(m.getMesh()['xp'] - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
+            diff = np.sum(np.abs(m.getMesh()['xp']
+                - np.tile(point, len(m.getMesh()['xp'])).reshape(m.getMesh()['xp'].shape)), axis = 1)
             self.edges[i,1] = np.argmin(diff)
             self.edgeIds[i] = self.findEdgeId(self.edges[i,:])
         assert len(self.edgeIds) == len(np.unique(self.edgeIds))
         duration = time.time() - start
-        print(f"imported tree with {len(self.edges)} edges completed in {duration:.4f}s")
+        print(f'imported tree with {len(self.edges)} edges completed in {duration:.4f}s')
 
 
     def prepareConnectedNodes(self, region):
@@ -166,19 +168,21 @@ class spanningtree:
             self.prepareConnectedNodes(region)
             # add first edge to tree
             # make sure its not in an excluded region
+            selectedEdge = None
             for edge in self.currentEdgePool:
                 if (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
-                    self.edges = np.row_stack((self.edges, edge))        
+                    self.edges = np.row_stack((self.edges, edge))
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
+                    selectedEdge = edge
                     break
             if verbose:
-                print(f"building tree for priority region {region}")           
-            self.currentRegion = region     
-            if self.connectedNodes[edge[1]] is None:
-                self.growTreeRecursive([edge[1],edge[0]])
+                print(f'building tree for priority region {region}')
+            self.currentRegion = region
+            if self.connectedNodes[selectedEdge[1]] is None:
+                self.growTreeRecursive([selectedEdge[1], selectedEdge[0]])
             else:
-                self.growTreeRecursive(edge)
+                self.growTreeRecursive(selectedEdge)
 
         # create trees for remaining regions
         remainingRegions = np.setdiff1d(m.getAllRegions(), priorityRegions)
@@ -188,12 +192,12 @@ class spanningtree:
             # make sure its not in an excluded region
             for edge in self.currentEdgePool:
                 if (not self.isNodeInTree[edge[0]]) & (not self.isNodeInTree[edge[1]]):
-                    self.edges = np.row_stack((self.edges, edge))        
+                    self.edges = np.row_stack((self.edges, edge))
                     self.isNodeInTree[edge.ravel()] = True
                     self.nodeInSubtree[edge.ravel()] = region
                     break
             if verbose:
-                print(f"building tree for region {region}")
+                print(f'building tree for region {region}')
             self.currentRegion = region               
             if self.connectedNodes[edge[1]] is None:
                 self.growTreeRecursive([edge[1],edge[0]])
@@ -201,7 +205,7 @@ class spanningtree:
                 self.growTreeRecursive(edge)
 
         if verbose:
-            print("connecting subtrees")
+            print('connecting subtrees')
         connectedSubtrees = np.empty(np.max(m.getAllRegions())+1, dtype=object)
         for i in range(len(connectedSubtrees)):
             connectedSubtrees[i] = [i]
@@ -209,14 +213,14 @@ class spanningtree:
             if self.isNodeInTree[edge[0]] and self.isNodeInTree[edge[1]]:
                 if self.nodeInSubtree[edge[0]] != self.nodeInSubtree[edge[1]]:
                     # make sure it does not create a loop
-                    if (self.nodeInSubtree[edge[1]] in connectedSubtrees[self.nodeInSubtree[edge[0]]]): 
+                    if self.nodeInSubtree[edge[1]] in connectedSubtrees[self.nodeInSubtree[edge[0]]]:
                         continue
-                    if (self.nodeInSubtree[edge[0]] in connectedSubtrees[self.nodeInSubtree[edge[1]]]): 
-                        continue                    
+                    if self.nodeInSubtree[edge[0]] in connectedSubtrees[self.nodeInSubtree[edge[1]]]:
+                        continue
 
                     self.edges = np.row_stack((self.edges, edge)) # add edge
                     if verbose:
-                        print(f"connection region {self.nodeInSubtree[edge[0]]} with region {self.nodeInSubtree[edge[1]]}")
+                        print(f'connection region {self.nodeInSubtree[edge[0]]} with region {self.nodeInSubtree[edge[1]]}')
                     connectedSubtrees[self.nodeInSubtree[edge[1]]] += connectedSubtrees[self.nodeInSubtree[edge[0]]]
                     connectedSubtrees[self.nodeInSubtree[edge[0]]] += connectedSubtrees[self.nodeInSubtree[edge[1]]]
 
@@ -301,16 +305,17 @@ class spanningtree:
             return
         self.isNodeInTree[filteredCands] = True
         self.nodeInSubtree[filteredCands] = self.currentRegion
-        newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1], np.arange(m.numberOfVertices())[filteredCands]])
-        self.edges = np.row_stack((self.edges, newEdges))        
+        newEdges = np.column_stack([np.ones(np.count_nonzero(filteredCands), dtype=np.int64)*edge[1],
+            np.arange(m.numberOfVertices())[filteredCands]])
+        self.edges = np.row_stack((self.edges, newEdges))       
         #for newEdge in newEdges:
         #    print(f"add edge {newEdge[0]},{newEdge[1]}")
         for newEdge in newEdges:
             self.growTreeRecursive(newEdge)
-    
+
     def write(self, filename, branches = False):
         if self.edges == []:
-            print("Warning: tree has no edges!")
+            print('Warning: tree has no edges!')
         txt = str()
         with open(filename, 'w') as file:
             txt += """View \"spantree\" {

@@ -1,22 +1,21 @@
 from examples.h_magnet import run_h_magnet
 from examples.bookExample1 import run_bookExample1
-from examples.bookExample2 import *
-from examples.h_magnet_octant import *
-from examples.magnet_in_room import *
-from examples.magmesh import *
-from formulation import *
-from mesh import *
+from examples.bookExample2 import run_bookExample2, run_bookExample2Parameter
+from examples.h_magnet_octant import run_h_magnet_octant
+from examples.magnet_in_room import run_magnet_in_room
+from examples.magmesh import run_magmesh
+from mesh import loadMesh, computeEdges2d, rectangularCriss, computeBoundary
 
 def main():
     if True:
         rectangularCriss(50,50)
         computeEdges2d()
-        computeBoundary()    
+        computeBoundary()
         run_bookExample1()
 
-        loadMesh("examples/air_box_2d.msh")
+        loadMesh('examples/air_box_2d.msh')
         computeEdges2d()
-        computeBoundary()        
+        computeBoundary()
         run_bookExample1()
 
         run_bookExample2Parameter(True, anisotropicInclusion=False, method='mumps')
@@ -27,7 +26,7 @@ def main():
         run_h_magnet_octant(dirichlet='soft', vectorized=False)
         run_h_magnet_octant(dirichlet='hard', vectorized=True)
         run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=True)
-        run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=False)        
+        run_h_magnet_octant(dirichlet='hard', vectorized=False, legacy=False)
 
         run_h_magnet(dirichlet='soft', gauge=True)
         run_h_magnet(dirichlet='soft', gauge=False, verify=True)
@@ -40,5 +39,5 @@ def main():
         run_magmesh(dirichlet='soft', gauge=True, coarse=False)
     print('finished')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

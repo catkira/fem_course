@@ -31,14 +31,14 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     nu.set(shield, 1/(mu0*mur_frame))
     nu.set([conductor, air], 1/mu0)
     #storeInVTK(nu,"nu.vtk")
-    
+
     currentDensity = Parameter(3)
     currentDensity.set(conductor, [0, 0, 1])
     currentDensity.set([shield, air], [0, 0, 0])
 
     volumeRegion = Region([conductor, shield, air])
     boundaryRegion = Region([inf])
-    
+
     field = FieldHCurl([conductor, shield, air])
     if gauge:
         spanningtree = st.spanningtree([inf])
@@ -59,14 +59,14 @@ def run_magmesh(verify=False, dirichlet='soft', coarse=True, gauge=True):
     stop = time.time()
     print(f"{bcolors.OKGREEN}assembled in {stop - start:.2f} s{bcolors.ENDC}")       
     print(f'max(rhs) = {max(rhs)}')
-    solve(A, rhs, 'mumps')    
+    solve(A, rhs, 'mumps')
     u = field.solution
     print(f'max(u) = {max(u)}')
-    #storeInVTK(u, "magmesh_u.vtk", writePointData=True)    
+    #storeInVTK(u, "magmesh_u.vtk", writePointData=True)
     b = field.curl(u, dim=3)
     storeInVTK(b, "magmesh_b.vtk")
-    print(f'b_max = {max(np.linalg.norm(b.elementValues.values, axis=1)):.8f}')    
-    assert(abs(max(np.linalg.norm(b.elementValues.values ,axis=1)) - 2.8919e-8) < 2e-3)
+    print(f'b_max = {max(np.linalg.norm(b.elementValues.values, axis=1)):.8f}')
+    assert abs(max(np.linalg.norm(b.elementValues.values ,axis=1)) - 2.8919e-8) < 2e-3
 
 if __name__ == "__main__":
     run_magmesh(dirichlet='soft', gauge=True, coarse=False)
